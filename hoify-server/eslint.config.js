@@ -25,11 +25,9 @@ export default tseslint.config(
       // Allow explicit `any` sparingly — warn rather than error
       '@typescript-eslint/no-explicit-any': 'warn',
 
-      // Require explicit return types on exported functions
-      '@typescript-eslint/explicit-function-return-type': ['warn', {
-        allowExpressions: true,
-        allowTypedFunctionExpressions: true,
-      }],
+      // No explicit return types needed — TypeScript strict mode catches real issues
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
 
       // Prefer const over let when variable is never reassigned
       'prefer-const': 'error',
@@ -52,7 +50,14 @@ export default tseslint.config(
   {
     files: ['src/__tests__/**/*.ts'],
     rules: {
-      // Allow console in tests
+      'no-console': 'off',
+    },
+  },
+
+  // Override for server entry point
+  {
+    files: ['src/index.ts'],
+    rules: {
       'no-console': 'off',
     },
   },

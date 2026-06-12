@@ -31,7 +31,7 @@ export const authPlugin: ApolloServerPlugin<Context> = {
       willResolveField: ({
         contextValue,
         info,
-      }: GraphQLFieldResolverParams<any, Context>) => {
+      }: GraphQLFieldResolverParams<unknown, Context>) => {
         const { parentType, fieldName } = info;
 
         // Only guard top-level Query/Mutation fields
