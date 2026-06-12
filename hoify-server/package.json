@@ -12,6 +12,8 @@
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "test:e2e": "NODE_OPTIONS='--experimental-vm-modules' jest --config jest.e2e.config.cjs",
     "test:e2e:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --config jest.e2e.config.cjs --watch",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -42,10 +44,14 @@
     "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.0",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^10.4.1",
+    "husky": "^9.1.7",
     "jest": "^30.4.2",
+    "lint-staged": "^17.0.7",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",
     "tsx": "^4.19.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.61.0"
   }
 }

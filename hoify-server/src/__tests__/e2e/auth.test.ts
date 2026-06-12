@@ -1,17 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import request from "supertest";
 
-import { setupE2e } from "../helpers/setup-e2e.js";
-import { executeGraphQL } from "../helpers/graphql.js";
 import {
+  executeGraphQL,
   CREATE_USER_MUTATION,
   LOGIN_MUTATION,
   ME_QUERY,
 } from "../helpers/graphql.js";
+import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 
-import type { E2eFixture } from "../helpers/setup-e2e.js";
-
-// ── Shared state (populated in beforeAll) ─────────────────────────────────
+// ── Shared state (populated in beforeAll)────────────────────────────
 let fixture: E2eFixture;
 let agent: ReturnType<typeof request>;
 

@@ -1,17 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import request from "supertest";
 
-import { setupE2e } from "../helpers/setup-e2e.js";
-import {
-  executeGraphQL,
-  CREATE_USER_MUTATION,
-  LOGIN_MUTATION,
-  ME_QUERY,
-  UPDATE_USER_MUTATION,
-  DELETE_USER_MUTATION,
-} from "../helpers/graphql.js";
-
-import type { E2eFixture } from "../helpers/setup-e2e.js";
+import { executeGraphQL, CREATE_USER_MUTATION, LOGIN_MUTATION, ME_QUERY, UPDATE_USER_MUTATION, DELETE_USER_MUTATION } from "../helpers/graphql.js";
+import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 
 // ── Shared state (populated in beforeAll) ─────────────────────────────────
 let fixture: E2eFixture;

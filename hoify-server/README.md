@@ -10,6 +10,7 @@
 | Framework        | [Express]                                          |
 | GraphQL          | [Apollo Server]                                    |
 | Build / Dev      | [tsx] (watch mode), [tsc] (production build)       |
+| Linting          | [ESLint] + [typescript-eslint]                     |
 | Database         | [PostgreSQL] 16 (via Docker Compose)               |
 
 [Node.js]: https://nodejs.org/
@@ -18,6 +19,8 @@
 [Apollo Server]: https://www.apollographql.com/docs/apollo-server/
 [tsx]: https://tsx.is/
 [tsc]: https://www.typescriptlang.org/docs/handbook/compiler-options.html
+[ESLint]: https://eslint.org/
+[typescript-eslint]: https://typescript-eslint.io/
 [PostgreSQL]: https://www.postgresql.org/
 
 ---
@@ -39,7 +42,7 @@ nvm use
 ### Setup
 
 ```bash
-# 1. Install dependencies
+# 1. Install dependencies (installs root + hoify-server deps, sets up git hooks)
 npm install
 
 # 2. Copy the environment file (edit if needed)
@@ -54,6 +57,17 @@ npm run dev
 
 The server starts at **http://localhost:4000**.
 
+### Linting
+
+```bash
+npm run lint         # Check for lint errors
+npm run lint:fix     # Auto-fix fixable issues
+```
+
+> **ESLint must pass with zero errors before any code is merged.** Warnings are acceptable during active development but should be resolved before opening a pull request.
+>
+> A pre-commit hook (via [Husky](https://typicode.github.io/husky/)) automatically runs `npm run lint` on every `git commit`. Commits with lint errors are rejected.
+
 ---
 
 ## Scripts
@@ -63,6 +77,11 @@ The server starts at **http://localhost:4000**.
 | `npm run dev`     | Start dev server with hot-reload via `tsx`     |
 | `npm run build`   | Compile TypeScript and copy `.graphql` files   |
 | `npm start`       | Run the production build from `dist/`          |
+| `npm test`        | Run unit tests                                 |
+| `npm run lint`    | Check code for lint errors (**must pass**)     |
+| `npm run lint:fix`| Auto-fix lint errors where possible            |
+
+> **All code changes must pass `npm run lint` before merging.**
 
 ---
 

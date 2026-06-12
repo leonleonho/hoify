@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import request from "supertest";
 
-import { setupE2e } from "../helpers/setup-e2e.js";
 import {
   executeGraphQL,
   CREATE_USER_MUTATION,
@@ -25,11 +24,10 @@ import {
   TRACKS_QUERY,
   TRACK_QUERY,
   GENRES_QUERY,
-  GENRE_QUERY,
   SEARCH_MUSIC_QUERY,
 } from "../helpers/graphql.js";
 
-import type { E2eFixture } from "../helpers/setup-e2e.js";
+import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 
 // ── Shared state ──────────────────────────────────────────────────────────
 let fixture: E2eFixture;
@@ -49,7 +47,7 @@ beforeAll(async () => {
   agent = fixture.agent;
 
   // Create a user + login so we have a valid token for mutations
-  const createRes = await executeGraphQL<{
+  await executeGraphQL<{
     createUser: { id: string };
   }>(agent, {
     query: CREATE_USER_MUTATION,
