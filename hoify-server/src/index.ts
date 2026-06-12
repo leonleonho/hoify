@@ -17,9 +17,8 @@ async function start() {
   });
   await server.start();
 
-
   // Apollo middleware handles POST (and any other) requests
-  app.use("/graphql", expressMiddleware(server));
+  app.use("/graphql", express.json(), expressMiddleware(server));
 
   // --- Music streaming ---
   app.use("/stream", streamRouter);

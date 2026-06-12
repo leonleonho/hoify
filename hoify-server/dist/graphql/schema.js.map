@@ -1,1 +1,0 @@
-{"version":3,"file":"schema.js","sourceRoot":"","sources":["../../src/graphql/schema.ts"],"names":[],"mappings":"AAAA,OAAO,EACL,QAAQ,IAAI,aAAa,EACzB,SAAS,IAAI,cAAc,GAC5B,MAAM,uBAAuB,CAAC;AAE/B,gFAAgF;AAChF,+EAA+E;AAC/E,MAAM,CAAC,MAAM,QAAQ,GAAG,CAAC,aAAa,CAAC,CAAC;AAExC,gFAAgF;AAChF,2EAA2E;AAC3E,MAAM,CAAC,MAAM,SAAS,GAAG;IACvB,GAAG,cAAc;CAClB,CAAC"}
