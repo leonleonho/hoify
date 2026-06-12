@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
+import type { Context } from "../auth/resolvers.js";
 
 const SALT_ROUNDS = 12;
 
@@ -20,16 +21,9 @@ export const resolvers = {
   },
 
   Query: {
-    users: async () => {
-      return db.select().from(users);
-    },
 
-    user: async (_: unknown, args: { id: string }) => {
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, args.id));
-      return user ?? null;
+    user: async (_: unknown, __: unknown, context: Context) => {
+      return context.currentUser;
     },
   },
 
