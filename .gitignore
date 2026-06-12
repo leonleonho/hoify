@@ -9,6 +9,9 @@ dist/
 .env.local
 .env.*.local
 
+# dev directories
+hoify-server/music/**
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
