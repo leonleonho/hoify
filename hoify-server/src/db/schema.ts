@@ -1,10 +1,12 @@
 import {
   boolean,
+  bigint,
   integer,
   pgTable,
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
@@ -95,26 +97,33 @@ export type NewAlbum = typeof albums.$inferInsert;
 // Tracks
 // ---------------------------------------------------------------------------
 
-export const tracks = pgTable("tracks", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  title: text("title").notNull(),
-  albumId: uuid("album_id")
-    .notNull()
-    .references(() => albums.id),
-  trackNumber: integer("track_number"),
-  discNumber: integer("disc_number").default(1),
-  duration: integer("duration"),
-  filePath: text("file_path").notNull(),
-  fileFormat: text("file_format"),
-  fileSize: integer("file_size"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`)
-    .$onUpdate(() => new Date()),
-});
+export const tracks = pgTable(
+  "tracks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: text("title").notNull(),
+    albumId: uuid("album_id")
+      .notNull()
+      .references(() => albums.id),
+    trackNumber: integer("track_number"),
+    discNumber: integer("disc_number").default(1),
+    duration: integer("duration"),
+    filePath: text("file_path").notNull(),
+    fileFormat: text("file_format"),
+    fileSize: integer("file_size"),
+    fileMtime: bigint("file_mtime", { mode: "number" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    filePathIdx: uniqueIndex("tracks_file_path_idx").on(t.filePath),
+  }),
+);
 
 export const tracksRelations = relations(tracks, ({ one, many }) => ({
   album: one(albums, {
