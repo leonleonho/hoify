@@ -8,5 +8,16 @@ if (!connectionString) {
   throw new Error("DATABASE_URL environment variable is not set");
 }
 
-export const client = postgres(connectionString);
-export const db = drizzle(client);
+export let client = postgres(connectionString);
+export let db = drizzle(client);
+
+/**
+ * Replace the database connection with a new one.
+ * Used by e2e tests to point at a test-container Postgres instance.
+ * The old client is ended gracefully before replacement.
+ */
+export async function reconnect(url: string): Promise<void> {
+  await client.end();
+  client = postgres(url);
+  db = drizzle(client);
+}

@@ -1,47 +1,11 @@
 import "dotenv/config";
-import { ApolloServer } from "@apollo/server";
-import { expressMiddleware } from "@apollo/server/express4";
-import cookieParser from "cookie-parser";
-import cors from "cors";
-import express from "express";
 import { client } from "./db/index.js";
-import { typeDefs, resolvers } from "./graphql/schema.js";
-import { authPlugin } from "./graphql/auth/plugin.js";
-import { resolveAuthContext } from "./util/auth.js";
-import streamRouter from "./routes/stream.js";
+import { createApp } from "./app.js";
 
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
 
 async function start() {
-  const app = express();
-
-  // --- Cookie parsing ---
-  app.use(cookieParser());
-
-  // --- Apollo Server (GraphQL) ---
-  const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-    plugins: [authPlugin],
-  });
-  await server.start();
-
-  // Apollo middleware handles POST (and any other) requests
-  app.use(
-    "/graphql",
-    express.json(),
-    expressMiddleware(server, {
-      context: async ({ req, res }) => resolveAuthContext({ req, res }),
-    }),
-  );
-
-  // --- Music streaming ---
-  app.use("/stream", streamRouter);
-
-  // --- Landing page: redirect root to the GraphQL playground ---
-  app.get("/", (_req, res) => {
-    res.redirect("/graphql");
-  });
+  const { app } = await createApp();
 
   app.listen(PORT, () => {
     console.log(`🚀 hoify-server ready at http://localhost:${PORT}`);

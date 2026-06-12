@@ -7,6 +7,11 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && rsync -am --include='*.graphql' --include='*/' --exclude='*' src/ dist/",
     "start": "node dist/index.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:e2e": "NODE_OPTIONS='--experimental-vm-modules' jest --config jest.e2e.config.cjs",
+    "test:e2e:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --config jest.e2e.config.cjs --watch",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -26,14 +31,20 @@
     "postgres": "^3.4.9"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.14.0",
     "@types/pg": "^8.20.0",
+    "@types/supertest": "^7.2.0",
     "drizzle-kit": "^0.31.10",
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0"
   }
