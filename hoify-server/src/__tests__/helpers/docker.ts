@@ -1,8 +1,5 @@
-import { execSync, exec } from "node:child_process";
+import { execSync } from "node:child_process";
 import { createServer } from "node:net";
-import { promisify } from "node:util";
-
-const execAsync = promisify(exec);
 
 const IMAGE = "postgres:16-alpine";
 const POLL_INTERVAL_MS = 800;

@@ -72,6 +72,279 @@ export const DELETE_USER_MUTATION = `
 `;
 
 // ---------------------------------------------------------------------------
+// Music query / mutation constants
+// ---------------------------------------------------------------------------
+
+export const CREATE_ARTIST_MUTATION = `
+  mutation CreateArtist($input: CreateArtistInput!) {
+    createArtist(input: $input) {
+      id
+      name
+      bio
+      imageUrl
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_ARTIST_MUTATION = `
+  mutation UpdateArtist($id: ID!, $input: UpdateArtistInput!) {
+    updateArtist(id: $id, input: $input) {
+      id
+      name
+      bio
+      imageUrl
+    }
+  }
+`;
+
+export const DELETE_ARTIST_MUTATION = `
+  mutation DeleteArtist($id: ID!) {
+    deleteArtist(id: $id)
+  }
+`;
+
+export const CREATE_ALBUM_MUTATION = `
+  mutation CreateAlbum($input: CreateAlbumInput!) {
+    createAlbum(input: $input) {
+      id
+      title
+      releaseYear
+      coverUrl
+      artist {
+        id
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_ALBUM_MUTATION = `
+  mutation UpdateAlbum($id: ID!, $input: UpdateAlbumInput!) {
+    updateAlbum(id: $id, input: $input) {
+      id
+      title
+      artist {
+        id
+      }
+      releaseYear
+      coverUrl
+    }
+  }
+`;
+
+export const DELETE_ALBUM_MUTATION = `
+  mutation DeleteAlbum($id: ID!) {
+    deleteAlbum(id: $id)
+  }
+`;
+
+export const CREATE_TRACK_MUTATION = `
+  mutation CreateTrack($input: CreateTrackInput!) {
+    createTrack(input: $input) {
+      id
+      title
+      trackNumber
+      discNumber
+      duration
+      filePath
+      fileFormat
+      fileSize
+      album {
+        id
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_TRACK_MUTATION = `
+  mutation UpdateTrack($id: ID!, $input: UpdateTrackInput!) {
+    updateTrack(id: $id, input: $input) {
+      id
+      title
+      trackNumber
+      duration
+      filePath
+      album {
+        id
+      }
+    }
+  }
+`;
+
+export const DELETE_TRACK_MUTATION = `
+  mutation DeleteTrack($id: ID!) {
+    deleteTrack(id: $id)
+  }
+`;
+
+export const CREATE_GENRE_MUTATION = `
+  mutation CreateGenre($input: CreateGenreInput!) {
+    createGenre(input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+export const UPDATE_GENRE_MUTATION = `
+  mutation UpdateGenre($id: ID!, $input: UpdateGenreInput!) {
+    updateGenre(id: $id, input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+export const DELETE_GENRE_MUTATION = `
+  mutation DeleteGenre($id: ID!) {
+    deleteGenre(id: $id)
+  }
+`;
+
+export const ARTISTS_QUERY = `
+  query Artists {
+    artists {
+      id
+      name
+      bio
+      imageUrl
+    }
+  }
+`;
+
+export const ARTIST_QUERY = `
+  query Artist($id: ID!) {
+    artist(id: $id) {
+      id
+      name
+      bio
+      imageUrl
+      albums {
+        id
+        title
+      }
+    }
+  }
+`;
+
+export const ALBUMS_QUERY = `
+  query Albums($artistId: ID) {
+    albums(artistId: $artistId) {
+      id
+      title
+      releaseYear
+      coverUrl
+      artist {
+        id
+      }
+    }
+  }
+`;
+
+export const ALBUM_QUERY = `
+  query Album($id: ID!) {
+    album(id: $id) {
+      id
+      title
+      releaseYear
+      coverUrl
+      artist {
+        id
+        name
+      }
+      tracks {
+        id
+        title
+      }
+    }
+  }
+`;
+
+export const TRACKS_QUERY = `
+  query Tracks($albumId: ID) {
+    tracks(albumId: $albumId) {
+      id
+      title
+      trackNumber
+      discNumber
+      duration
+      filePath
+      fileFormat
+      fileSize
+      album {
+        id
+      }
+    }
+  }
+`;
+
+export const TRACK_QUERY = `
+  query Track($id: ID!) {
+    track(id: $id) {
+      id
+      title
+      trackNumber
+      duration
+      filePath
+      album {
+        id
+        title
+        artist {
+          id
+          name
+        }
+      }
+      genres {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const GENRES_QUERY = `
+  query Genres {
+    genres {
+      id
+      name
+    }
+  }
+`;
+
+export const GENRE_QUERY = `
+  query Genre($id: ID!) {
+    genre(id: $id) {
+      id
+      name
+    }
+  }
+`;
+
+export const SEARCH_MUSIC_QUERY = `
+  query SearchMusic($query: String!) {
+    searchMusic(query: $query) {
+      artists {
+        id
+        name
+      }
+      albums {
+        id
+        title
+      }
+      tracks {
+        id
+        title
+      }
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
