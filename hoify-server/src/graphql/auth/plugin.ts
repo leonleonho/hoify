@@ -11,6 +11,17 @@ import type { User } from "../../db/schema.js";
  * Everything else on Query and Mutation requires a valid token.
  */
 const PUBLIC_OPERATIONS: Record<string, string[]> = {
+  Query: [
+    "searchMusic",
+    "artists",
+    "artist",
+    "albums",
+    "album",
+    "tracks",
+    "track",
+    "genres",
+    "genre",
+  ],
   Mutation: ["createUser", "login"],
 };
 

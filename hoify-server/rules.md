@@ -25,3 +25,11 @@
 - GraphQL types: PascalCase. Fields: camelCase. Input types: `CreateXInput`, `UpdateXInput`.
 - Files: kebab-case (`typeDefs.graphql`, `resolvers.ts`).
 - Exports: named exports, not defaults. Barrel files index.ts re-export `typeDefs` and `resolvers`.
+
+## Testing
+- E2E tests live in `src/__tests__/e2e/`. Each test file gets its own isolated Postgres container via Docker.
+- Use `setupE2e()` from `src/__tests__/helpers/setup-e2e.ts` in `beforeAll` — it spins up a Postgres container (random port), runs all Drizzle migrations, creates the Express+Apollo app, and returns a supertest `agent` + `cleanup` function.
+- Tear down with `fixture.cleanup()` in `afterAll` to stop the container.
+- GraphQL queries/mutations are defined as exported constants in `src/__tests__/helpers/graphql.ts`. Use `executeGraphQL(agent, { query, variables, token })` for all operations.
+- Every new query or mutation **must** have a corresponding test. Follow the pattern in `users.test.ts` and `music.test.ts`.
+- Docker must be installed and running locally for e2e tests. The helpers check for `docker info` at startup.

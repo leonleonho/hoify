@@ -1,0 +1,132 @@
+type Artist {
+  id: ID!
+  name: String!
+  bio: String
+  imageUrl: String
+  albums: [Album!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Album {
+  id: ID!
+  title: String!
+  artist: Artist!
+  releaseYear: Int
+  coverUrl: String
+  tracks: [Track!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Track {
+  id: ID!
+  title: String!
+  album: Album!
+  trackNumber: Int
+  discNumber: Int
+  duration: Int
+  filePath: String!
+  fileFormat: String
+  fileSize: Int
+  genres: [Genre!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Genre {
+  id: ID!
+  name: String!
+  tracks: [Track!]!
+}
+
+type SearchResults {
+  artists: [Artist!]!
+  albums: [Album!]!
+  tracks: [Track!]!
+}
+
+input CreateArtistInput {
+  name: String!
+  bio: String
+  imageUrl: String
+}
+
+input UpdateArtistInput {
+  name: String
+  bio: String
+  imageUrl: String
+}
+
+input CreateAlbumInput {
+  title: String!
+  artistId: ID!
+  releaseYear: Int
+  coverUrl: String
+}
+
+input UpdateAlbumInput {
+  title: String
+  artistId: ID
+  releaseYear: Int
+  coverUrl: String
+}
+
+input CreateTrackInput {
+  title: String!
+  albumId: ID!
+  trackNumber: Int
+  discNumber: Int
+  duration: Int
+  filePath: String!
+  fileFormat: String
+  fileSize: Int
+  genreIds: [ID!]
+}
+
+input UpdateTrackInput {
+  title: String
+  albumId: ID
+  trackNumber: Int
+  discNumber: Int
+  duration: Int
+  filePath: String
+  fileFormat: String
+  fileSize: Int
+  genreIds: [ID!]
+}
+
+input CreateGenreInput {
+  name: String!
+}
+
+input UpdateGenreInput {
+  name: String
+}
+
+type Query {
+  searchMusic(query: String!): SearchResults!
+  artists: [Artist!]!
+  artist(id: ID!): Artist
+  albums(artistId: ID): [Album!]!
+  album(id: ID!): Album
+  tracks(albumId: ID): [Track!]!
+  track(id: ID!): Track
+  genres: [Genre!]!
+  genre(id: ID!): Genre
+}
+
+type Mutation {
+  createArtist(input: CreateArtistInput!): Artist!
+  updateArtist(id: ID!, input: UpdateArtistInput!): Artist
+  deleteArtist(id: ID!): Boolean!
+  createAlbum(input: CreateAlbumInput!): Album!
+  updateAlbum(id: ID!, input: UpdateAlbumInput!): Album
+  deleteAlbum(id: ID!): Boolean!
+  createTrack(input: CreateTrackInput!): Track!
+  updateTrack(id: ID!, input: UpdateTrackInput!): Track
+  deleteTrack(id: ID!): Boolean!
+  createGenre(input: CreateGenreInput!): Genre!
+  updateGenre(id: ID!, input: UpdateGenreInput!): Genre
+  deleteGenre(id: ID!): Boolean!
+}
