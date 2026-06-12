@@ -29,4 +29,5 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
         env:
+          DATABASE_URL: postgresql://hoify:hoify_dev@localhost:5432/hoify
           JWT_SECRET: ci-test-secret
