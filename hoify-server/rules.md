@@ -6,8 +6,10 @@
 - Group-related code with section comments only when the grouping isn't already obvious from the structure (e.g. `// -------------------------------------------------------------------------` dividers around helpers vs resolvers).
 
 ## Architecture
-- Monorepo? In the future. Just `hoify-server/` — a single Apollo Server v4 + Express + TypeScript app. We''ll have a react native app for the front end in the future but for now it's just hoify-server.
+- Monorepo? In the future. Just `hoify-server/` — a single Apollo Server v4 + Express + TypeScript app. We'll have a react native app for the front end in the future but for now it's just hoify-server.
 - GraphQL modules live in `src/graphql/<feature>/`. Each has `typeDefs.graphql`, `resolvers.ts`, `index.ts` (barrel export). Wire them together in `src/graphql/schema.ts`.
+- **Resolvers are thin** — they validate inputs, call services, format outputs for GraphQL. No business logic or direct DB queries in resolvers.
+- **Service layer** — each feature has a `services.ts` that contains all business logic and data fetching. Resolvers delegate to services. Services are plain async functions, not classes.
 - Drizzle ORM + PostgreSQL via `postgres.js`. DB schema in `src/db/schema.ts`.
 - Context is built by `resolveAuthContext()` in `src/util/auth.ts`. Import it, don't inline.
 - `src/` uses `.js` extensions in imports (ESM convention) even though source is `.ts`.

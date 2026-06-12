@@ -23,10 +23,6 @@ input UpdateUserInput {
   lastName: String
 }
 
-type Query {
-  user: User!
-}
-
 type Mutation {
   createUser(input: CreateUserInput!): User!
   updateUser(id: ID!, input: UpdateUserInput!): User
