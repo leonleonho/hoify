@@ -53,6 +53,8 @@ export function Button({
       }
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={title}
     >
       {loading ? (
         <ActivityIndicator color={spinnerColor} size="small" />

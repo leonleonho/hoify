@@ -1,13 +1,69 @@
+import { useQuery } from '@apollo/client/react';
 import { ApolloProvider } from '@apollo/client/react';
-import { Slot } from 'expo-router';
+import { Redirect, Slot, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { client } from '@/apollo/client';
+import { MeDocument } from '@/hooks/generated';
+import { colors } from '@/constants/theme';
+
+/**
+ * Root layout wrapper — provides Apollo client and auth gating.
+ * Routes in the allow-list (login) skip the auth check.
+ */
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const segments = useSegments();
+
+  // Routes that don't need authentication
+  const publicRoutes = ['login'];
+  const isPublic = publicRoutes.includes(segments[0] ?? '');
+
+  const { loading, error, data } = useQuery(MeDocument, {
+    // Skip auth check on public routes (login page)
+    skip: isPublic,
+    // Don't retry on auth failure — redirect to login immediately
+    errorPolicy: 'all',
+  });
+
+  // Still loading auth check
+  if (loading && !isPublic) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Not authenticated → redirect to login
+  if (error && !isPublic) {
+    return <Redirect href="/login" />;
+  }
+
+  // If on login but already authenticated → redirect to home
+  // Checks data (not !error) because skipped queries have error=undefined but data=undefined too
+  if (isPublic && data) {
+    return <Redirect href="/" />;
+  }
+
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   return (
     <ApolloProvider client={client}>
       <StatusBar style="auto" />
-      <Slot />
+      <AuthGate>
+        <Slot />
+      </AuthGate>
     </ApolloProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
