@@ -53,6 +53,8 @@
     "serve:web": "npx serve dist",
     "lint": "eslint app/ src/ --ext .ts,.tsx",
     "lint:fix": "eslint app/ src/ --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && npm run build-storybook",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
