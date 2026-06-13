@@ -33,7 +33,7 @@ export function Modal({
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable
           style={styles.card}
-          onPress={(e) => e.stopPropagation()}
+          onPress={() => {}}
         >
           <View style={styles.header}>
             {title && <Text style={styles.title}>{title}</Text>}

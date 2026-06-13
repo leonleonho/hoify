@@ -19,8 +19,6 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const isPublic = publicRoutes.includes(segments[0] ?? '');
 
   const { loading, error, data } = useQuery(MeDocument, {
-    // Skip auth check on public routes (login page)
-    skip: isPublic,
     // Don't retry on auth failure — redirect to login immediately
     errorPolicy: 'all',
   });
@@ -39,8 +37,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     return <Redirect href="/login" />;
   }
 
-  // If on login but already authenticated → redirect to home
-  // Checks data (not !error) because skipped queries have error=undefined but data=undefined too
+  // Already authenticated on a public route (e.g. /login) → redirect to home
   if (isPublic && data) {
     return <Redirect href="/" />;
   }
