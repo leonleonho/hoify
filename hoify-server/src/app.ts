@@ -1,6 +1,7 @@
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import express from "express";
 import { typeDefs, resolvers } from "./graphql/schema.js";
 import { authPlugin } from "./graphql/auth/plugin.js";
@@ -18,6 +19,14 @@ export async function createApp() {
 
   // --- Cookie parsing ---
   app.use(cookieParser());
+
+  // --- CORS: allow any origin (dev) ---
+  app.use(
+    cors({
+      origin: true,
+      credentials: true,
+    }),
+  );
 
   // --- Apollo Server (GraphQL) ---
   const server = new ApolloServer({
