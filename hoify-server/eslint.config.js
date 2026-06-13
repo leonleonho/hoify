@@ -54,9 +54,17 @@ export default tseslint.config(
     },
   },
 
-  // Override for server entry point
+  // Override for server entry point — uses pino logger, no raw console
   {
     files: ['src/index.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // Override for library-scanner CLI — uses pino logger, no raw console
+  {
+    files: ['src/jobs/library-scanner/*.ts'],
     rules: {
       'no-console': 'off',
     },

@@ -85,6 +85,21 @@ npm run lint:fix     # Auto-fix fixable issues
 
 ---
 
+## Logging
+
+Logging is handled by [Pino](https://getpino.io/).
+
+| Environment | Default Level | Output | Override                    |
+| ----------- | ------------- | ------ | --------------------------- |
+| Development | `debug`       | Pretty-print (colorized) via `pino-pretty` | `LOG_LEVEL=trace\|debug\|info\|warn\|error\|silent` |
+| Production  | `warn`        | JSON on stdout              | `LOG_LEVEL=trace\|debug\|info\|warn\|error\|silent` |
+
+> In production, only `warn` and `error` messages are shown by default. Set `LOG_LEVEL=info` to include startup and request logs.
+
+The logger is configured in [`src/util/logger.ts`](src/util/logger.ts).
+
+---
+
 ## API
 
 ### GraphQL
