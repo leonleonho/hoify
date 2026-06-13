@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import { parse } from "node:path";
 import { parseFile as parseAudio } from "music-metadata";
+import { logger } from "../../util/logger.js";
 import type { ParsedTrack } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -43,7 +44,7 @@ export async function parseFile(filePath: string): Promise<ParsedTrack | null> {
       genreNames: common.genre ?? [],
     };
   } catch (err) {
-    console.error(`  [SKIP] ${filePath}: ${(err as Error).message}`);
+    logger.warn({ filePath, error: (err as Error).message }, "Skipped unparseable file");
     return null;
   }
 }

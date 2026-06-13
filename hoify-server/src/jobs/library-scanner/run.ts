@@ -8,34 +8,36 @@
 
 import "dotenv/config";
 import { client } from "../../db/index.js";
+import { logger } from "../../util/logger.js";
 import { scanLibrary } from "./scanner.js";
 
 const MUSIC_LIBRARY_PATH =
   process.env.MUSIC_LIBRARY_PATH ?? "./music";
 
 async function main() {
-  console.log("=== Hoify Library Scanner ===\n");
-  console.log(`Music library path: ${MUSIC_LIBRARY_PATH}`);
+  logger.info("=== Hoify Library Scanner ===\n");
+  logger.info({ path: MUSIC_LIBRARY_PATH }, `Music library path: ${MUSIC_LIBRARY_PATH}`);
 
   const summary = await scanLibrary(MUSIC_LIBRARY_PATH);
 
-  console.log("=== Summary ===");
-  console.log(`  Files found:   ${summary.filesFound}`);
-  console.log(`  Files parsed:  ${summary.filesParsed}`);
-  console.log(`  Errors:        ${summary.errors}`);
-  console.log(`  Artists added: ${summary.counts.artists}`);
-  console.log(`  Albums added:  ${summary.counts.albums}`);
-  console.log(`  Tracks added:  ${summary.counts.tracks}`);
-  console.log(`  Genres added:  ${summary.counts.genres}`);
-  console.log("");
+  logger.info({
+    filesFound: summary.filesFound,
+    filesParsed: summary.filesParsed,
+    errors: summary.errors,
+    artists: summary.counts.artists,
+    albums: summary.counts.albums,
+    tracks: summary.counts.tracks,
+    genres: summary.counts.genres,
+  }, "=== Summary ===");
 }
 
 main()
   .catch((err) => {
-    console.error("Fatal error:", err);
+    logger.error(err, "Fatal error");
     process.exit(1);
   })
   .finally(async () => {
+    logger.flush();
     await client.end();
-    console.log("Database connection closed. Goodbye!");
+    logger.info("Database connection closed. Goodbye!");
   });

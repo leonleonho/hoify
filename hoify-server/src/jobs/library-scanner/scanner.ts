@@ -4,6 +4,7 @@ import { tracks } from "../../db/schema.js";
 import { walkDirectory } from "./walker.js";
 import { parseFile, PROGRESS_INTERVAL } from "./parser.js";
 import { upsertAll } from "./upsert.js";
+import { logger } from "../../util/logger.js";
 import type { ParsedTrack, ScanSummary } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -11,7 +12,7 @@ import type { ParsedTrack, ScanSummary } from "./types.js";
 // ---------------------------------------------------------------------------
 
 export async function scanLibrary(rootDir: string): Promise<ScanSummary> {
-  console.log(`\nScanning library: ${rootDir}`);
+  logger.info({ rootDir }, "Scanning library");
 
   // Pre-fetch known file paths + mtimes from DB
   const knownFiles = new Map<string, number>();
@@ -21,7 +22,7 @@ export async function scanLibrary(rootDir: string): Promise<ScanSummary> {
   for (const r of rows) {
     if (r.fileMtime !== null) knownFiles.set(r.filePath, r.fileMtime);
   }
-  console.log(`Known tracks in DB: ${knownFiles.size}`);
+  logger.info({ count: knownFiles.size }, "Known tracks in DB");
 
   // Walk directory tree, stat each file, skip if mtime unchanged
   const filePaths: string[] = [];
@@ -38,8 +39,9 @@ export async function scanLibrary(rootDir: string): Promise<ScanSummary> {
     filePaths.push(fp);
   }
 
-  console.log(
-    `Found ${filePaths.length} audio files (skipped ${skippedCount} unchanged)\n`,
+  logger.info(
+    { found: filePaths.length, skipped: skippedCount },
+    `Found ${filePaths.length} audio files (skipped ${skippedCount} unchanged)`,
   );
 
   if (filePaths.length === 0) {
@@ -65,12 +67,13 @@ export async function scanLibrary(rootDir: string): Promise<ScanSummary> {
     }
 
     if ((i + 1) % PROGRESS_INTERVAL === 0) {
-      console.log(`  Parsed ${i + 1}/${filePaths.length} files`);
+      logger.debug({ parsed: i + 1, total: filePaths.length }, "Parsing progress");
     }
   }
 
-  console.log(
-    `\nParsing complete: ${parsed.length} OK, ${errors} failed\n`,
+  logger.info(
+    { ok: parsed.length, errors },
+    `Parsing complete: ${parsed.length} OK, ${errors} failed`,
   );
 
   if (parsed.length === 0) {
@@ -83,9 +86,9 @@ export async function scanLibrary(rootDir: string): Promise<ScanSummary> {
   }
 
   // Upsert
-  console.log("Upserting into database...");
+  logger.info("Upserting into database...");
   const counts = await upsertAll(parsed);
-  console.log("Upsert complete\n");
+  logger.info({ counts }, "Upsert complete");
 
   return {
     filesFound: filePaths.length + skippedCount,
