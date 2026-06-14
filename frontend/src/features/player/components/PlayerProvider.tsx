@@ -56,6 +56,9 @@ export interface PlayerActions {
   previous: () => Promise<void>;
   seek: (positionMs: number) => Promise<void>;
   setVolume: (value: number) => Promise<void>;
+  openFullPlayer: () => void;
+  closeFullPlayer: () => void;
+  isFullPlayerOpen: boolean;
 }
 
 export type PlayerContextValue = PlayerState & PlayerActions;
@@ -72,6 +75,7 @@ export function useMusicPlayer(): PlayerContextValue {
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [s, dispatch] = useReducer(reducer, initialState());
+  const [isFullPlayerOpen, setFullPlayerOpen] = React.useState(false);
   const sound = useRef<Audio.Sound | null>(null);
   const idx = useRef(-1);
   const ready = useRef(false);
@@ -215,10 +219,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'PATCH', patch: { volume: c } });
   }, []);
 
+  const openFullPlayer = useCallback(() => setFullPlayerOpen(true), []);
+  const closeFullPlayer = useCallback(() => setFullPlayerOpen(false), []);
+
   const value: PlayerContextValue = {
     ...s,
     load, play, playPlaylist, pause, resume,
     togglePlayPause, next, previous, seek, setVolume,
+    openFullPlayer, closeFullPlayer, isFullPlayerOpen,
   };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;

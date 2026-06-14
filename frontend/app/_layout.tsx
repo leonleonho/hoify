@@ -7,6 +7,7 @@ import { client } from '@/apollo/client';
 import { MeDocument } from '@/hooks/generated';
 import { colors } from '@/constants/theme';
 import { MiniPlayer } from '@/features/player/components/MiniPlayer';
+import { FullPlayerOverlay } from '@/features/player/components/FullPlayerOverlay';
 import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 
 /**
@@ -58,6 +59,7 @@ export default function RootLayout() {
               <Slot />
             </View>
             <MiniPlayer />
+            <FullPlayerOverlay />
           </View>
         </PlayerProvider>
       </AuthGate>

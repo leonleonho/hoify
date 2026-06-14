@@ -1,6 +1,5 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useRouter, type RelativePathString } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { useMusicPlayer } from '../hooks/useMusicPlayer';
 import { TrackInfo } from './TrackInfo';
@@ -8,20 +7,18 @@ import { PlayPauseButton } from './PlayPauseButton';
 
 /**
  * Fixed bottom bar showing current track with play/pause + next controls.
- * Tapping the bar opens the full player screen.
+ * Tapping the bar opens the full player overlay.
  * Hidden when no track is loaded.
  */
 export function MiniPlayer() {
-  const { currentTrack, isPlaying, togglePlayPause, next } = useMusicPlayer();
-  const router = useRouter();
+  const { currentTrack, isPlaying, togglePlayPause, next, openFullPlayer } = useMusicPlayer();
 
   if (!currentTrack) return null;
 
   return (
     <Pressable
       style={styles.container}
-      onPress={() => router.push('/player' as RelativePathString)}
-      accessibilityRole="link"
+      onPress={openFullPlayer}
       accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
     >
       <TrackInfo track={currentTrack} variant="mini" />

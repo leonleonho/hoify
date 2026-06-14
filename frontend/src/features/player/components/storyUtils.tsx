@@ -17,6 +17,9 @@ export function withPlayerContext(state: PlayerState) {
     previous: async () => {},
     seek: async () => {},
     setVolume: async () => {},
+    openFullPlayer: () => {},
+    closeFullPlayer: () => {},
+    isFullPlayerOpen: false,
   };
   return (Story: React.ComponentType) => (
     <PlayerContext.Provider value={value}>
