@@ -1,8 +1,89 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { List, ListItem } from './List';
-import { View, Text, StyleSheet } from 'react-native';
+import { SongListItem } from './SongListItem';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { colors, spacing, typography } from '../../constants/theme';
+import type { Track } from '../../hooks/generated';
+
+// ── mock track data ────────────────────────────────────────────────
+const mockTrack = (overrides: Partial<Track>): Track => ({
+  __typename: 'Track',
+  id: '1',
+  title: 'Midnight Waves',
+  duration: 204,
+  discNumber: 1,
+  trackNumber: 1,
+  filePath: '/music/midnight-waves.mp3',
+  fileFormat: 'mp3',
+  fileSize: 8_200_000,
+  createdAt: '2025-01-01',
+  updatedAt: '2025-01-01',
+  genres: [],
+  album: {
+    __typename: 'Album',
+    id: 'a1',
+    title: 'Neon Dreams',
+    coverUrl: null,
+    artist: {
+      __typename: 'Artist',
+      id: 'ar1',
+      name: 'Synthwave Kid',
+      albums: [],
+      bio: null,
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01',
+      imageUrl: null,
+    },
+    releaseYear: 2025,
+    tracks: [],
+    createdAt: '2025-01-01',
+    updatedAt: '2025-01-01',
+  },
+  ...overrides,
+} as Track);
+
+const tracks: Track[] = [
+  mockTrack({
+    id: '1',
+    title: 'Midnight Waves',
+    duration: 204,
+    album: {
+      ...mockTrack({}).album,
+      artist: { ...mockTrack({}).album.artist, name: 'Synthwave Kid' },
+    },
+  }),
+  mockTrack({
+    id: '2',
+    title: 'Crystal Rain',
+    duration: 247,
+    album: {
+      ...mockTrack({}).album,
+      title: 'Digital Horizon',
+      artist: { ...mockTrack({}).album.artist, name: 'Neon Pulse' },
+    },
+  }),
+  mockTrack({
+    id: '3',
+    title: 'Starlight Drive',
+    duration: 183,
+    album: {
+      ...mockTrack({}).album,
+      title: 'Neon Dreams',
+      artist: { ...mockTrack({}).album.artist, name: 'Synthwave Kid' },
+    },
+  }),
+  mockTrack({
+    id: '4',
+    title: 'Urban Echoes',
+    duration: 312,
+    album: {
+      ...mockTrack({}).album,
+      title: 'Concrete Jungle',
+      artist: { ...mockTrack({}).album.artist, name: 'DJ Spector' },
+    },
+  }),
+];
 
 const meta = {
   title: 'Components/List',
@@ -22,38 +103,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Playlist: Story = {
-  args: {},
-  render: () => (
-    <List header="Recently Played">
-      <ListItem
-        title="Midnight Waves"
-        subtitle="Electronic · 42 min"
-        leading={<Text style={styles.emoji}>🌊</Text>}
-        trailing={<Text style={styles.duration}>3:24</Text>}
-      />
-      <ListItem
-        title="Chill Beats"
-        subtitle="Lo-fi · 1h 12min"
-        leading={<Text style={styles.emoji}>🎧</Text>}
-        trailing={<Text style={styles.duration}>4:07</Text>}
-      />
-      <ListItem
-        title="Road Trip 2025"
-        subtitle="Rock · 2h 30min"
-        leading={<Text style={styles.emoji}>🎸</Text>}
-        trailing={<Text style={styles.duration}>3:55</Text>}
-      />
-      <ListItem
-        title="Jazz & Rain"
-        subtitle="Jazz · 58 min"
-        leading={<Text style={styles.emoji}>🎷</Text>}
-        divider={false}
-        trailing={<Text style={styles.duration}>5:12</Text>}
-      />
-    </List>
-  ),
-};
+// ── existing stories ───────────────────────────────────────────────
 
 export const Settings: Story = {
   args: {},
@@ -138,6 +188,94 @@ export const Interactable: Story = {
   },
 };
 
+// ── song list stories ──────────────────────────────────────────────
+
+export const SongList: Story = {
+  args: {},
+  render: () => (
+    <List header="Now Playing">
+      {tracks.map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="swipe"
+          divider={i < tracks.length - 1}
+          onPress={() => Alert.alert('Play', track.title)}
+          swipeRightAction={{
+            icon: <Text style={styles.actionIcon}>❤️</Text>,
+            onAction: () => Alert.alert('Liked', track.title),
+            color: colors.primary,
+          }}
+          swipeLeftAction={{
+            icon: <Text style={styles.actionIcon}>🗑️</Text>,
+            onAction: () => Alert.alert('Remove', track.title),
+            color: colors.error,
+          }}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListNoSwipe: Story = {
+  args: {},
+  render: () => (
+    <List header="Queue">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="swipe"
+          divider={i < 2}
+          onPress={() => Alert.alert('Play', track.title)}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListSwipeRight: Story = {
+  args: {},
+  render: () => (
+    <List header="Suggestions">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="swipe"
+          divider={i < 2}
+          swipeRightAction={{
+            icon: <Text style={styles.actionIcon}>➕</Text>,
+            onAction: () => Alert.alert('Added to queue', track.title),
+            color: colors.primary,
+          }}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListClickMode: Story = {
+  args: {},
+  render: () => (
+    <List header="Suggestions">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="click"
+          divider={i < 2}
+          swipeRightAction={{
+            icon: <Text style={styles.actionIcon}>➕</Text>,
+            onAction: () => Alert.alert('Added to queue', track.title),
+            color: colors.primary,
+          }}
+        />
+      ))}
+    </List>
+  ),
+};
+
 const styles = StyleSheet.create({
   wrapper: {
     padding: 16,
@@ -170,5 +308,8 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  actionIcon: {
+    fontSize: 22,
   },
 });
