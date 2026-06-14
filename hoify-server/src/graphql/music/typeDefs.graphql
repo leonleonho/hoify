@@ -44,6 +44,7 @@ type SearchResults {
   artists: [Artist!]!
   albums: [Album!]!
   tracks: [Track!]!
+  playlists: [Playlist!]!
 }
 
 input CreateArtistInput {

@@ -40,5 +40,11 @@ query SearchMusic($query: String!) {
         }
       }
     }
+    playlists {
+      id
+      name
+      isPublic
+      trackCount
+    }
   }
 }

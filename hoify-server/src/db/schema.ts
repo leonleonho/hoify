@@ -182,3 +182,70 @@ export const trackGenresRelations = relations(trackGenres, ({ one }) => ({
 
 export type TrackGenre = typeof trackGenres.$inferSelect;
 export type NewTrackGenre = typeof trackGenres.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Playlists
+// ---------------------------------------------------------------------------
+
+export const playlists = pgTable("playlists", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  isPublic: boolean("is_public").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`)
+    .$onUpdate(() => new Date()),
+});
+
+export const playlistsRelations = relations(playlists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [playlists.userId],
+    references: [users.id],
+  }),
+  playlistTracks: many(playlistTracks),
+}));
+
+export type Playlist = typeof playlists.$inferSelect;
+export type NewPlaylist = typeof playlists.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Playlist-Tracks junction
+// ---------------------------------------------------------------------------
+
+export const playlistTracks = pgTable(
+  "playlist_tracks",
+  {
+    playlistId: uuid("playlist_id")
+      .notNull()
+      .references(() => playlists.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    position: integer("position").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [primaryKey({ columns: [t.playlistId, t.trackId] })],
+);
+
+export const playlistTracksRelations = relations(playlistTracks, ({ one }) => ({
+  playlist: one(playlists, {
+    fields: [playlistTracks.playlistId],
+    references: [playlists.id],
+  }),
+  track: one(tracks, {
+    fields: [playlistTracks.trackId],
+    references: [tracks.id],
+  }),
+}));
+
+export type PlaylistTrack = typeof playlistTracks.$inferSelect;
+export type NewPlaylistTrack = typeof playlistTracks.$inferInsert;
