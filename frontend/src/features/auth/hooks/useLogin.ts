@@ -1,14 +1,23 @@
 import { useCallback } from 'react';
 import { useMutation } from '@apollo/client/react';
 
-import { LoginDocument } from '@/hooks/generated';
+import { LoginDocument, MeDocument } from '@/hooks/generated';
 import type { LoginMutation, LoginMutationVariables } from '@/hooks/generated';
 
 export function useLogin() {
   const [mutate, { loading, error, data }] = useMutation<
     LoginMutation,
     LoginMutationVariables
-  >(LoginDocument);
+  >(LoginDocument, {
+    update(cache, { data }) {
+      if (data?.login) {
+        cache.writeQuery({
+          query: MeDocument,
+          data: { me: data.login.user },
+        });
+      }
+    },
+  });
 
   const login = useCallback(
     async (email: string, password: string) => {
