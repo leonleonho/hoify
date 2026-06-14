@@ -14,7 +14,11 @@ import { PlayPauseButton } from './PlayPauseButton';
  */
 export function FullPlayer() {
   const {
-    state,
+    currentTrack,
+    isPlaying,
+    position,
+    duration,
+    volume,
     togglePlayPause,
     next,
     previous,
@@ -22,7 +26,7 @@ export function FullPlayer() {
     setVolume,
   } = useMusicPlayer();
 
-  if (!state.currentTrack) {
+  if (!currentTrack) {
     return (
       <View style={styles.empty}>
         <Text style={styles.emptyText}>No track selected</Text>
@@ -33,12 +37,12 @@ export function FullPlayer() {
   return (
     <View style={styles.container}>
       {/* Album art + metadata */}
-      <TrackInfo track={state.currentTrack} variant="full" />
+      <TrackInfo track={currentTrack} variant="full" />
 
       {/* Progress bar */}
       <ProgressBar
-        position={state.position}
-        duration={state.duration}
+        position={position}
+        duration={duration}
         onSeek={seek}
       />
 
@@ -46,7 +50,7 @@ export function FullPlayer() {
       <View style={styles.transport}>
         <PreviousButton onPress={previous} />
         <PlayPauseButton
-          isPlaying={state.isPlaying}
+          isPlaying={isPlaying}
           size="lg"
           onPress={togglePlayPause}
         />
@@ -54,7 +58,7 @@ export function FullPlayer() {
       </View>
 
       {/* Volume */}
-      <VolumeControl volume={state.volume} onVolumeChange={setVolume} />
+      <VolumeControl volume={volume} onVolumeChange={setVolume} />
     </View>
   );
 }

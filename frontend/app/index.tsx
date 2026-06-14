@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { StyleSheet, Text, View } from 'react-native';
 import { HelloDocument } from '@/hooks/generated';
-import { musicPlayer } from '@/features/player/services/MusicPlayerService';
+import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
 import type { Track } from '@/hooks/generated';
 
 /** Minimal mock track for testing — plays NEIJ.mp3 from the stream endpoint. */
@@ -46,13 +46,14 @@ function demoTrack(): Track {
 
 export default function IndexScreen() {
   const { loading, error, data } = useQuery(HelloDocument);
+  const { load } = useMusicPlayer();
   const started = useRef(false);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    musicPlayer.load(demoTrack());
-  }, []);
+    load(demoTrack());
+  }, [load]);
 
   return (
     <View style={styles.container}>

@@ -7,6 +7,7 @@ import { client } from '@/apollo/client';
 import { MeDocument } from '@/hooks/generated';
 import { colors } from '@/constants/theme';
 import { MiniPlayer } from '@/features/player/components/MiniPlayer';
+import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 
 /**
  * Root layout wrapper — provides Apollo client and auth gating.
@@ -51,12 +52,14 @@ export default function RootLayout() {
     <ApolloProvider client={client}>
       <StatusBar style="auto" />
       <AuthGate>
-        <View style={styles.shell}>
-          <View style={styles.content}>
-            <Slot />
+        <PlayerProvider>
+          <View style={styles.shell}>
+            <View style={styles.content}>
+              <Slot />
+            </View>
+            <MiniPlayer />
           </View>
-          <MiniPlayer />
-        </View>
+        </PlayerProvider>
       </AuthGate>
     </ApolloProvider>
   );

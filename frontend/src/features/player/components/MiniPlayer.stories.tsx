@@ -3,8 +3,7 @@ import React from 'react';
 import { MiniPlayer } from './MiniPlayer';
 import { View, StyleSheet } from 'react-native';
 import { colors } from '@/constants/theme';
-import { musicPlayer } from '../services/MusicPlayerService';
-import type { PlayerState } from '../types/player';
+import { withPlayerContext } from './storyUtils';
 import type { Track } from '@/hooks/generated';
 
 const mockTrack: Track = {
@@ -39,19 +38,6 @@ const mockTrack: Track = {
   genres: [],
 };
 
-/** Seed the service singleton state for a story */
-function seedState(patch: Partial<PlayerState>) {
-  const mp = musicPlayer as unknown as { _state: PlayerState };
-  mp._state = { ...mp._state, ...patch };
-}
-
-function withPlayer(patch: Partial<PlayerState>) {
-  return (Story: React.ComponentType) => {
-    seedState(patch);
-    return <Story />;
-  };
-}
-
 const meta = {
   title: 'Player/MiniPlayer',
   component: MiniPlayer,
@@ -73,32 +59,42 @@ type Story = StoryObj<typeof meta>;
 
 export const Playing: Story = {
   decorators: [
-    withPlayer({
+    withPlayerContext({
       currentTrack: mockTrack,
       isPlaying: true,
       position: 63_000,
       duration: 354_000,
+      volume: 0.8,
+      isLoading: false,
+      playlist: [],
     }),
   ],
 };
 
 export const Paused: Story = {
   decorators: [
-    withPlayer({
+    withPlayerContext({
       currentTrack: mockTrack,
       isPlaying: false,
       position: 120_000,
       duration: 354_000,
+      volume: 0.8,
+      isLoading: false,
+      playlist: [],
     }),
   ],
 };
 
-// MiniPlayer returns null when no track is loaded — not shown.
-// Included to document this behavior.
 export const NoTrackSelected: Story = {
   decorators: [
-    withPlayer({
+    withPlayerContext({
       currentTrack: null,
+      isPlaying: false,
+      position: 0,
+      duration: 0,
+      volume: 0.8,
+      isLoading: false,
+      playlist: [],
     }),
   ],
 };

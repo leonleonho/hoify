@@ -12,22 +12,22 @@ import { PlayPauseButton } from './PlayPauseButton';
  * Hidden when no track is loaded.
  */
 export function MiniPlayer() {
-  const { state, togglePlayPause, next } = useMusicPlayer();
+  const { currentTrack, isPlaying, togglePlayPause, next } = useMusicPlayer();
   const router = useRouter();
 
-  if (!state.currentTrack) return null;
+  if (!currentTrack) return null;
 
   return (
     <Pressable
       style={styles.container}
       onPress={() => router.push('/player' as RelativePathString)}
       accessibilityRole="link"
-      accessibilityLabel={`Now playing: ${state.currentTrack.title}. Tap to open full player.`}
+      accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
     >
-      <TrackInfo track={state.currentTrack} variant="mini" />
+      <TrackInfo track={currentTrack} variant="mini" />
       <View style={styles.controls}>
         <PlayPauseButton
-          isPlaying={state.isPlaying}
+          isPlaying={isPlaying}
           size="sm"
           onPress={togglePlayPause}
         />
