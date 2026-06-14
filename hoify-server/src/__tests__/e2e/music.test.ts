@@ -6,26 +6,246 @@ import {
   CREATE_USER_MUTATION,
   LOGIN_MUTATION,
   CREATE_ARTIST_MUTATION,
-  UPDATE_ARTIST_MUTATION,
-  DELETE_ARTIST_MUTATION,
   CREATE_ALBUM_MUTATION,
-  UPDATE_ALBUM_MUTATION,
-  DELETE_ALBUM_MUTATION,
   CREATE_TRACK_MUTATION,
-  UPDATE_TRACK_MUTATION,
-  DELETE_TRACK_MUTATION,
-  CREATE_GENRE_MUTATION,
-  UPDATE_GENRE_MUTATION,
-  DELETE_GENRE_MUTATION,
-  ARTISTS_QUERY,
-  ARTIST_QUERY,
-  ALBUMS_QUERY,
-  ALBUM_QUERY,
-  TRACKS_QUERY,
-  TRACK_QUERY,
-  GENRES_QUERY,
-  SEARCH_MUSIC_QUERY,
 } from "../helpers/graphql.js";
+
+// ---------------------------------------------------------------------------
+// Artist queries
+// ---------------------------------------------------------------------------
+
+const UPDATE_ARTIST_MUTATION = `
+  mutation UpdateArtist($id: ID!, $input: UpdateArtistInput!) {
+    updateArtist(id: $id, input: $input) {
+      id
+      name
+      bio
+      imageUrl
+    }
+  }
+`;
+
+const DELETE_ARTIST_MUTATION = `
+  mutation DeleteArtist($id: ID!) {
+    deleteArtist(id: $id)
+  }
+`;
+
+const ARTISTS_QUERY = `
+  query Artists {
+    artists {
+      id
+      name
+      bio
+      imageUrl
+    }
+  }
+`;
+
+const ARTIST_QUERY = `
+  query Artist($id: ID!) {
+    artist(id: $id) {
+      id
+      name
+      bio
+      imageUrl
+      albums {
+        id
+        title
+      }
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Album queries
+// ---------------------------------------------------------------------------
+
+const UPDATE_ALBUM_MUTATION = `
+  mutation UpdateAlbum($id: ID!, $input: UpdateAlbumInput!) {
+    updateAlbum(id: $id, input: $input) {
+      id
+      title
+      artist {
+        id
+      }
+      releaseYear
+      coverUrl
+    }
+  }
+`;
+
+const DELETE_ALBUM_MUTATION = `
+  mutation DeleteAlbum($id: ID!) {
+    deleteAlbum(id: $id)
+  }
+`;
+
+const ALBUMS_QUERY = `
+  query Albums($artistId: ID) {
+    albums(artistId: $artistId) {
+      id
+      title
+      releaseYear
+      coverUrl
+      artist {
+        id
+      }
+    }
+  }
+`;
+
+const ALBUM_QUERY = `
+  query Album($id: ID!) {
+    album(id: $id) {
+      id
+      title
+      releaseYear
+      coverUrl
+      artist {
+        id
+        name
+      }
+      tracks {
+        id
+        title
+      }
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Track queries
+// ---------------------------------------------------------------------------
+
+const UPDATE_TRACK_MUTATION = `
+  mutation UpdateTrack($id: ID!, $input: UpdateTrackInput!) {
+    updateTrack(id: $id, input: $input) {
+      id
+      title
+      trackNumber
+      duration
+      filePath
+      album {
+        id
+      }
+    }
+  }
+`;
+
+const DELETE_TRACK_MUTATION = `
+  mutation DeleteTrack($id: ID!) {
+    deleteTrack(id: $id)
+  }
+`;
+
+const TRACKS_QUERY = `
+  query Tracks($albumId: ID) {
+    tracks(albumId: $albumId) {
+      id
+      title
+      trackNumber
+      discNumber
+      duration
+      filePath
+      fileFormat
+      fileSize
+      album {
+        id
+      }
+    }
+  }
+`;
+
+const TRACK_QUERY = `
+  query Track($id: ID!) {
+    track(id: $id) {
+      id
+      title
+      trackNumber
+      duration
+      filePath
+      album {
+        id
+        title
+        artist {
+          id
+          name
+        }
+      }
+      genres {
+        id
+        name
+      }
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Genre queries
+// ---------------------------------------------------------------------------
+
+const CREATE_GENRE_MUTATION = `
+  mutation CreateGenre($input: CreateGenreInput!) {
+    createGenre(input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+const UPDATE_GENRE_MUTATION = `
+  mutation UpdateGenre($id: ID!, $input: UpdateGenreInput!) {
+    updateGenre(id: $id, input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+const DELETE_GENRE_MUTATION = `
+  mutation DeleteGenre($id: ID!) {
+    deleteGenre(id: $id)
+  }
+`;
+
+const GENRES_QUERY = `
+  query Genres {
+    genres {
+      id
+      name
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+const SEARCH_MUSIC_QUERY = `
+  query SearchMusic($query: String!) {
+    searchMusic(query: $query) {
+      artists {
+        id
+        name
+      }
+      albums {
+        id
+        title
+      }
+      tracks {
+        id
+        title
+      }
+      playlists {
+        id
+        name
+        isPublic
+        trackCount
+      }
+    }
+  }
+`;
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 

@@ -24,6 +24,8 @@ import {
   getGenreTracks,
   searchMusic,
 } from "./services.js";
+import { isTrackLikedByUser } from "../playlist/services.js";
+import type { Context } from "../auth/resolvers.js";
 
 export const resolvers = {
   Artist: {
@@ -42,6 +44,10 @@ export const resolvers = {
   Track: {
     album: (parent: { albumId: string }) => getAlbum(parent.albumId),
     genres: (parent: { id: string }) => getTrackGenres(parent.id),
+    liked: (parent: { id: string }, _: unknown, context: Context) => {
+      if (!context.currentUser) return false;
+      return isTrackLikedByUser(context.currentUser.id, parent.id);
+    },
     createdAt: (parent: { createdAt: Date | string }) => fmtDate(parent.createdAt),
     updatedAt: (parent: { updatedAt: Date | string }) => fmtDate(parent.updatedAt),
   },

@@ -1,5 +1,4 @@
 import { execSync } from "node:child_process";
-import { createServer } from "node:net";
 
 const IMAGE = "postgres:16-alpine";
 const POLL_INTERVAL_MS = 800;
@@ -11,22 +10,20 @@ export interface ContainerInfo {
 }
 
 /**
- * Find a free TCP port by binding a server on port 0.
+ * Get the host port Docker mapped for the container's port 5432.
  */
-async function findFreePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const addr = server.address();
-      if (!addr || typeof addr === "string") {
-        server.close(() => reject(new Error("Could not determine free port")));
-        return;
-      }
-      const port = addr.port;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
+function getHostPort(containerId: string): number {
+  const output = execSync(`docker port ${containerId} 5432`, {
+    encoding: "utf-8",
+  }).trim();
+  // output: "0.0.0.0:54321" or "127.0.0.1:54321"
+  const port = parseInt(output.split(":")[1], 10);
+  if (isNaN(port)) {
+    throw new Error(
+      `Could not parse host port from docker port output: ${output}`,
+    );
+  }
+  return port;
 }
 
 /**
@@ -98,7 +95,6 @@ export async function startContainer(
   const user = options?.user ?? "hoify";
   const password = options?.password ?? "hoify_dev";
   const database = options?.database ?? "hoify";
-  const port = await findFreePort();
   const containerName = `hoify-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   const containerId = execSync(
@@ -107,7 +103,7 @@ export async function startContainer(
       -e POSTGRES_USER=${user} \
       -e POSTGRES_PASSWORD=${password} \
       -e POSTGRES_DB=${database} \
-      -p ${port}:5432 \
+      -p 0:5432 \
       ${IMAGE}`,
     { encoding: "utf-8" },
   ).trim();
@@ -115,10 +111,11 @@ export async function startContainer(
   try {
     await waitForPostgres(containerId);
   } catch (err) {
-    // Cleanup on failure
     execSync(`docker rm -f ${containerId}`, { stdio: "ignore" });
     throw err;
   }
+
+  const port = getHostPort(containerId);
 
   const cleanup = async () => {
     try {

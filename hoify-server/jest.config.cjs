@@ -9,4 +9,5 @@ module.exports = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   testMatch: ["<rootDir>/src/**/*.test.ts"],
+  testPathIgnorePatterns: ["/__tests__/e2e/"],
 };
