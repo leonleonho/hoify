@@ -78,6 +78,8 @@ export function LoginScreen() {
             autoCapitalize="none"
             autoComplete="password"
             disabled={loading}
+            returnKeyType="go"
+            onSubmitEditing={handleLogin}
           />
 
           {displayError ? (
