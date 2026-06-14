@@ -6,6 +6,9 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { client } from '@/apollo/client';
 import { MeDocument } from '@/hooks/generated';
 import { colors } from '@/constants/theme';
+import { MiniPlayer } from '@/features/player/components/MiniPlayer';
+import { FullPlayerOverlay } from '@/features/player/components/FullPlayerOverlay';
+import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 
 /**
  * Root layout wrapper — provides Apollo client and auth gating.
@@ -50,7 +53,15 @@ export default function RootLayout() {
     <ApolloProvider client={client}>
       <StatusBar style="auto" />
       <AuthGate>
-        <Slot />
+        <PlayerProvider>
+          <View style={styles.shell}>
+            <View style={styles.content}>
+              <Slot />
+            </View>
+            <MiniPlayer />
+            <FullPlayerOverlay />
+          </View>
+        </PlayerProvider>
       </AuthGate>
     </ApolloProvider>
   );
@@ -62,5 +73,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  shell: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
   },
 });

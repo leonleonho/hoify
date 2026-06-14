@@ -1,9 +1,59 @@
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { StyleSheet, Text, View } from 'react-native';
 import { HelloDocument } from '@/hooks/generated';
+import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
+import type { Track } from '@/hooks/generated';
+
+/** Minimal mock track for testing — plays NEIJ.mp3 from the stream endpoint. */
+function demoTrack(): Track {
+  const now = new Date().toISOString();
+  return {
+    __typename: 'Track',
+    id: 'demo-neij',
+    title: 'NEIJ Demo',
+    filePath: 'NEIJ.mp3',
+    duration: null,
+    fileFormat: 'mp3',
+    fileSize: null,
+    discNumber: null,
+    trackNumber: null,
+    createdAt: now,
+    updatedAt: now,
+    genres: [],
+    album: {
+      __typename: 'Album',
+      id: 'demo-album',
+      title: 'Demo',
+      coverUrl: null,
+      releaseYear: null,
+      createdAt: now,
+      updatedAt: now,
+      tracks: [],
+      artist: {
+        __typename: 'Artist',
+        id: 'demo-artist',
+        name: 'Demo Artist',
+        bio: null,
+        imageUrl: null,
+        createdAt: now,
+        updatedAt: now,
+        albums: [],
+      },
+    },
+  };
+}
 
 export default function IndexScreen() {
   const { loading, error, data } = useQuery(HelloDocument);
+  const { load } = useMusicPlayer();
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    load(demoTrack());
+  }, [load]);
 
   return (
     <View style={styles.container}>
