@@ -1,29 +1,32 @@
 import { Router } from "express";
 import { createReadStream, existsSync, statSync } from "fs";
 import { resolve } from "path";
-
-/**
- * Directory where music files are stored.
- * For now, we use a local ./music folder relative to the project root.
- * This will change once we define a proper storage layer.
- */
-const MUSIC_DIR = resolve(process.cwd(), "music");
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { tracks } from "../db/schema.js";
 
 const router = Router();
 
-router.get("/:trackId", (req, res) => {
+router.get("/:trackId", async (req, res) => {
   const { trackId } = req.params;
 
-  // Basic security: prevent path traversal
-  if (trackId.includes("..") || trackId.includes("/") || trackId.includes("\\")) {
-    res.status(400).json({ error: "Invalid track ID" });
+  // Look up track in DB to get the stored filePath
+  const track = await db
+    .select({ filePath: tracks.filePath })
+    .from(tracks)
+    .where(eq(tracks.id, trackId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!track) {
+    res.status(404).json({ error: `Track not found: ${trackId}` });
     return;
   }
 
-  const filePath = resolve(MUSIC_DIR, trackId);
+  const filePath = resolve(process.cwd(), track.filePath);
 
   if (!existsSync(filePath)) {
-    res.status(404).json({ error: `Track not found: ${trackId}` });
+    res.status(404).json({ error: `Track file not found: ${track.filePath}` });
     return;
   }
 
