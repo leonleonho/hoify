@@ -6,6 +6,7 @@ import {
   tracks,
   genres,
   trackGenres,
+  playlists,
 } from "../../db/schema.js";
 
 // ---------------------------------------------------------------------------
@@ -258,10 +259,10 @@ export async function getGenreTracks(genreId: string) {
 export async function searchMusic(query: string) {
   const sanitized = query.trim();
   if (!sanitized) {
-    return { artists: [], albums: [], tracks: [] };
+    return { artists: [], albums: [], tracks: [], playlists: [] };
   }
 
-  const [matchingArtists, matchingAlbums, matchingTracks] =
+  const [matchingArtists, matchingAlbums, matchingTracks, matchingPlaylists] =
     await Promise.all([
       db
         .select()
@@ -299,11 +300,19 @@ export async function searchMusic(query: string) {
             OR to_tsvector('english', ${albums.title}) @@ plainto_tsquery('english', ${sanitized})
             OR to_tsvector('english', ${artists.name}) @@ plainto_tsquery('english', ${sanitized})`,
         ),
+
+      db
+        .select()
+        .from(playlists)
+        .where(
+          sql`${playlists.isPublic} = true AND to_tsvector('english', ${playlists.name}) @@ plainto_tsquery('english', ${sanitized})`,
+        ),
     ]);
 
   return {
     artists: matchingArtists,
     albums: matchingAlbums,
     tracks: matchingTracks,
+    playlists: matchingPlaylists,
   };
 }

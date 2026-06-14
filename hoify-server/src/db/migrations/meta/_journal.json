@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1781236269742,
-      "tag": "0000_medical_rhino",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1781246236357,
-      "tag": "0001_modern_sandman",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1781307920815,
-      "tag": "0002_colorful_naoko",
+      "when": 1781424239212,
+      "tag": "0000_cute_the_fury",
       "breakpoints": true
     }
   ]

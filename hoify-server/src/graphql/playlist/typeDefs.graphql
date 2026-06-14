@@ -1,0 +1,53 @@
+type Playlist {
+  id: ID!
+  name: String!
+  description: String
+  isPublic: Boolean!
+  tracks: [Track!]!
+  trackCount: Int!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input CreatePlaylistInput {
+  name: String!
+  description: String
+  isPublic: Boolean
+  trackIds: [ID!]
+}
+
+input UpdatePlaylistInput {
+  name: String
+  description: String
+  isPublic: Boolean
+}
+
+input AddTracksToPlaylistInput {
+  playlistId: ID!
+  position: Int!
+  trackIds: [ID!]!
+}
+
+input RemoveTracksFromPlaylistInput {
+  playlistId: ID!
+  trackIds: [ID!]!
+}
+
+input ReorderPlaylistTracksInput {
+  playlistId: ID!
+  trackIds: [ID!]!
+}
+
+extend type Query {
+  myPlaylists: [Playlist!]!
+  playlist(id: ID!): Playlist
+}
+
+extend type Mutation {
+  createPlaylist(input: CreatePlaylistInput!): Playlist!
+  updatePlaylist(id: ID!, input: UpdatePlaylistInput!): Playlist
+  deletePlaylist(id: ID!): Boolean!
+  addTracksToPlaylist(input: AddTracksToPlaylistInput!): Playlist!
+  removeTracksFromPlaylist(input: RemoveTracksFromPlaylistInput!): Playlist!
+  reorderPlaylistTracks(input: ReorderPlaylistTracksInput!): Playlist!
+}

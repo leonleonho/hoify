@@ -340,6 +340,112 @@ export const SEARCH_MUSIC_QUERY = `
         id
         title
       }
+      playlists {
+        id
+        name
+        isPublic
+        trackCount
+      }
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Playlist query / mutation constants
+// ---------------------------------------------------------------------------
+
+export const CREATE_PLAYLIST_MUTATION = `
+  mutation CreatePlaylist($input: CreatePlaylistInput!) {
+    createPlaylist(input: $input) {
+      id
+      name
+      description
+      isPublic
+      trackCount
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_PLAYLIST_MUTATION = `
+  mutation UpdatePlaylist($id: ID!, $input: UpdatePlaylistInput!) {
+    updatePlaylist(id: $id, input: $input) {
+      id
+      name
+      description
+      isPublic
+    }
+  }
+`;
+
+export const DELETE_PLAYLIST_MUTATION = `
+  mutation DeletePlaylist($id: ID!) {
+    deletePlaylist(id: $id)
+  }
+`;
+
+export const ADD_TRACKS_MUTATION = `
+  mutation AddTracksToPlaylist($input: AddTracksToPlaylistInput!) {
+    addTracksToPlaylist(input: $input) {
+      id
+      name
+      tracks {
+        id
+        title
+      }
+      trackCount
+    }
+  }
+`;
+
+export const REMOVE_TRACKS_MUTATION = `
+  mutation RemoveTracksFromPlaylist($input: RemoveTracksFromPlaylistInput!) {
+    removeTracksFromPlaylist(input: $input) {
+      id
+      trackCount
+    }
+  }
+`;
+
+export const REORDER_TRACKS_MUTATION = `
+  mutation ReorderPlaylistTracks($input: ReorderPlaylistTracksInput!) {
+    reorderPlaylistTracks(input: $input) {
+      id
+      tracks {
+        id
+        title
+      }
+    }
+  }
+`;
+
+export const MY_PLAYLISTS_QUERY = `
+  query MyPlaylists {
+    myPlaylists {
+      id
+      name
+      description
+      isPublic
+      trackCount
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const PLAYLIST_QUERY = `
+  query Playlist($id: ID!) {
+    playlist(id: $id) {
+      id
+      name
+      description
+      isPublic
+      tracks {
+        id
+        title
+      }
+      trackCount
     }
   }
 `;
