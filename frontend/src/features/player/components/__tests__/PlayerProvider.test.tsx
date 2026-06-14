@@ -84,7 +84,7 @@ describe('reducer', () => {
     expect(s.isLoading).toBe(false);
     expect(s.position).toBe(5000);
     expect(s.duration).toBe(200000);
-    expect(s.volume).toBe(0.5);
+    expect(s.volume).toBe(0.5); // volume from STATUS payload
   });
 
   it('STATUS marks isBuffering as isLoading', () => {

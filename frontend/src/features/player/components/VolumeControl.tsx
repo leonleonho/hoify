@@ -19,28 +19,27 @@ type VolumeControlProps = {
  */
 export function VolumeControl({ volume, onVolumeChange }: VolumeControlProps) {
   const barWidth = useRef(0);
-
-  const seekTo = useCallback(
-    (pageX: number) => {
-      if (barWidth.current <= 0) return;
-      const x = Math.max(0, Math.min(pageX, barWidth.current));
-      onVolumeChange(Math.round((x / barWidth.current) * 100) / 100);
-    },
-    [onVolumeChange],
-  );
+  const onVolumeChangeRef = useRef(onVolumeChange);
+  onVolumeChangeRef.current = onVolumeChange;
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
-        seekTo(evt.nativeEvent.locationX);
+        handleSeek(evt.nativeEvent.locationX);
       },
       onPanResponderMove: (evt) => {
-        seekTo(evt.nativeEvent.locationX);
+        handleSeek(evt.nativeEvent.locationX);
       },
     }),
   ).current;
+
+  const handleSeek = useCallback((pageX: number) => {
+    if (barWidth.current <= 0) return;
+    const x = Math.max(0, Math.min(pageX, barWidth.current));
+    onVolumeChangeRef.current(Math.round((x / barWidth.current) * 100) / 100);
+  }, []);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     barWidth.current = e.nativeEvent.layout.width;
@@ -80,6 +79,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
+    width: '100%',
+    maxWidth: 300,
+    alignSelf: 'center',
   },
   icon: {
     fontSize: 18,

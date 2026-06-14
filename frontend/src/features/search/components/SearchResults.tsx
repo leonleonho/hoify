@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { List, ListItem } from '@/components/list/List';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
@@ -14,6 +15,7 @@ type SearchResultsProps = {
 };
 
 export function SearchResults({ data, loading, error }: SearchResultsProps) {
+  const router = useRouter();
   const { playPlaylist } = useMusicPlayer();
 
   if (loading) {
@@ -57,6 +59,7 @@ export function SearchResults({ data, loading, error }: SearchResultsProps) {
               key={artist.id}
               title={artist.name}
               subtitle="Artist"
+              onPress={() => router.push(`/artist/${artist.id}` as any)}
               divider
             />
           ))}
@@ -70,6 +73,7 @@ export function SearchResults({ data, loading, error }: SearchResultsProps) {
               key={album.id}
               title={album.title}
               subtitle={album.artist.name}
+              onPress={() => router.push(`/album/${album.id}` as any)}
               divider
             />
           ))}

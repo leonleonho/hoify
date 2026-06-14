@@ -41,11 +41,11 @@ export function ListItem({
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
-        {subtitle && (
+        {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
           </Text>
-        )}
+        ) : null}
       </View>
       {trailing && <View style={styles.trailing}>{trailing}</View>}
     </View>
