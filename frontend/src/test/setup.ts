@@ -1,1 +1,16 @@
 import '@testing-library/jest-dom/vitest';
+
+// expo-modules-core reads __DEV__ at import time
+(globalThis as any).__DEV__ = true;
+
+// Prevent expo-av import from crashing in tests that load PlayerProvider
+// indirectly (MiniPlayer, FullPlayer, FullPlayerOverlay).
+// PlayerProvider tests override this mock with their own hoisted factory.
+vi.mock('expo-av', () => ({
+  Audio: {
+    Sound: {
+      createAsync: vi.fn().mockResolvedValue({ sound: {} }),
+    },
+    setAudioModeAsync: vi.fn().mockResolvedValue(undefined),
+  },
+}));

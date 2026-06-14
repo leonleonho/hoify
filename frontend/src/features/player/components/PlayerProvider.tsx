@@ -20,7 +20,7 @@ function buildStreamUrl(filePath: string): string {
 
 // ── state ───────────────────────────────────────────────────────────────────
 
-function initialState(volume = 0.8): PlayerState {
+export function initialState(volume = 0.8): PlayerState {
   return {
     currentTrack: null, playlist: [],
     isPlaying: false, isLoading: false,
@@ -28,7 +28,7 @@ function initialState(volume = 0.8): PlayerState {
   };
 }
 
-function reducer(state: PlayerState, action: any): PlayerState {
+export function reducer(state: PlayerState, action: any): PlayerState {
   switch (action.type) {
     case 'PATCH':
       return { ...state, ...action.patch };

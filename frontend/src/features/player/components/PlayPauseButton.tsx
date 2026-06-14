@@ -52,13 +52,19 @@ export function PlayPauseButton({
             <View
               style={[
                 styles.pauseBar,
-                { width: Math.round(iconSize * 0.3) },
+                {
+                  width: Math.round(iconSize * 0.3),
+                  height: iconSize,
+                },
               ]}
             />
             <View
               style={[
                 styles.pauseBar,
-                { width: Math.round(iconSize * 0.3) },
+                {
+                  width: Math.round(iconSize * 0.3),
+                  height: iconSize,
+                },
               ]}
             />
           </View>
@@ -117,6 +123,5 @@ const styles = StyleSheet.create({
   pauseBar: {
     backgroundColor: colors.background,
     borderRadius: 1,
-    height: '100%',
   },
 });

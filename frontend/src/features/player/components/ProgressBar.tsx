@@ -14,7 +14,7 @@ type ProgressBarProps = {
   onSeek: (positionMs: number) => void;
 };
 
-function formatTime(ms: number): string {
+export function formatTime(ms: number): string {
   if (ms <= 0 || !isFinite(ms)) return '0:00';
   const totalSec = Math.floor(ms / 1000);
   const min = Math.floor(totalSec / 60);
