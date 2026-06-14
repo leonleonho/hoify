@@ -54,11 +54,15 @@ async function validateTrackIds(trackIds: string[]) {
 // Queries
 // ---------------------------------------------------------------------------
 
-export async function listMyPlaylists(userId: string) {
+export async function listMyPlaylists(userId: string, type?: string | null) {
+  const conditions = [eq(playlists.userId, userId)];
+  if (type !== undefined && type !== null) {
+    conditions.push(eq(playlists.type, type as "liked" | "suggested"));
+  }
   return db
     .select()
     .from(playlists)
-    .where(eq(playlists.userId, userId))
+    .where(and(...conditions))
     .orderBy(sql`${playlists.createdAt} desc`);
 }
 
@@ -279,4 +283,39 @@ export async function getPlaylistTrackCount(playlistId: string) {
     .where(eq(playlistTracks.playlistId, playlistId));
 
   return row?.count ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Liked playlist
+// ---------------------------------------------------------------------------
+
+export async function getOrCreateLikedPlaylist(userId: string) {
+  const [existing] = await db
+    .select()
+    .from(playlists)
+    .where(and(eq(playlists.userId, userId), eq(playlists.type, "liked")));
+  if (existing) return existing;
+
+  const [created] = await db
+    .insert(playlists)
+    .values({ name: "Liked Songs", userId, type: "liked" })
+    .returning();
+  return created;
+}
+
+export async function likeTrack(userId: string, trackId: string) {
+  const playlist = await getOrCreateLikedPlaylist(userId);
+  const count = await getPlaylistTrackCount(playlist.id);
+
+  await db
+    .insert(playlistTracks)
+    .values({ playlistId: playlist.id, trackId, position: count })
+    .onConflictDoNothing();
+
+  return playlist;
+}
+
+export async function unlikeTrack(userId: string, trackId: string) {
+  const playlist = await getOrCreateLikedPlaylist(userId);
+  return removeTracksFromPlaylist(playlist.id, [trackId], userId);
 }

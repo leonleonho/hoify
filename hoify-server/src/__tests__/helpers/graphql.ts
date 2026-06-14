@@ -421,12 +421,13 @@ export const REORDER_TRACKS_MUTATION = `
 `;
 
 export const MY_PLAYLISTS_QUERY = `
-  query MyPlaylists {
-    myPlaylists {
+  query MyPlaylists($type: PlaylistType) {
+    myPlaylists(type: $type) {
       id
       name
       description
       isPublic
+      type
       trackCount
       createdAt
       updatedAt
@@ -441,10 +442,37 @@ export const PLAYLIST_QUERY = `
       name
       description
       isPublic
+      type
       tracks {
         id
         title
       }
+      trackCount
+    }
+  }
+`;
+
+export const LIKE_TRACK_MUTATION = `
+  mutation LikeTrack($trackId: ID!) {
+    likeTrack(trackId: $trackId) {
+      id
+      name
+      type
+      tracks {
+        id
+        title
+      }
+      trackCount
+    }
+  }
+`;
+
+export const UNLIKE_TRACK_MUTATION = `
+  mutation UnlikeTrack($trackId: ID!) {
+    unlikeTrack(trackId: $trackId) {
+      id
+      name
+      type
       trackCount
     }
   }

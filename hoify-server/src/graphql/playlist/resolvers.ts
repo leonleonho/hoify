@@ -10,6 +10,8 @@ import {
   reorderPlaylistTracks as reorderTracksSvc,
   getPlaylistTracks,
   getPlaylistTrackCount,
+  likeTrack as likeTrackSvc,
+  unlikeTrack as unlikeTrackSvc,
 } from "./services.js";
 import type { Context } from "../auth/resolvers.js";
 
@@ -19,14 +21,20 @@ export const resolvers = {
     trackCount: (parent: { id: string }) => getPlaylistTrackCount(parent.id),
     createdAt: (parent: { createdAt: Date | string }) => fmtDate(parent.createdAt),
     updatedAt: (parent: { updatedAt: Date | string }) => fmtDate(parent.updatedAt),
+    type: (parent: { type: string | null }) => parent.type ?? null,
+  },
+
+  PlaylistType: {
+    liked: "liked",
+    suggested: "suggested",
   },
 
   Query: {
     myPlaylists: (
       _: unknown,
-      __: unknown,
+      args: { type?: string | null },
       context: Context,
-    ) => listMyPlaylists(context.currentUser!.id),
+    ) => listMyPlaylists(context.currentUser!.id, args.type),
 
     playlist: async (
       _: unknown,
@@ -91,5 +99,17 @@ export const resolvers = {
       args: { input: { playlistId: string; trackIds: string[] } },
       context: Context,
     ) => reorderTracksSvc(args.input.playlistId, args.input.trackIds, context.currentUser!.id),
+
+    likeTrack: (
+      _: unknown,
+      args: { trackId: string },
+      context: Context,
+    ) => likeTrackSvc(context.currentUser!.id, args.trackId),
+
+    unlikeTrack: (
+      _: unknown,
+      args: { trackId: string },
+      context: Context,
+    ) => unlikeTrackSvc(context.currentUser!.id, args.trackId),
   },
 };

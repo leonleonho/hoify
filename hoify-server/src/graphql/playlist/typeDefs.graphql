@@ -3,10 +3,16 @@ type Playlist {
   name: String!
   description: String
   isPublic: Boolean!
+  type: PlaylistType
   tracks: [Track!]!
   trackCount: Int!
   createdAt: String!
   updatedAt: String!
+}
+
+enum PlaylistType {
+  liked
+  suggested
 }
 
 input CreatePlaylistInput {
@@ -39,7 +45,7 @@ input ReorderPlaylistTracksInput {
 }
 
 extend type Query {
-  myPlaylists: [Playlist!]!
+  myPlaylists(type: PlaylistType): [Playlist!]!
   playlist(id: ID!): Playlist
 }
 
@@ -50,4 +56,6 @@ extend type Mutation {
   addTracksToPlaylist(input: AddTracksToPlaylistInput!): Playlist!
   removeTracksFromPlaylist(input: RemoveTracksFromPlaylistInput!): Playlist!
   reorderPlaylistTracks(input: ReorderPlaylistTracksInput!): Playlist!
+  likeTrack(trackId: ID!): Playlist!
+  unlikeTrack(trackId: ID!): Playlist!
 }

@@ -16,6 +16,8 @@ import {
   REORDER_TRACKS_MUTATION,
   MY_PLAYLISTS_QUERY,
   PLAYLIST_QUERY,
+  LIKE_TRACK_MUTATION,
+  UNLIKE_TRACK_MUTATION,
 } from "../helpers/graphql.js";
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
@@ -787,6 +789,200 @@ describe("Playlist e2e", () => {
 
       expect(res.errors).toBeDefined();
       expect(res.errors![0]?.extensions?.code).toBe("FORBIDDEN");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Liked Playlist (likeTrack / unlikeTrack / myPlaylists filter)
+  // -----------------------------------------------------------------------
+
+  describe("Liked Playlist", () => {
+    let likedPlaylistId: string;
+
+    it("likeTrack creates Liked Songs playlist with type=liked", async () => {
+      const [trackId] = testTrackIds;
+
+      const res = await executeGraphQL<{
+        likeTrack: {
+          id: string;
+          name: string;
+          type: "liked" | null;
+          tracks: Array<{ id: string }>;
+          trackCount: number;
+        };
+      }>(agent, {
+        query: LIKE_TRACK_MUTATION,
+        variables: { trackId },
+        token: userAToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.likeTrack.name).toBe("Liked Songs");
+      expect(res.data!.likeTrack.type).toBe("liked");
+      expect(res.data!.likeTrack.tracks).toHaveLength(1);
+      expect(res.data!.likeTrack.tracks[0].id).toBe(trackId);
+      expect(res.data!.likeTrack.trackCount).toBe(1);
+      likedPlaylistId = res.data!.likeTrack.id;
+    });
+
+    it("myPlaylists(type: liked) returns only liked playlist", async () => {
+      const res = await executeGraphQL<{
+        myPlaylists: Array<{ name: string; type: "liked" | null }>;
+      }>(agent, {
+        query: MY_PLAYLISTS_QUERY,
+        variables: { type: "liked" },
+        token: userAToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.myPlaylists).toHaveLength(1);
+      expect(res.data!.myPlaylists[0].name).toBe("Liked Songs");
+      expect(res.data!.myPlaylists[0].type).toBe("liked");
+    });
+
+    it("myPlaylists without filter returns all playlists including liked", async () => {
+      const res = await executeGraphQL<{
+        myPlaylists: Array<{ name: string; type: "liked" | null }>;
+      }>(agent, {
+        query: MY_PLAYLISTS_QUERY,
+        token: userAToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      const liked = res.data!.myPlaylists.find((p) => p.type === "liked");
+      expect(liked).toBeDefined();
+      expect(liked!.name).toBe("Liked Songs");
+    });
+
+    it("myPlaylists(type: suggested) returns empty", async () => {
+      const res = await executeGraphQL<{
+        myPlaylists: Array<unknown>;
+      }>(agent, {
+        query: MY_PLAYLISTS_QUERY,
+        variables: { type: "suggested" },
+        token: userAToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.myPlaylists).toHaveLength(0);
+    });
+
+    it("playlist(id) returns liked playlist with type=liked", async () => {
+      const res = await executeGraphQL<{
+        playlist: { name: string; type: "liked" | null };
+      }>(agent, {
+        query: PLAYLIST_QUERY,
+        variables: { id: likedPlaylistId },
+        token: userAToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.playlist.name).toBe("Liked Songs");
+      expect(res.data!.playlist.type).toBe("liked");
+    });
+
+    it("likeTrack same track twice is idempotent (no duplicate)", async () => {
+      const [trackId] = testTrackIds;
+
+      const firstRes = await executeGraphQL<{
+        likeTrack: { trackCount: number; tracks: Array<{ id: string }> };
+      }>(agent, {
+        query: LIKE_TRACK_MUTATION,
+        variables: { trackId },
+        token: userAToken,
+      });
+      expect(firstRes.errors).toBeUndefined();
+      expect(firstRes.data!.likeTrack.trackCount).toBe(1);
+      expect(firstRes.data!.likeTrack.tracks).toHaveLength(1);
+    });
+
+    it("unlikeTrack removes track from liked playlist", async () => {
+      const [trackId] = testTrackIds;
+
+      const res = await executeGraphQL<{
+        unlikeTrack: { trackCount: number; type: "liked" | null };
+      }>(agent, {
+        query: UNLIKE_TRACK_MUTATION,
+        variables: { trackId },
+        token: userAToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.unlikeTrack.trackCount).toBe(0);
+      expect(res.data!.unlikeTrack.type).toBe("liked");
+    });
+
+    it("unlikeTrack on unliked track is a no-op", async () => {
+      const [trackId] = testTrackIds;
+
+      const res = await executeGraphQL<{
+        unlikeTrack: { trackCount: number };
+      }>(agent, {
+        query: UNLIKE_TRACK_MUTATION,
+        variables: { trackId },
+        token: userAToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.unlikeTrack.trackCount).toBe(0);
+    });
+
+    it("likeTrack creates separate liked playlist per user", async () => {
+      const [trackId] = testTrackIds;
+
+      // User B has no liked playlist yet
+      const bBefore = await executeGraphQL<{
+        myPlaylists: Array<unknown>;
+      }>(agent, {
+        query: MY_PLAYLISTS_QUERY,
+        variables: { type: "liked" },
+        token: userBToken,
+      });
+      expect(bBefore.data!.myPlaylists).toHaveLength(0);
+
+      // User B likes a track
+      const likeRes = await executeGraphQL<{
+        likeTrack: { id: string; trackCount: number };
+      }>(agent, {
+        query: LIKE_TRACK_MUTATION,
+        variables: { trackId },
+        token: userBToken,
+      });
+
+      expect(likeRes.errors).toBeUndefined();
+      expect(likeRes.data!.likeTrack.trackCount).toBe(1);
+      expect(likeRes.data!.likeTrack.id).not.toBe(likedPlaylistId); // different playlist
+
+      // Cleanup: unlike for user B
+      await executeGraphQL(agent, {
+        query: UNLIKE_TRACK_MUTATION,
+        variables: { trackId },
+        token: userBToken,
+      });
+    });
+
+    it("rejects likeTrack without auth", async () => {
+      const [trackId] = testTrackIds;
+
+      const res = await executeGraphQL(agent, {
+        query: LIKE_TRACK_MUTATION,
+        variables: { trackId },
+      });
+
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("UNAUTHENTICATED");
+    });
+
+    it("rejects unlikeTrack without auth", async () => {
+      const [trackId] = testTrackIds;
+
+      const res = await executeGraphQL(agent, {
+        query: UNLIKE_TRACK_MUTATION,
+        variables: { trackId },
+      });
+
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("UNAUTHENTICATED");
     });
   });
 });
