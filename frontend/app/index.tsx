@@ -1,83 +1,67 @@
-import { useEffect, useRef } from 'react';
-import { useQuery } from '@apollo/client/react';
-import { StyleSheet, Text, View } from 'react-native';
-import { HelloDocument } from '@/hooks/generated';
-import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
-import type { Track } from '@/hooks/generated';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { Input } from '@/components/input/Input';
+import { colors, spacing, typography } from '@/constants/theme';
+import { useSearchMusic } from '@/features/search/hooks/useSearchMusic';
+import { SearchResults } from '@/features/search/components/SearchResults';
 
-/** Minimal mock track for testing — plays NEIJ.mp3 from the stream endpoint. */
-function demoTrack(): Track {
-  const now = new Date().toISOString();
-  return {
-    __typename: 'Track',
-    id: 'demo-neij',
-    title: 'NEIJ Demo',
-    filePath: 'NEIJ.mp3',
-    duration: null,
-    fileFormat: 'mp3',
-    fileSize: null,
-    discNumber: null,
-    trackNumber: null,
-    createdAt: now,
-    updatedAt: now,
-    genres: [],
-    album: {
-      __typename: 'Album',
-      id: 'demo-album',
-      title: 'Demo',
-      coverUrl: null,
-      releaseYear: null,
-      createdAt: now,
-      updatedAt: now,
-      tracks: [],
-      artist: {
-        __typename: 'Artist',
-        id: 'demo-artist',
-        name: 'Demo Artist',
-        bio: null,
-        imageUrl: null,
-        createdAt: now,
-        updatedAt: now,
-        albums: [],
-      },
-    },
-  };
-}
+const DEBOUNCE_MS = 300;
 
 export default function IndexScreen() {
-  const { loading, error, data } = useQuery(HelloDocument);
-  const { load } = useMusicPlayer();
-  const started = useRef(false);
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChangeText = useCallback((text: string) => {
+    setQuery(text);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDebouncedQuery(text), DEBOUNCE_MS);
+  }, []);
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    load(demoTrack());
-  }, [load]);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+
+  const { searchResults, loading, error } = useSearchMusic(debouncedQuery);
+  const hasActiveSearch = debouncedQuery.trim().length >= 2;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Hoify</Text>
-      <Text style={styles.subtitle}>Music Player</Text>
+      <View style={styles.searchBar}>
+        <Input
+          placeholder="Search for songs, artists, albums…"
+          value={query}
+          onChangeText={handleChangeText}
+          returnKeyType="search"
+        />
+      </View>
 
-      {loading && (
-        <View style={styles.statusBox}>
-          <Text style={styles.statusText}>Connecting to server…</Text>
-        </View>
-      )}
-
-      {error && (
-        <View style={[styles.statusBox, styles.errorBox]}>
-          <Text style={styles.errorText}>
-            Connection failed: {error.message}
-          </Text>
-        </View>
-      )}
-
-      {data && (
-        <View style={[styles.statusBox, styles.successBox]}>
-          <Text style={styles.successText}>
-            Connected! {data.artists?.length ?? 0} artists found.
+      {hasActiveSearch ? (
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {searchResults ? (
+            <SearchResults
+              data={searchResults}
+              loading={false}
+              error={null}
+            />
+          ) : (
+            loading && (
+              <View style={styles.centered}>
+                <Text style={styles.promptText}>Searching…</Text>
+              </View>
+            )
+          )}
+        </ScrollView>
+      ) : (
+        <View style={styles.centered}>
+          <Text style={styles.promptText}>
+            Search for songs, artists, albums…
           </Text>
         </View>
       )}
@@ -88,44 +72,30 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.background,
+  },
+  searchBar: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  centered: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: spacing.lg,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#B3B3B3',
-    marginBottom: 32,
-  },
-  statusBox: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#1E1E1E',
-  },
-  errorBox: {
-    backgroundColor: '#2D1515',
-  },
-  successBox: {
-    backgroundColor: '#152D1E',
-  },
-  statusText: {
-    color: '#B3B3B3',
-    fontSize: 14,
-  },
-  errorText: {
-    color: '#FF6B6B',
-    fontSize: 14,
-  },
-  successText: {
-    color: '#6BFF8A',
-    fontSize: 14,
+  promptText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });

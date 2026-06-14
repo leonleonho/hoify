@@ -1,0 +1,44 @@
+query SearchMusic($query: String!) {
+  searchMusic(query: $query) {
+    artists {
+      id
+      name
+      imageUrl
+    }
+    albums {
+      id
+      title
+      releaseYear
+      coverUrl
+      artist {
+        id
+        name
+      }
+    }
+    tracks {
+      id
+      title
+      trackNumber
+      duration
+      filePath
+      genres {
+        id
+        name
+      }
+      createdAt
+      updatedAt
+      album {
+        id
+        title
+        createdAt
+        updatedAt
+        artist {
+          id
+          name
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+}

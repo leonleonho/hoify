@@ -13,9 +13,8 @@ import type { PlayerState } from '../types/player';
 const STREAM_BASE = 'http://localhost:4000/stream';
 const SEEK_THRESHOLD_MS = 3000;
 
-function buildStreamUrl(filePath: string): string {
-  const filename = filePath.split('/').pop() ?? filePath;
-  return `${STREAM_BASE}/${encodeURIComponent(filename)}`;
+function buildStreamUrl(trackId: string): string {
+  return `${STREAM_BASE}/${encodeURIComponent(trackId)}`;
 }
 
 // ── state ───────────────────────────────────────────────────────────────────
@@ -106,7 +105,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         idx.current = nextIdx;
         dispatchRef.current({ type: 'LOAD_TRACK', track: pl[nextIdx] });
         // reload the new track async
-        const url = buildStreamUrl(pl[nextIdx].filePath);
+        const url = buildStreamUrl(pl[nextIdx].id);
         Audio.Sound.createAsync(
           { uri: url },
           { shouldPlay: true, volume: stateRef.current.volume },
@@ -136,7 +135,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const loadSound = useCallback(async (track: Track, autoPlay: boolean) => {
     await ensure();
     try { await sound.current?.unloadAsync(); } catch {}
-    const url = buildStreamUrl(track.filePath);
+    const url = buildStreamUrl(track.id);
     const { sound: snd } = await Audio.Sound.createAsync(
       { uri: url },
       { shouldPlay: autoPlay, volume: stateRef.current.volume },
