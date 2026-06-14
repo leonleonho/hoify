@@ -269,14 +269,16 @@ export async function searchMusic(query: string) {
         .from(artists)
         .where(
           sql`to_tsvector('english', ${artists.name}) @@ plainto_tsquery('english', ${sanitized})`,
-        ),
+        )
+        .limit(50),
 
       db
         .select()
         .from(albums)
         .where(
           sql`to_tsvector('english', ${albums.title}) @@ plainto_tsquery('english', ${sanitized})`,
-        ),
+        )
+        .limit(50),
 
       db
         .select({
@@ -299,14 +301,16 @@ export async function searchMusic(query: string) {
           sql`to_tsvector('english', ${tracks.title}) @@ plainto_tsquery('english', ${sanitized})
             OR to_tsvector('english', ${albums.title}) @@ plainto_tsquery('english', ${sanitized})
             OR to_tsvector('english', ${artists.name}) @@ plainto_tsquery('english', ${sanitized})`,
-        ),
+        )
+        .limit(50),
 
       db
         .select()
         .from(playlists)
         .where(
           sql`${playlists.isPublic} = true AND to_tsvector('english', ${playlists.name}) @@ plainto_tsquery('english', ${sanitized})`,
-        ),
+        )
+        .limit(50),
     ]);
 
   return {

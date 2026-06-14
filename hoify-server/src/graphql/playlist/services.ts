@@ -319,3 +319,18 @@ export async function unlikeTrack(userId: string, trackId: string) {
   const playlist = await getOrCreateLikedPlaylist(userId);
   return removeTracksFromPlaylist(playlist.id, [trackId], userId);
 }
+
+export async function isTrackLikedByUser(userId: string, trackId: string) {
+  const [row] = await db
+    .select({ id: playlistTracks.trackId })
+    .from(playlistTracks)
+    .innerJoin(playlists, eq(playlistTracks.playlistId, playlists.id))
+    .where(
+      and(
+        eq(playlists.userId, userId),
+        eq(playlists.type, "liked"),
+        eq(playlistTracks.trackId, trackId),
+      ),
+    );
+  return !!row;
+}
