@@ -25,7 +25,6 @@ export function FullPlayer() {
     seek,
     setVolume,
   } = useMusicPlayer();
-
   if (!currentTrack) {
     return (
       <View style={styles.empty}>

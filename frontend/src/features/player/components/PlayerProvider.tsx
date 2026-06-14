@@ -33,7 +33,7 @@ export function reducer(state: PlayerState, action: any): PlayerState {
       return { ...state, ...action.patch };
     case 'STATUS': {
       const s = action.status;
-      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis, duration: s.durationMillis ?? 0, volume: s.volume };
+      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis, duration: s.durationMillis ?? 0 };
     }
     case 'LOAD_TRACK':
       return { ...state, currentTrack: action.track, playlist: action.playlist ?? state.playlist, isPlaying: false, isLoading: false, position: 0, duration: 0 };
