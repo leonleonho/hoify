@@ -25,6 +25,7 @@ const config: StorybookConfig = {
           '@': resolve(__dirname, '../src'),
           'expo-router': resolve(__dirname, 'mocks/expo-router.ts'),
           'expo-secure-store': resolve(__dirname, 'mocks/expo-secure-store.ts'),
+          'expo-av': resolve(__dirname, 'mocks/expo-av.ts'),
           'react-native': 'react-native-web',
           'react-native/Libraries/Animated/src/animations/SpringAnimation':
             'react-native-web/dist/cjs/exports/Animated/SpringAnimation',
