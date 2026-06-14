@@ -14,6 +14,7 @@ import type { Track } from '@/hooks/generated';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
 import { List, ListItem } from '@/components/list/List';
 import { colors, spacing, typography } from '@/constants/theme';
+import { formatTime } from '@/features/player/utils/formatTime';
 
 type Props = {
   artistId: string;
@@ -117,7 +118,7 @@ export function ArtistScreen({ artistId }: Props) {
             <ListItem
               key={track.id}
               title={track.title}
-              subtitle={track.duration ? `${Math.floor(track.duration / 60000)}:${String(Math.floor((track.duration % 60000) / 1000)).padStart(2, '0')}` : ''}
+              subtitle={track.duration ? formatTime(track.duration * 1000) : ''}
               onPress={() => handleTrackPress(index)}
               divider={index < allTracks.length - 1}
             />

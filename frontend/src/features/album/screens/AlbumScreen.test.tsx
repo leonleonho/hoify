@@ -39,7 +39,7 @@ const successData = {
         id: 'track-1',
         title: 'Song One',
         trackNumber: 1,
-        duration: 200000,
+        duration: 200,
         filePath: 'music/song1.mp3',
         genres: [{ __typename: 'Genre', id: 'g1', name: 'Rock' }],
       },
@@ -48,7 +48,7 @@ const successData = {
         id: 'track-2',
         title: 'Song Two',
         trackNumber: 2,
-        duration: 180000,
+        duration: 180,
         filePath: 'music/song2.mp3',
         genres: [],
       },
@@ -57,7 +57,7 @@ const successData = {
         id: 'track-3',
         title: 'Song Three',
         trackNumber: 3,
-        duration: 240000,
+        duration: 240,
         filePath: 'music/song3.mp3',
         genres: [],
       },
@@ -160,7 +160,7 @@ it('renders tracks list with durations', async () => {
     expect(screen.getByText('Song One')).toBeInTheDocument();
     expect(screen.getByText('Song Two')).toBeInTheDocument();
     expect(screen.getByText('Song Three')).toBeInTheDocument();
-    // 200000ms = 3:20, 180000ms = 3:00, 240000ms = 4:00
+    // 200s = 3:20, 180s = 3:00, 240s = 4:00
     expect(screen.getByText('3:20')).toBeInTheDocument();
     expect(screen.getByText('3:00')).toBeInTheDocument();
     expect(screen.getByText('4:00')).toBeInTheDocument();

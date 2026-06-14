@@ -14,6 +14,7 @@ import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
 import { List, ListItem } from '@/components/list/List';
 import { Button } from '@/components/button/Button';
 import { colors, spacing, typography } from '@/constants/theme';
+import { formatTime } from '@/features/player/utils/formatTime';
 
 type Props = {
   albumId: string;
@@ -103,7 +104,7 @@ export function AlbumScreen({ albumId }: Props) {
             title={track.title}
             subtitle={
               track.duration
-                ? `${Math.floor(track.duration / 60000)}:${String(Math.floor((track.duration % 60000) / 1000)).padStart(2, '0')}`
+                ? formatTime(track.duration * 1000)
                 : ''
             }
             onPress={() => handleTrackPress(index)}
