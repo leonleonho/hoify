@@ -23,6 +23,10 @@ export function useMusicPlayer() {
     (...args: Parameters<(typeof musicPlayer)['play']>) => musicPlayer.play(...args),
     [],
   );
+  const load = useCallback(
+    (...args: Parameters<(typeof musicPlayer)['load']>) => musicPlayer.load(...args),
+    [],
+  );
   const playPlaylist = useCallback(
     (...args: Parameters<(typeof musicPlayer)['playPlaylist']>) =>
       musicPlayer.playPlaylist(...args),
@@ -45,6 +49,7 @@ export function useMusicPlayer() {
   return {
     state,
     play,
+    load,
     playPlaylist,
     pause,
     resume,

@@ -21,7 +21,7 @@ export function MiniPlayer() {
     <Pressable
       style={styles.container}
       onPress={() => router.push('/player' as RelativePathString)}
-      accessibilityRole="button"
+      accessibilityRole="link"
       accessibilityLabel={`Now playing: ${state.currentTrack.title}. Tap to open full player.`}
     >
       <TrackInfo track={state.currentTrack} variant="mini" />

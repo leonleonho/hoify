@@ -22,6 +22,8 @@ export type PlayerState = {
 export interface IMusicPlayer {
   readonly state: PlayerState;
 
+  /** Load a single track without playing */
+  load(track: Track): Promise<void>;
   /** Load and play a single track (replaces playlist) */
   play(track: Track): Promise<void>;
   /** Load and play a playlist starting at the given index */

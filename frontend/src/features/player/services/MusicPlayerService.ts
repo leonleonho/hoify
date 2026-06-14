@@ -55,6 +55,25 @@ export class MusicPlayerService implements IMusicPlayer {
     await this.playPlaylist([track], 0);
   }
 
+  /** Load a track into the player without starting playback. */
+  async load(track: Track): Promise<void> {
+    this._state = {
+      ...defaultState(this._state.volume),
+      playlist: [track],
+      currentTrack: track,
+      isLoading: false,
+    };
+    this.playlistIndex = 0;
+    this.notify();
+
+    // Best-effort sound preparation — MiniPlayer shows even if stream unreachable
+    try {
+      await this.loadSound(track);
+    } catch {
+      // Stream may be unreachable (e.g. mobile localhost vs dev machine)
+    }
+  }
+
   async playPlaylist(tracks: Track[], startIndex = 0): Promise<void> {
     if (tracks.length === 0) return;
     const index = Math.max(0, Math.min(startIndex, tracks.length - 1));
@@ -152,26 +171,33 @@ export class MusicPlayerService implements IMusicPlayer {
     this.ready = true;
   }
 
-  private async loadAndPlay(track: Track): Promise<void> {
+  /** Create a new Sound for the given track (no play). Unloads previous sound if any. */
+  private async loadSound(track: Track): Promise<void> {
     await this.ensureReady();
 
-    // Unload previous sound
     if (this.sound) {
       try {
         await this.sound.unloadAsync();
       } catch {
-        // Ignore — sound may already be unloaded
+        // Ignore
       }
     }
 
     const url = buildStreamUrl(track.filePath);
     const { sound } = await Audio.Sound.createAsync(
       { uri: url },
-      { shouldPlay: true, volume: this._state.volume },
+      { shouldPlay: false, volume: this._state.volume },
       (status: AVPlaybackStatus) => this.onPlaybackStatus(status),
     );
 
     this.sound = sound;
+  }
+
+  private async loadAndPlay(track: Track): Promise<void> {
+    await this.loadSound(track);
+    if (this.sound) {
+      await this.sound.playAsync();
+    }
   }
 
   private onPlaybackStatus(status: AVPlaybackStatus): void {
