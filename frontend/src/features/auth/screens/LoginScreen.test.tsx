@@ -266,3 +266,22 @@ it('clears Apollo error and navigates on successful retry', async () => {
     expect(mockReplace).toHaveBeenCalledWith('/');
   });
 });
+
+it('submits login when Enter pressed on password field', async () => {
+  const mocks = [
+    {
+      request: { query: LoginDocument, variables: validVars },
+      result: { data: successData },
+    },
+  ];
+
+  renderLogin(mocks);
+  const user = userEvent.setup();
+
+  await user.type(screen.getByPlaceholderText('you@example.com'), 'a@b.com');
+  await user.type(screen.getByPlaceholderText('Enter your password'), 'secret123{Enter}');
+
+  await waitFor(() => {
+    expect(mockReplace).toHaveBeenCalledWith('/');
+  });
+});
