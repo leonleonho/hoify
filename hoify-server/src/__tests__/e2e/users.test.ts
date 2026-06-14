@@ -1,7 +1,24 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import request from "supertest";
 
-import { executeGraphQL, CREATE_USER_MUTATION, LOGIN_MUTATION, ME_QUERY, UPDATE_USER_MUTATION, DELETE_USER_MUTATION } from "../helpers/graphql.js";
+import { executeGraphQL, CREATE_USER_MUTATION, LOGIN_MUTATION, ME_QUERY } from "../helpers/graphql.js";
+
+const UPDATE_USER_MUTATION = `
+  mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
+    updateUser(id: $id, input: $input) {
+      id
+      email
+      firstName
+      lastName
+    }
+  }
+`;
+
+const DELETE_USER_MUTATION = `
+  mutation DeleteUser($id: ID!) {
+    deleteUser(id: $id)
+  }
+`;
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 
 // ── Shared state (populated in beforeAll) ─────────────────────────────────

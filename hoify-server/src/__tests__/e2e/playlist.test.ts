@@ -8,17 +8,143 @@ import {
   CREATE_ARTIST_MUTATION,
   CREATE_ALBUM_MUTATION,
   CREATE_TRACK_MUTATION,
-  CREATE_PLAYLIST_MUTATION,
-  UPDATE_PLAYLIST_MUTATION,
-  DELETE_PLAYLIST_MUTATION,
-  ADD_TRACKS_MUTATION,
-  REMOVE_TRACKS_MUTATION,
-  REORDER_TRACKS_MUTATION,
-  MY_PLAYLISTS_QUERY,
-  PLAYLIST_QUERY,
-  LIKE_TRACK_MUTATION,
-  UNLIKE_TRACK_MUTATION,
 } from "../helpers/graphql.js";
+
+// ---------------------------------------------------------------------------
+// Playlist mutations
+// ---------------------------------------------------------------------------
+
+const CREATE_PLAYLIST_MUTATION = `
+  mutation CreatePlaylist($input: CreatePlaylistInput!) {
+    createPlaylist(input: $input) {
+      id
+      name
+      description
+      isPublic
+      trackCount
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const UPDATE_PLAYLIST_MUTATION = `
+  mutation UpdatePlaylist($id: ID!, $input: UpdatePlaylistInput!) {
+    updatePlaylist(id: $id, input: $input) {
+      id
+      name
+      description
+      isPublic
+    }
+  }
+`;
+
+const DELETE_PLAYLIST_MUTATION = `
+  mutation DeletePlaylist($id: ID!) {
+    deletePlaylist(id: $id)
+  }
+`;
+
+const ADD_TRACKS_MUTATION = `
+  mutation AddTracksToPlaylist($input: AddTracksToPlaylistInput!) {
+    addTracksToPlaylist(input: $input) {
+      id
+      name
+      tracks {
+        id
+        title
+      }
+      trackCount
+    }
+  }
+`;
+
+const REMOVE_TRACKS_MUTATION = `
+  mutation RemoveTracksFromPlaylist($input: RemoveTracksFromPlaylistInput!) {
+    removeTracksFromPlaylist(input: $input) {
+      id
+      trackCount
+    }
+  }
+`;
+
+const REORDER_TRACKS_MUTATION = `
+  mutation ReorderPlaylistTracks($input: ReorderPlaylistTracksInput!) {
+    reorderPlaylistTracks(input: $input) {
+      id
+      tracks {
+        id
+        title
+      }
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Playlist queries
+// ---------------------------------------------------------------------------
+
+const MY_PLAYLISTS_QUERY = `
+  query MyPlaylists($type: PlaylistType) {
+    myPlaylists(type: $type) {
+      id
+      name
+      description
+      isPublic
+      type
+      trackCount
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const PLAYLIST_QUERY = `
+  query Playlist($id: ID!) {
+    playlist(id: $id) {
+      id
+      name
+      description
+      isPublic
+      type
+      tracks {
+        id
+        title
+      }
+      trackCount
+    }
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Like / Unlike
+// ---------------------------------------------------------------------------
+
+const LIKE_TRACK_MUTATION = `
+  mutation LikeTrack($trackId: ID!) {
+    likeTrack(trackId: $trackId) {
+      id
+      name
+      type
+      tracks {
+        id
+        title
+      }
+      trackCount
+    }
+  }
+`;
+
+const UNLIKE_TRACK_MUTATION = `
+  mutation UnlikeTrack($trackId: ID!) {
+    unlikeTrack(trackId: $trackId) {
+      id
+      name
+      type
+      trackCount
+    }
+  }
+`;
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 
