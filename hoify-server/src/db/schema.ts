@@ -1,6 +1,7 @@
 import {
   boolean,
   bigint,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -72,22 +73,26 @@ export type NewArtist = typeof artists.$inferInsert;
 // Albums
 // ---------------------------------------------------------------------------
 
-export const albums = pgTable("albums", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  title: text("title").notNull(),
-  artistId: uuid("artist_id")
-    .notNull()
-    .references(() => artists.id),
-  releaseYear: integer("release_year"),
-  coverUrl: text("cover_url"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`)
-    .$onUpdate(() => new Date()),
-});
+export const albums = pgTable(
+  "albums",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: text("title").notNull(),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => artists.id),
+    releaseYear: integer("release_year"),
+    coverUrl: text("cover_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("albums_artist_id_idx").on(t.artistId)],
+);
 
 export const albumsRelations = relations(albums, ({ one, many }) => ({
   artist: one(artists, {
@@ -129,6 +134,7 @@ export const tracks = pgTable(
   },
   (t) => ({
     filePathIdx: uniqueIndex("tracks_file_path_idx").on(t.filePath),
+    albumIdIdx: index("tracks_album_id_idx").on(t.albumId),
   }),
 );
 
@@ -213,7 +219,10 @@ export const playlists = pgTable(
       .default(sql`now()`)
       .$onUpdate(() => new Date()),
   },
-  (t) => [uniqueIndex("one_liked_per_user").on(t.userId).where(sql`type = 'liked'`)],
+  (t) => [
+    uniqueIndex("one_liked_per_user").on(t.userId).where(sql`type = 'liked'`),
+    index("playlists_user_id_idx").on(t.userId),
+  ],
 );
 
 export const playlistsRelations = relations(playlists, ({ one, many }) => ({
