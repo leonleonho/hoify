@@ -100,15 +100,7 @@ export function SongListItem({
     onAction: () => {
       const isLiked = track.liked ?? false;
       const mutate = isLiked ? unlikeTrack : likeTrack;
-      mutate({
-        variables: { trackId: track.id },
-        update: (cache) => {
-          cache.modify({
-            id: cache.identify({ __typename: 'Track', id: track.id }),
-            fields: { liked: () => !isLiked },
-          });
-        },
-      });
+      mutate({ variables: { trackId: track.id } });
     },
     backgroundColor: colors.primary,
   };
