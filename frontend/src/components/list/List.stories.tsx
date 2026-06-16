@@ -1,11 +1,11 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { List, ListItem } from './List';
-import { SongListItem } from './SongListItem';
+import { SongListItem, defaultLikeAction, defaultAddToPlaylistAction } from './SongListItem';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../../constants/theme';
 import type { Track } from '../../hooks/generated';
-import { User, Volume2, Bell, Info, ChevronRight, Heart, Trash2, Plus, Check } from 'lucide-react-native';
+import { User, Volume2, Bell, Info, ChevronRight, Check } from 'lucide-react-native';
 
 // ── mock track data ────────────────────────────────────────────────
 const mockTrack = (overrides: Partial<Track>): Track => ({
@@ -202,16 +202,8 @@ export const SongList: Story = {
           interactionMode="swipe"
           divider={i < tracks.length - 1}
           onPress={() => console.log('Play', track.title)}
-          swipeRightAction={{
-            icon: <Heart size={22} color="#fff" />,
-            onAction: () => console.log('Liked', track.title),
-            backgroundColor: colors.primary,
-          }}
-          swipeLeftAction={{
-            icon: <Trash2 size={22} color="#fff" />,
-            onAction: () => console.log('Remove', track.title),
-            backgroundColor: colors.error,
-          }}
+          swipeRightAction={defaultLikeAction(false)}
+          swipeLeftAction={defaultAddToPlaylistAction}
         />
       ))}
     </List>
@@ -245,11 +237,7 @@ export const SongListSwipeRight: Story = {
           track={track}
           interactionMode="swipe"
           divider={i < 2}
-          swipeRightAction={{
-            icon: <Plus size={22} color="#fff" />,
-            onAction: () => console.log('Added to queue', track.title),
-            backgroundColor: colors.primary,
-          }}
+          swipeRightAction={defaultLikeAction(false)}
         />
       ))}
     </List>
@@ -266,11 +254,7 @@ export const SongListClickMode: Story = {
           track={track}
           interactionMode="click"
           divider={i < 2}
-          swipeRightAction={{
-            icon: <Plus size={22} color="#fff" />,
-            onAction: () => console.log('Added to queue', track.title),
-            backgroundColor: colors.primary,
-          }}
+          swipeRightAction={defaultLikeAction(true)}
         />
       ))}
     </List>

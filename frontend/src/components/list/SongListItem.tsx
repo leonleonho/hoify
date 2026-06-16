@@ -9,6 +9,7 @@ import {
   PanResponder,
   Platform,
 } from 'react-native';
+import { Heart, Plus } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../constants/theme';
 import type { Track } from '../../hooks/generated';
 
@@ -36,6 +37,22 @@ export type SwipeAction = {
   onAction: () => void;
   /** Background colour revealed on swipe (default: primary for right, error for left) */
   backgroundColor?: string;
+};
+
+/** Default "like" action — swipe right. Pass `liked` true for filled heart. Override `onAction` in production. */
+export function defaultLikeAction(liked: boolean): SwipeAction {
+  return {
+    icon: <Heart size={22} color="#fff" fill={liked ? '#fff' : 'transparent'} />,
+    onAction: () => console.warn('defaultLikeAction — no onAction set'),
+    backgroundColor: colors.primary,
+  };
+}
+
+/** Default "add to playlist" action — swipe left. Override `onAction` in production. */
+export const defaultAddToPlaylistAction: SwipeAction = {
+  icon: <Plus size={22} color="#fff" />,
+  onAction: () => console.warn('defaultAddToPlaylistAction — no onAction set'),
+  backgroundColor: colors.error,
 };
 
 export type SongListItemProps = {
