@@ -1,0 +1,5 @@
+mutation UnlikeTrack($trackId: ID!) {
+  unlikeTrack(trackId: $trackId) {
+    id
+  }
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { List, ListItem } from '@/components/list/List';
+import { SongListItem } from '@/components/list/SongListItem';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
 import type { SearchMusicQuery, Track } from '@/hooks/generated';
@@ -83,10 +84,9 @@ export function SearchResults({ data, loading, error }: SearchResultsProps) {
       {hasTracks && (
         <List header="TRACKS">
           {data.tracks.map((track, index) => (
-            <ListItem
+            <SongListItem
               key={track.id}
-              title={track.title}
-              subtitle={`${track.album.artist.name} · ${track.album.title}`}
+              track={track as Track}
               onPress={() => handleTrackPress(index)}
               divider={index < data.tracks.length - 1}
             />

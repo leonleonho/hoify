@@ -11,10 +11,10 @@ import { useQuery } from '@apollo/client/react';
 import { AlbumDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
-import { List, ListItem } from '@/components/list/List';
+import { List } from '@/components/list/List';
+import { SongListItem } from '@/components/list/SongListItem';
 import { Button } from '@/components/button/Button';
 import { colors, spacing, typography } from '@/constants/theme';
-import { formatTime } from '@/features/player/utils/formatTime';
 
 type Props = {
   albumId: string;
@@ -98,17 +98,12 @@ export function AlbumScreen({ albumId }: Props) {
 
       {/* Tracks */}
       <List header="TRACKS">
-        {album.tracks.map((track, index) => (
-          <ListItem
+        {tracksWithAlbum.map((track, index) => (
+          <SongListItem
             key={track.id}
-            title={track.title}
-            subtitle={
-              track.duration
-                ? formatTime(track.duration * 1000)
-                : ''
-            }
+            track={track}
             onPress={() => handleTrackPress(index)}
-            divider={index < album.tracks.length - 1}
+            divider={index < tracksWithAlbum.length - 1}
           />
         ))}
       </List>

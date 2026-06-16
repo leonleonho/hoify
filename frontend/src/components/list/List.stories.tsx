@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { MockedProvider } from '@apollo/client/testing/react';
 import { List, ListItem } from './List';
 import { SongListItem, defaultLikeAction, defaultAddToPlaylistAction } from './SongListItem';
 import { View, Text, StyleSheet } from 'react-native';
@@ -18,6 +19,7 @@ const mockTrack = (overrides: Partial<Track>): Track => ({
   filePath: '/music/midnight-waves.mp3',
   fileFormat: 'mp3',
   fileSize: 8_200_000,
+  liked: false,
   createdAt: '2025-01-01',
   updatedAt: '2025-01-01',
   genres: [],
@@ -94,9 +96,11 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <View style={styles.wrapper}>
-        <Story />
-      </View>
+      <MockedProvider>
+        <View style={styles.wrapper}>
+          <Story />
+        </View>
+      </MockedProvider>
     ),
   ],
 } satisfies Meta<typeof List>;

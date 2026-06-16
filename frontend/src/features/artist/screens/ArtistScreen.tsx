@@ -13,8 +13,8 @@ import { ArtistDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
 import { List, ListItem } from '@/components/list/List';
+import { SongListItem } from '@/components/list/SongListItem';
 import { colors, spacing, typography } from '@/constants/theme';
-import { formatTime } from '@/features/player/utils/formatTime';
 
 type Props = {
   artistId: string;
@@ -115,10 +115,9 @@ export function ArtistScreen({ artistId }: Props) {
       {allTracks.length > 0 && (
         <List header="SONGS">
           {allTracks.map((track, index) => (
-            <ListItem
+            <SongListItem
               key={track.id}
-              title={track.title}
-              subtitle={track.duration ? formatTime(track.duration * 1000) : ''}
+              track={track}
               onPress={() => handleTrackPress(index)}
               divider={index < allTracks.length - 1}
             />

@@ -33,6 +33,7 @@ export const mockTrack1: Track = {
     releaseYear: 2024,
   },
   genres: [],
+  liked: false,
   createdAt: '2024-01-01',
   updatedAt: '2024-01-01',
 };
@@ -68,6 +69,7 @@ export const mockTrack2: Track = {
     releaseYear: 2024,
   },
   genres: [],
+  liked: false,
   createdAt: '2024-01-01',
   updatedAt: '2024-01-01',
 };

@@ -10,8 +10,10 @@ import {
   Platform,
 } from 'react-native';
 import { Heart, Plus } from 'lucide-react-native';
+import { useMutation } from '@apollo/client/react';
 import { colors, spacing, typography } from '../../constants/theme';
 import type { Track } from '../../hooks/generated';
+import { LikeTrackDocument, UnlikeTrackDocument } from '../../hooks/generated';
 
 // ── duration formatter ──────────────────────────────────────────────
 function formatDuration(seconds: number | null | undefined): string {
@@ -89,13 +91,41 @@ export function SongListItem({
   const swipeCapable = useSwipeCapable();
   const useSwipe =
     interactionMode === 'swipe' || (interactionMode === 'auto' && swipeCapable);
+
+  const [likeTrack] = useMutation(LikeTrackDocument);
+  const [unlikeTrack] = useMutation(UnlikeTrackDocument);
+
+  const resolvedSwipeRight = swipeRightAction ?? {
+    icon: <Heart size={22} color="#fff" fill={track.liked ? '#fff' : 'transparent'} />,
+    onAction: () => {
+      const isLiked = track.liked ?? false;
+      const mutate = isLiked ? unlikeTrack : likeTrack;
+      mutate({
+        variables: { trackId: track.id },
+        update: (cache) => {
+          cache.modify({
+            id: cache.identify({ __typename: 'Track', id: track.id }),
+            fields: { liked: () => !isLiked },
+          });
+        },
+      });
+    },
+    backgroundColor: colors.primary,
+  };
+
+  const resolvedSwipeLeft = swipeLeftAction ?? {
+    icon: <Plus size={22} color="#fff" />,
+    onAction: () => console.warn('addToPlaylist not yet wired'),
+    backgroundColor: colors.error,
+  };
+
   const translateX = useRef(new Animated.Value(0)).current;
-  const callbacksRef = useRef({ onPress, swipeLeftAction, swipeRightAction });
+  const callbacksRef = useRef({ onPress, swipeLeftAction: resolvedSwipeLeft, swipeRightAction: resolvedSwipeRight });
   const gestureStartX = useRef(0);
   const gestureDx = useRef(0);
 
   useEffect(() => {
-    callbacksRef.current = { onPress, swipeLeftAction, swipeRightAction };
+    callbacksRef.current = { onPress, swipeLeftAction: resolvedSwipeLeft, swipeRightAction: resolvedSwipeRight };
   });
 
   // ── click mode ───────────────────────────────────────────────────
@@ -143,20 +173,20 @@ export function SongListItem({
           <View style={styles.clickContent}>{content}</View>
         )}
 
-        {swipeLeftAction && (
+        {resolvedSwipeLeft && (
           <Pressable
-            onPress={swipeLeftAction.onAction}
+            onPress={resolvedSwipeLeft.onAction}
             style={styles.clickActionIcon}
           >
-            {swipeLeftAction.icon}
+            {resolvedSwipeLeft.icon}
           </Pressable>
         )}
-        {swipeRightAction && (
+        {resolvedSwipeRight && (
           <Pressable
-            onPress={swipeRightAction.onAction}
+            onPress={resolvedSwipeRight.onAction}
             style={styles.clickActionIcon}
           >
-            {swipeRightAction.icon}
+            {resolvedSwipeRight.icon}
           </Pressable>
         )}
       </View>
@@ -228,36 +258,36 @@ export function SongListItem({
   return (
     <View style={divider ? styles.wrapperWithDivider : styles.wrapper}>
       {/* Left-side action background — visible when swiping RIGHT */}
-      {swipeRightAction && (
+      {resolvedSwipeRight && (
         <Animated.View
           style={[
             styles.actionBg,
             {
               left: 0,
-              backgroundColor: swipeRightAction.backgroundColor ?? colors.primary,
+              backgroundColor: resolvedSwipeRight.backgroundColor ?? colors.primary,
               opacity: rightReveal,
             },
           ]}
           pointerEvents="none"
         >
-          {swipeRightAction.icon}
+          {resolvedSwipeRight.icon}
         </Animated.View>
       )}
 
       {/* Right-side action background — visible when swiping LEFT */}
-      {swipeLeftAction && (
+      {resolvedSwipeLeft && (
         <Animated.View
           style={[
             styles.actionBg,
             {
               right: 0,
-              backgroundColor: swipeLeftAction.backgroundColor ?? colors.error,
+              backgroundColor: resolvedSwipeLeft.backgroundColor ?? colors.error,
               opacity: leftReveal,
             },
           ]}
           pointerEvents="none"
         >
-          {swipeLeftAction.icon}
+          {resolvedSwipeLeft.icon}
         </Animated.View>
       )}
 

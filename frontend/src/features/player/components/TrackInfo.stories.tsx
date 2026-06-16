@@ -34,6 +34,7 @@ const mockTrack: Track = {
     },
   },
   genres: [],
+  liked: false,
 };
 
 const meta = {

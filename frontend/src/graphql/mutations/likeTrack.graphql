@@ -1,0 +1,5 @@
+mutation LikeTrack($trackId: ID!) {
+  likeTrack(trackId: $trackId) {
+    id
+  }
+}
