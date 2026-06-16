@@ -7,6 +7,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../../constants/theme';
 import type { Track } from '../../hooks/generated';
 import { User, Volume2, Bell, Info, ChevronRight, Check } from 'lucide-react-native';
+import { PlayerProvider } from '../../features/player/components/PlayerProvider';
 
 // ── mock track data ────────────────────────────────────────────────
 const mockTrack = (overrides: Partial<Track>): Track => ({
@@ -97,9 +98,11 @@ const meta = {
   decorators: [
     (Story) => (
       <MockedProvider>
-        <View style={styles.wrapper}>
-          <Story />
-        </View>
+        <PlayerProvider>
+          <View style={styles.wrapper}>
+            <Story />
+          </View>
+        </PlayerProvider>
       </MockedProvider>
     ),
   ],

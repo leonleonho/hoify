@@ -14,6 +14,7 @@ import { useMutation } from '@apollo/client/react';
 import { colors, spacing, typography } from '../../constants/theme';
 import type { Track } from '../../hooks/generated';
 import { LikeTrackDocument, UnlikeTrackDocument } from '../../hooks/generated';
+import { useMusicPlayer } from '../../features/player/components/PlayerProvider';
 
 // ── duration formatter ──────────────────────────────────────────────
 function formatDuration(seconds: number | null | undefined): string {
@@ -94,6 +95,7 @@ export function SongListItem({
 
   const [likeTrack] = useMutation(LikeTrackDocument);
   const [unlikeTrack] = useMutation(UnlikeTrackDocument);
+  const { playNext } = useMusicPlayer();
 
   const resolvedSwipeRight = swipeRightAction ?? {
     icon: <Heart size={22} color="#fff" fill={track.liked ? '#fff' : 'transparent'} />,
@@ -107,7 +109,7 @@ export function SongListItem({
 
   const resolvedSwipeLeft = swipeLeftAction ?? {
     icon: <Plus size={22} color="#fff" />,
-    onAction: () => console.warn('addToPlaylist not yet wired'),
+    onAction: () => playNext(track),
     backgroundColor: colors.error,
   };
 

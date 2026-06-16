@@ -98,6 +98,7 @@ export function makeMockContext(overrides: Partial<PlayerContextValue> = {}): Pl
     resume: async () => {},
     togglePlayPause: async () => {},
     next: async () => {},
+    playNext: () => {},
     previous: async () => {},
     seek: async () => {},
     setVolume: async () => {},

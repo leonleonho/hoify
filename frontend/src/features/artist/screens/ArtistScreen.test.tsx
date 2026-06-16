@@ -28,6 +28,16 @@ vi.mock('@/features/player/hooks/useMusicPlayer', () => ({
   }),
 }));
 
+vi.mock('@/features/player/components/PlayerProvider', async () => {
+  const actual = await vi.importActual<typeof import('@/features/player/components/PlayerProvider')>(
+    '@/features/player/components/PlayerProvider',
+  );
+  return {
+    ...actual,
+    useMusicPlayer: () => ({ playPlaylist: mockPlayPlaylist, playNext: vi.fn() }),
+  };
+});
+
 // ── test data ─────────────────────────────────────────────────────
 
 const artistId = 'artist-1';

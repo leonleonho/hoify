@@ -7,6 +7,7 @@ import React from 'react';
 import { SongListItem } from './SongListItem';
 import { LikeTrackDocument, UnlikeTrackDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated';
+import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 
 // ── helpers ─────────────────────────────────────────────────────────────
 
@@ -51,11 +52,13 @@ const baseTrack = (overrides?: Partial<Track>): Track =>
 function renderItem(track: Track, props: Partial<Parameters<typeof SongListItem>[0]> = {}, mocks: any[] = []) {
   return render(
     <MockedProvider mocks={mocks}>
-      <SongListItem
-        track={track}
-        onPress={vi.fn()}
-        {...props}
-      />
+      <PlayerProvider>
+        <SongListItem
+          track={track}
+          onPress={vi.fn()}
+          {...props}
+        />
+      </PlayerProvider>
     </MockedProvider>,
   );
 }
