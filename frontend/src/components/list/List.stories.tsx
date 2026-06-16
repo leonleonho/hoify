@@ -251,7 +251,7 @@ export const SongListSwipeRight: Story = {
   ),
 };
 
-export const SongListClickMode: Story = {
+export const SongListDefaultClickMode: Story = {
   args: {},
   render: () => (
     <List header="Suggestions">
@@ -261,7 +261,27 @@ export const SongListClickMode: Story = {
           track={track}
           interactionMode="click"
           divider={i < 2}
+          onPress={() => console.log('Play', track.title)}
           swipeRightAction={defaultLikeAction(true)}
+          swipeLeftAction={defaultAddToPlaylistAction}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListDefaultSwipeMode: Story = {
+  args: {},
+  render: () => (
+    <List header="Suggestions">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="swipe"
+          divider={i < 2}
+          swipeRightAction={defaultLikeAction(true)}
+          swipeLeftAction={defaultAddToPlaylistAction}
         />
       ))}
     </List>

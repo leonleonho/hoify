@@ -38,7 +38,7 @@ function useSwipeCapable(): boolean {
 export type SwipeAction = {
   icon: React.ReactNode;
   onAction: () => void;
-  /** Background colour revealed on swipe (default: primary for right, error for left) */
+  /** Background colour revealed on swipe (default: primary for right, secondary for left) */
   backgroundColor?: string;
 };
 
@@ -55,7 +55,7 @@ export function defaultLikeAction(liked: boolean): SwipeAction {
 export const defaultAddToPlaylistAction: SwipeAction = {
   icon: <Plus size={22} color="#fff" />,
   onAction: () => console.warn('defaultAddToPlaylistAction — no onAction set'),
-  backgroundColor: colors.error,
+  backgroundColor: colors.secondary,
 };
 
 export type SongListItemProps = {
@@ -110,7 +110,7 @@ export function SongListItem({
   const resolvedSwipeLeft = swipeLeftAction ?? {
     icon: <Plus size={22} color="#fff" />,
     onAction: () => playNext(track),
-    backgroundColor: colors.error,
+    backgroundColor: colors.secondary,
   };
 
   const translateX = useRef(new Animated.Value(0)).current;
@@ -124,8 +124,22 @@ export function SongListItem({
 
   // ── click mode ───────────────────────────────────────────────────
   if (!useSwipe) {
+    const bgFlash = useRef(new Animated.Value(0)).current;
+    const bgColor = bgFlash.interpolate({
+      inputRange: [0, 1],
+      outputRange: [colors.surface, colors.primaryDark],
+    });
+
+    const animateFlashIn = () => {
+      Animated.timing(bgFlash, { toValue: 1, duration: 80, useNativeDriver: false }).start();
+    };
+
+    const animateFlashOut = () => {
+      Animated.timing(bgFlash, { toValue: 0, duration: 250, useNativeDriver: false }).start();
+    };
+
     const content = (
-      <>
+      <View style={styles.clickContent}>
         {track.album.coverUrl ? (
           <Image source={{ uri: track.album.coverUrl }} style={styles.art} />
         ) : (
@@ -140,37 +154,40 @@ export function SongListItem({
           </Text>
         </View>
         <Text style={styles.duration}>{formatDuration(track.duration)}</Text>
-      </>
+      </View>
     );
 
     return (
-      <View
+      <Animated.View
         style={[
           divider ? styles.wrapperWithDivider : styles.wrapper,
           styles.clickContainer,
           onPress ? styles.clickable : undefined,
+          { backgroundColor: onPress ? bgColor : colors.surface },
         ]}
       >
         {onPress ? (
           <Pressable
             onPress={onPress}
-            style={({ pressed, hovered }) =>
-              [
-                styles.clickContent,
-                pressed || hovered ? styles.pressed : undefined,
-              ] as any
-            }
+            onPressIn={animateFlashIn}
+            onPressOut={animateFlashOut}
+            style={styles.clickFullWidth}
           >
             {content}
           </Pressable>
         ) : (
-          <View style={styles.clickContent}>{content}</View>
+          <View style={styles.clickFullWidth}>{content}</View>
         )}
 
         {resolvedSwipeLeft && (
           <Pressable
             onPress={resolvedSwipeLeft.onAction}
-            style={styles.clickActionIcon}
+            style={({ pressed }) =>
+              [
+                styles.clickActionIcon,
+                pressed ? styles.actionIconPressed : undefined,
+              ] as any
+            }
           >
             {resolvedSwipeLeft.icon}
           </Pressable>
@@ -178,12 +195,17 @@ export function SongListItem({
         {resolvedSwipeRight && (
           <Pressable
             onPress={resolvedSwipeRight.onAction}
-            style={styles.clickActionIcon}
+            style={({ pressed }) =>
+              [
+                styles.clickActionIcon,
+                pressed ? styles.actionIconPressed : undefined,
+              ] as any
+            }
           >
             {resolvedSwipeRight.icon}
           </Pressable>
         )}
-      </View>
+      </Animated.View>
     );
   }
 
@@ -275,7 +297,7 @@ export function SongListItem({
             styles.actionBg,
             {
               right: 0,
-              backgroundColor: resolvedSwipeLeft.backgroundColor ?? colors.error,
+              backgroundColor: resolvedSwipeLeft.backgroundColor ?? colors.secondary,
               opacity: leftReveal,
             },
           ]}
@@ -393,16 +415,24 @@ const styles = StyleSheet.create({
   },
 
   clickContent: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     userSelect: 'none',
+  },
+
+  clickFullWidth: {
+    flex: 1,
   },
 
   clickActionIcon: {
     padding: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  actionIconPressed: {
+    transform: [{ scale: 0.85 }],
+    opacity: 0.7,
   },
 
   clickable: {
