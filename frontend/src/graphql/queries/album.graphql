@@ -15,6 +15,7 @@ query Album($id: ID!) {
       trackNumber
       duration
       filePath
+      liked
       genres {
         id
         name

@@ -56,6 +56,6 @@ extend type Mutation {
   addTracksToPlaylist(input: AddTracksToPlaylistInput!): Playlist!
   removeTracksFromPlaylist(input: RemoveTracksFromPlaylistInput!): Playlist!
   reorderPlaylistTracks(input: ReorderPlaylistTracksInput!): Playlist!
-  likeTrack(trackId: ID!): Playlist!
-  unlikeTrack(trackId: ID!): Playlist!
+  likeTrack(trackId: ID!): Track!
+  unlikeTrack(trackId: ID!): Track!
 }

@@ -312,12 +312,32 @@ export async function likeTrack(userId: string, trackId: string) {
     .values({ playlistId: playlist.id, trackId, position: count })
     .onConflictDoNothing();
 
-  return playlist;
+  const [track] = await db
+    .select()
+    .from(tracks)
+    .where(eq(tracks.id, trackId));
+
+  return track ?? null;
 }
 
 export async function unlikeTrack(userId: string, trackId: string) {
   const playlist = await getOrCreateLikedPlaylist(userId);
-  return removeTracksFromPlaylist(playlist.id, [trackId], userId);
+
+  await db
+    .delete(playlistTracks)
+    .where(
+      and(
+        eq(playlistTracks.playlistId, playlist.id),
+        eq(playlistTracks.trackId, trackId),
+      ),
+    );
+
+  const [track] = await db
+    .select()
+    .from(tracks)
+    .where(eq(tracks.id, trackId));
+
+  return track ?? null;
 }
 
 export async function isTrackLikedByUser(userId: string, trackId: string) {

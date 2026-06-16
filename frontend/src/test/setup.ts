@@ -14,3 +14,10 @@ vi.mock('expo-av', () => ({
     setAudioModeAsync: vi.fn().mockResolvedValue(undefined),
   },
 }));
+
+// lucide-react-native ships raw ESM with typeof guards that happy-dom can't
+// parse. Mock it so components importing icons don't crash at import time.
+vi.mock('lucide-react-native', () => ({
+  Heart: 'Heart',
+  Plus: 'Plus',
+}));

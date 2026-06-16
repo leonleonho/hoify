@@ -1,8 +1,92 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { MockedProvider } from '@apollo/client/testing/react';
 import { List, ListItem } from './List';
+import { SongListItem, defaultLikeAction, defaultAddToPlaylistAction } from './SongListItem';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../../constants/theme';
+import type { Track } from '../../hooks/generated';
+import { User, Volume2, Bell, Info, ChevronRight, Check } from 'lucide-react-native';
+
+// ── mock track data ────────────────────────────────────────────────
+const mockTrack = (overrides: Partial<Track>): Track => ({
+  __typename: 'Track',
+  id: '1',
+  title: 'Midnight Waves',
+  duration: 204,
+  discNumber: 1,
+  trackNumber: 1,
+  filePath: '/music/midnight-waves.mp3',
+  fileFormat: 'mp3',
+  fileSize: 8_200_000,
+  liked: false,
+  createdAt: '2025-01-01',
+  updatedAt: '2025-01-01',
+  genres: [],
+  album: {
+    __typename: 'Album',
+    id: 'a1',
+    title: 'Neon Dreams',
+    coverUrl: null,
+    artist: {
+      __typename: 'Artist',
+      id: 'ar1',
+      name: 'Synthwave Kid',
+      albums: [],
+      bio: null,
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01',
+      imageUrl: null,
+    },
+    releaseYear: 2025,
+    tracks: [],
+    createdAt: '2025-01-01',
+    updatedAt: '2025-01-01',
+  },
+  ...overrides,
+} as Track);
+
+const tracks: Track[] = [
+  mockTrack({
+    id: '1',
+    title: 'Midnight Waves',
+    duration: 204,
+    album: {
+      ...mockTrack({}).album,
+      artist: { ...mockTrack({}).album.artist, name: 'Synthwave Kid' },
+    },
+  }),
+  mockTrack({
+    id: '2',
+    title: 'Crystal Rain',
+    duration: 247,
+    album: {
+      ...mockTrack({}).album,
+      title: 'Digital Horizon',
+      artist: { ...mockTrack({}).album.artist, name: 'Neon Pulse' },
+    },
+  }),
+  mockTrack({
+    id: '3',
+    title: 'Starlight Drive',
+    duration: 183,
+    album: {
+      ...mockTrack({}).album,
+      title: 'Neon Dreams',
+      artist: { ...mockTrack({}).album.artist, name: 'Synthwave Kid' },
+    },
+  }),
+  mockTrack({
+    id: '4',
+    title: 'Urban Echoes',
+    duration: 312,
+    album: {
+      ...mockTrack({}).album,
+      title: 'Concrete Jungle',
+      artist: { ...mockTrack({}).album.artist, name: 'DJ Spector' },
+    },
+  }),
+];
 
 const meta = {
   title: 'Components/List',
@@ -12,9 +96,11 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <View style={styles.wrapper}>
-        <Story />
-      </View>
+      <MockedProvider>
+        <View style={styles.wrapper}>
+          <Story />
+        </View>
+      </MockedProvider>
     ),
   ],
 } satisfies Meta<typeof List>;
@@ -22,38 +108,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Playlist: Story = {
-  args: {},
-  render: () => (
-    <List header="Recently Played">
-      <ListItem
-        title="Midnight Waves"
-        subtitle="Electronic · 42 min"
-        leading={<Text style={styles.emoji}>🌊</Text>}
-        trailing={<Text style={styles.duration}>3:24</Text>}
-      />
-      <ListItem
-        title="Chill Beats"
-        subtitle="Lo-fi · 1h 12min"
-        leading={<Text style={styles.emoji}>🎧</Text>}
-        trailing={<Text style={styles.duration}>4:07</Text>}
-      />
-      <ListItem
-        title="Road Trip 2025"
-        subtitle="Rock · 2h 30min"
-        leading={<Text style={styles.emoji}>🎸</Text>}
-        trailing={<Text style={styles.duration}>3:55</Text>}
-      />
-      <ListItem
-        title="Jazz & Rain"
-        subtitle="Jazz · 58 min"
-        leading={<Text style={styles.emoji}>🎷</Text>}
-        divider={false}
-        trailing={<Text style={styles.duration}>5:12</Text>}
-      />
-    </List>
-  ),
-};
+// ── existing stories ───────────────────────────────────────────────
 
 export const Settings: Story = {
   args: {},
@@ -62,26 +117,26 @@ export const Settings: Story = {
       <ListItem
         title="Account"
         subtitle="Manage your profile and security"
-        leading={<Text style={styles.emoji}>👤</Text>}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        leading={<User size={20} color={colors.textSecondary} />}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
       <ListItem
         title="Audio Quality"
         subtitle="Streaming and downloads"
-        leading={<Text style={styles.emoji}>🔊</Text>}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        leading={<Volume2 size={20} color={colors.textSecondary} />}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
       <ListItem
         title="Notifications"
         subtitle="Push and email preferences"
-        leading={<Text style={styles.emoji}>🔔</Text>}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        leading={<Bell size={20} color={colors.textSecondary} />}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
       <ListItem
         title="About"
-        leading={<Text style={styles.emoji}>ℹ️</Text>}
+        leading={<Info size={20} color={colors.textSecondary} />}
         divider={false}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
     </List>
   ),
@@ -122,7 +177,7 @@ export const Interactable: Story = {
               divider={i < items.length - 1}
               trailing={
                 tapped === title ? (
-                  <Text style={styles.checked}>✓</Text>
+                  <Check size={16} color={colors.primary} />
                 ) : undefined
               }
             />
@@ -138,29 +193,83 @@ export const Interactable: Story = {
   },
 };
 
+// ── song list stories ──────────────────────────────────────────────
+
+export const SongList: Story = {
+  args: {},
+  render: () => (
+    <List header="Now Playing">
+      {tracks.map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="swipe"
+          divider={i < tracks.length - 1}
+          onPress={() => console.log('Play', track.title)}
+          swipeRightAction={defaultLikeAction(false)}
+          swipeLeftAction={defaultAddToPlaylistAction}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListNoSwipe: Story = {
+  args: {},
+  render: () => (
+    <List header="Queue">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="swipe"
+          divider={i < 2}
+          onPress={() => console.log('Play', track.title)}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListSwipeRight: Story = {
+  args: {},
+  render: () => (
+    <List header="Suggestions">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="swipe"
+          divider={i < 2}
+          swipeRightAction={defaultLikeAction(false)}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListClickMode: Story = {
+  args: {},
+  render: () => (
+    <List header="Suggestions">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="click"
+          divider={i < 2}
+          swipeRightAction={defaultLikeAction(true)}
+        />
+      ))}
+    </List>
+  ),
+};
+
 const styles = StyleSheet.create({
   wrapper: {
     padding: 16,
     backgroundColor: colors.background,
     width: 360,
-  },
-  emoji: {
-    fontSize: 20,
-  },
-  duration: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  chevron: {
-    fontSize: 22,
-    color: colors.textMuted,
-    fontWeight: '300',
-  },
-  checked: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 16,
   },
   interactableWrapper: {
     width: 360,

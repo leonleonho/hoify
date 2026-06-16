@@ -26,7 +26,10 @@ const config: StorybookConfig = {
           'expo-router': resolve(__dirname, 'mocks/expo-router.ts'),
           'expo-secure-store': resolve(__dirname, 'mocks/expo-secure-store.ts'),
           'expo-av': resolve(__dirname, 'mocks/expo-av.ts'),
-          'react-native': 'react-native-web',
+          // lucide-react-native uses react-native-svg fabric modules unavailable on web.
+          // lucide-react renders native SVG elements, same API, works in browser.
+          'lucide-react-native': 'lucide-react',
+          // specific react-native submodule aliases — must come before generic 'react-native' catch-all
           'react-native/Libraries/Animated/src/animations/SpringAnimation':
             'react-native-web/dist/cjs/exports/Animated/SpringAnimation',
           'react-native/Libraries/Animated/src/animations/TimingAnimation':
@@ -35,6 +38,7 @@ const config: StorybookConfig = {
             'react-native-web/dist/cjs/exports/Animated/SpringConfig',
           'react-native/Libraries/Image/AssetRegistry':
             'react-native-web/dist/cjs/modules/AssetRegistry',
+          'react-native': 'react-native-web',
         },
       },
       define: {

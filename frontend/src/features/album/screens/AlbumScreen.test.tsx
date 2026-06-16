@@ -40,6 +40,7 @@ const successData = {
         title: 'Song One',
         trackNumber: 1,
         duration: 200,
+        liked: false,
         filePath: 'music/song1.mp3',
         genres: [{ __typename: 'Genre', id: 'g1', name: 'Rock' }],
       },
@@ -49,6 +50,7 @@ const successData = {
         title: 'Song Two',
         trackNumber: 2,
         duration: 180,
+        liked: false,
         filePath: 'music/song2.mp3',
         genres: [],
       },
@@ -58,6 +60,7 @@ const successData = {
         title: 'Song Three',
         trackNumber: 3,
         duration: 240,
+        liked: false,
         filePath: 'music/song3.mp3',
         genres: [],
       },
@@ -129,7 +132,7 @@ it('renders album title, artist name, and release year', async () => {
 
   await waitFor(() => {
     expect(screen.getByText('Test Album')).toBeInTheDocument();
-    expect(screen.getByText('Test Artist')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Artist').length).toBeGreaterThan(0);
     expect(screen.getByText('2020')).toBeInTheDocument();
   });
 });
