@@ -124,13 +124,8 @@ const LIKE_TRACK_MUTATION = `
   mutation LikeTrack($trackId: ID!) {
     likeTrack(trackId: $trackId) {
       id
-      name
-      type
-      tracks {
-        id
-        title
-      }
-      trackCount
+      title
+      liked
     }
   }
 `;
@@ -139,9 +134,8 @@ const UNLIKE_TRACK_MUTATION = `
   mutation UnlikeTrack($trackId: ID!) {
     unlikeTrack(trackId: $trackId) {
       id
-      name
-      type
-      trackCount
+      title
+      liked
     }
   }
 `;
@@ -925,45 +919,50 @@ describe("Playlist e2e", () => {
   describe("Liked Playlist", () => {
     let likedPlaylistId: string;
 
-    it("likeTrack creates Liked Songs playlist with type=liked", async () => {
+    it("likeTrack returns track with liked=true and creates Liked Songs playlist", async () => {
       const [trackId] = testTrackIds;
 
-      const res = await executeGraphQL<{
-        likeTrack: {
-          id: string;
-          name: string;
-          type: "liked" | null;
-          tracks: Array<{ id: string }>;
-          trackCount: number;
-        };
+      const likeRes = await executeGraphQL<{
+        likeTrack: { id: string; title: string; liked: boolean };
       }>(agent, {
         query: LIKE_TRACK_MUTATION,
         variables: { trackId },
         token: userAToken,
       });
 
-      expect(res.errors).toBeUndefined();
-      expect(res.data!.likeTrack.name).toBe("Liked Songs");
-      expect(res.data!.likeTrack.type).toBe("liked");
-      expect(res.data!.likeTrack.tracks).toHaveLength(1);
-      expect(res.data!.likeTrack.tracks[0].id).toBe(trackId);
-      expect(res.data!.likeTrack.trackCount).toBe(1);
-      likedPlaylistId = res.data!.likeTrack.id;
-    });
+      expect(likeRes.errors).toBeUndefined();
+      expect(likeRes.data!.likeTrack.id).toBe(trackId);
+      expect(likeRes.data!.likeTrack.liked).toBe(true);
 
-    it("myPlaylists(type: liked) returns only liked playlist", async () => {
-      const res = await executeGraphQL<{
-        myPlaylists: Array<{ name: string; type: "liked" | null }>;
+      // Verify the liked playlist was created
+      const myRes = await executeGraphQL<{
+        myPlaylists: Array<{ id: string; name: string; type: "liked" | null; trackCount: number }>;
       }>(agent, {
         query: MY_PLAYLISTS_QUERY,
         variables: { type: "liked" },
         token: userAToken,
       });
 
-      expect(res.errors).toBeUndefined();
-      expect(res.data!.myPlaylists).toHaveLength(1);
-      expect(res.data!.myPlaylists[0].name).toBe("Liked Songs");
-      expect(res.data!.myPlaylists[0].type).toBe("liked");
+      expect(myRes.errors).toBeUndefined();
+      expect(myRes.data!.myPlaylists).toHaveLength(1);
+      expect(myRes.data!.myPlaylists[0].name).toBe("Liked Songs");
+      expect(myRes.data!.myPlaylists[0].type).toBe("liked");
+      expect(myRes.data!.myPlaylists[0].trackCount).toBe(1);
+
+      likedPlaylistId = myRes.data!.myPlaylists[0].id;
+
+      // Verify the liked playlist contains the track
+      const plRes = await executeGraphQL<{
+        playlist: { tracks: Array<{ id: string }> };
+      }>(agent, {
+        query: PLAYLIST_QUERY,
+        variables: { id: likedPlaylistId },
+        token: userAToken,
+      });
+
+      expect(plRes.errors).toBeUndefined();
+      expect(plRes.data!.playlist.tracks).toHaveLength(1);
+      expect(plRes.data!.playlist.tracks[0].id).toBe(trackId);
     });
 
     it("myPlaylists without filter returns all playlists including liked", async () => {
@@ -1010,23 +1009,24 @@ describe("Playlist e2e", () => {
     it("likeTrack same track twice is idempotent (no duplicate)", async () => {
       const [trackId] = testTrackIds;
 
-      const firstRes = await executeGraphQL<{
-        likeTrack: { trackCount: number; tracks: Array<{ id: string }> };
+      const res = await executeGraphQL<{
+        likeTrack: { id: string; liked: boolean };
       }>(agent, {
         query: LIKE_TRACK_MUTATION,
         variables: { trackId },
         token: userAToken,
       });
-      expect(firstRes.errors).toBeUndefined();
-      expect(firstRes.data!.likeTrack.trackCount).toBe(1);
-      expect(firstRes.data!.likeTrack.tracks).toHaveLength(1);
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.likeTrack.id).toBe(trackId);
+      expect(res.data!.likeTrack.liked).toBe(true);
     });
 
-    it("unlikeTrack removes track from liked playlist", async () => {
+    it("unlikeTrack returns track with liked=false", async () => {
       const [trackId] = testTrackIds;
 
       const res = await executeGraphQL<{
-        unlikeTrack: { trackCount: number; type: "liked" | null };
+        unlikeTrack: { id: string; liked: boolean };
       }>(agent, {
         query: UNLIKE_TRACK_MUTATION,
         variables: { trackId },
@@ -1034,15 +1034,15 @@ describe("Playlist e2e", () => {
       });
 
       expect(res.errors).toBeUndefined();
-      expect(res.data!.unlikeTrack.trackCount).toBe(0);
-      expect(res.data!.unlikeTrack.type).toBe("liked");
+      expect(res.data!.unlikeTrack.id).toBe(trackId);
+      expect(res.data!.unlikeTrack.liked).toBe(false);
     });
 
     it("unlikeTrack on unliked track is a no-op", async () => {
       const [trackId] = testTrackIds;
 
       const res = await executeGraphQL<{
-        unlikeTrack: { trackCount: number };
+        unlikeTrack: { id: string; liked: boolean };
       }>(agent, {
         query: UNLIKE_TRACK_MUTATION,
         variables: { trackId },
@@ -1050,7 +1050,8 @@ describe("Playlist e2e", () => {
       });
 
       expect(res.errors).toBeUndefined();
-      expect(res.data!.unlikeTrack.trackCount).toBe(0);
+      expect(res.data!.unlikeTrack.id).toBe(trackId);
+      expect(res.data!.unlikeTrack.liked).toBe(false);
     });
 
     it("likeTrack creates separate liked playlist per user", async () => {
@@ -1068,7 +1069,7 @@ describe("Playlist e2e", () => {
 
       // User B likes a track
       const likeRes = await executeGraphQL<{
-        likeTrack: { id: string; trackCount: number };
+        likeTrack: { id: string; liked: boolean };
       }>(agent, {
         query: LIKE_TRACK_MUTATION,
         variables: { trackId },
@@ -1076,8 +1077,19 @@ describe("Playlist e2e", () => {
       });
 
       expect(likeRes.errors).toBeUndefined();
-      expect(likeRes.data!.likeTrack.trackCount).toBe(1);
-      expect(likeRes.data!.likeTrack.id).not.toBe(likedPlaylistId); // different playlist
+      expect(likeRes.data!.likeTrack.id).toBe(trackId);
+      expect(likeRes.data!.likeTrack.liked).toBe(true);
+
+      // Verify user B's liked playlist is different from user A's
+      const bPlaylists = await executeGraphQL<{
+        myPlaylists: Array<{ id: string }>;
+      }>(agent, {
+        query: MY_PLAYLISTS_QUERY,
+        variables: { type: "liked" },
+        token: userBToken,
+      });
+      expect(bPlaylists.data!.myPlaylists).toHaveLength(1);
+      expect(bPlaylists.data!.myPlaylists[0].id).not.toBe(likedPlaylistId);
 
       // Cleanup: unlike for user B
       await executeGraphQL(agent, {
