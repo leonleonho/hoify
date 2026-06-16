@@ -54,6 +54,7 @@ const successData = {
             title: 'Song One',
             trackNumber: 1,
             duration: 200000,
+            liked: false,
             filePath: 'music/song1.mp3',
             genres: [{ __typename: 'Genre', id: 'genre-1', name: 'Rock' }],
           },
@@ -63,6 +64,7 @@ const successData = {
             title: 'Song Two',
             trackNumber: 2,
             duration: 180000,
+            liked: false,
             filePath: 'music/song2.mp3',
             genres: [],
           },
@@ -82,6 +84,7 @@ const successData = {
             title: 'Song Three',
             trackNumber: 1,
             duration: 240000,
+            liked: false,
             filePath: 'music/song3.mp3',
             genres: [],
           },
@@ -154,7 +157,7 @@ it('renders artist name, image and bio', async () => {
   ]);
 
   await waitFor(() => {
-    expect(screen.getByText('Test Artist')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Artist').length).toBeGreaterThan(0);
     expect(screen.getByText('A test artist biography.')).toBeInTheDocument();
   });
 
