@@ -35,7 +35,7 @@ export type SwipeAction = {
   icon: React.ReactNode;
   onAction: () => void;
   /** Background colour revealed on swipe (default: primary for right, error for left) */
-  color?: string;
+  backgroundColor?: string;
 };
 
 export type SongListItemProps = {
@@ -74,69 +74,75 @@ export function SongListItem({
     interactionMode === 'swipe' || (interactionMode === 'auto' && swipeCapable);
   const translateX = useRef(new Animated.Value(0)).current;
   const callbacksRef = useRef({ onPress, swipeLeftAction, swipeRightAction });
+  const gestureStartX = useRef(0);
+  const gestureDx = useRef(0);
 
   useEffect(() => {
     callbacksRef.current = { onPress, swipeLeftAction, swipeRightAction };
   });
 
-  // ── swipe mode ────────────────────────────────────────────────────
+  // ── click mode ───────────────────────────────────────────────────
   if (!useSwipe) {
-    return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) =>
-          [divider ? styles.wrapperWithDivider : styles.wrapper, pressed ? styles.pressed : undefined] as any
-        }
-      >
-        <View style={styles.content}>
-          {track.album.coverUrl ? (
-            <Image
-              source={{ uri: track.album.coverUrl }}
-              style={styles.art}
-            />
-          ) : (
-            <View style={styles.art} />
-          )}
-
-          <View style={styles.meta}>
-            <Text style={styles.songTitle} numberOfLines={1}>
-              {track.title}
-            </Text>
-            <Text style={styles.artist} numberOfLines={1}>
-              {track.album.artist.name}
-            </Text>
-          </View>
-
-          <Text style={styles.duration}>
-            {formatDuration(track.duration)}
+    const content = (
+      <>
+        {track.album.coverUrl ? (
+          <Image source={{ uri: track.album.coverUrl }} style={styles.art} />
+        ) : (
+          <View style={styles.art} />
+        )}
+        <View style={styles.meta}>
+          <Text style={styles.songTitle} numberOfLines={1}>
+            {track.title}
           </Text>
-
-          {swipeLeftAction && (
-            <Pressable
-              onPress={swipeLeftAction.onAction}
-              style={[
-                styles.clickAction,
-                { backgroundColor: swipeLeftAction.color ?? colors.error },
-              ]}
-              hitSlop={8}
-            >
-              {swipeLeftAction.icon}
-            </Pressable>
-          )}
-          {swipeRightAction && (
-            <Pressable
-              onPress={swipeRightAction.onAction}
-              style={[
-                styles.clickAction,
-                { backgroundColor: swipeRightAction.color ?? colors.primary },
-              ]}
-              hitSlop={8}
-            >
-              {swipeRightAction.icon}
-            </Pressable>
-          )}
+          <Text style={styles.artist} numberOfLines={1}>
+            {track.album.artist.name}
+          </Text>
         </View>
-      </Pressable>
+        <Text style={styles.duration}>{formatDuration(track.duration)}</Text>
+      </>
+    );
+
+    return (
+      <View
+        style={[
+          divider ? styles.wrapperWithDivider : styles.wrapper,
+          styles.clickContainer,
+          onPress ? styles.clickable : undefined,
+        ]}
+      >
+        {onPress ? (
+          <Pressable
+            onPress={onPress}
+            style={({ pressed, hovered }) =>
+              [
+                styles.clickContent,
+                pressed || hovered ? styles.pressed : undefined,
+              ] as any
+            }
+          >
+            {content}
+          </Pressable>
+        ) : (
+          <View style={styles.clickContent}>{content}</View>
+        )}
+
+        {swipeLeftAction && (
+          <Pressable
+            onPress={swipeLeftAction.onAction}
+            style={styles.clickActionIcon}
+          >
+            {swipeLeftAction.icon}
+          </Pressable>
+        )}
+        {swipeRightAction && (
+          <Pressable
+            onPress={swipeRightAction.onAction}
+            style={styles.clickActionIcon}
+          >
+            {swipeRightAction.icon}
+          </Pressable>
+        )}
+      </View>
     );
   }
 
@@ -158,24 +164,27 @@ export function SongListItem({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 5,
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (evt) => {
         translateX.stopAnimation();
         translateX.setValue(0);
+        gestureStartX.current = evt.nativeEvent.pageX;
+        gestureDx.current = 0;
       },
-      onPanResponderMove: (_, gs) => {
-        const clamped = Math.min(Math.max(gs.dx, -SWIPE_MAX), SWIPE_MAX);
+      onPanResponderMove: (evt) => {
+        const dx = evt.nativeEvent.pageX - gestureStartX.current;
+        gestureDx.current = dx;
+        const clamped = Math.min(Math.max(dx, -SWIPE_MAX), SWIPE_MAX);
         translateX.setValue(clamped);
       },
-      onPanResponderRelease: (_, gs) => {
+      onPanResponderRelease: (_evt, _gs) => {
         const {
           onPress: cbOnPress,
           swipeLeftAction: cbLeft,
           swipeRightAction: cbRight,
         } = callbacksRef.current;
-        const dx = gs.dx;
+        const dx = gestureDx.current;
 
-        if (Math.abs(dx) < 5 && Math.abs(gs.dy) < 5) {
+        if (Math.abs(dx) < 5) {
           cbOnPress?.();
         } else if (dx > SWIPE_THRESHOLD && cbRight) {
           cbRight.onAction();
@@ -208,7 +217,7 @@ export function SongListItem({
             styles.actionBg,
             {
               left: 0,
-              backgroundColor: swipeRightAction.color ?? colors.primary,
+              backgroundColor: swipeRightAction.backgroundColor ?? colors.primary,
               opacity: rightReveal,
             },
           ]}
@@ -225,7 +234,7 @@ export function SongListItem({
             styles.actionBg,
             {
               right: 0,
-              backgroundColor: swipeLeftAction.color ?? colors.error,
+              backgroundColor: swipeLeftAction.backgroundColor ?? colors.error,
               opacity: leftReveal,
             },
           ]}
@@ -237,7 +246,11 @@ export function SongListItem({
 
       {/* Draggable content row */}
       <Animated.View
-        style={[styles.content, { transform: [{ translateX }] }]}
+        style={[
+          styles.content,
+          { transform: [{ translateX }] },
+          onPress ? styles.clickable : undefined,
+        ]}
         {...panResponder.panHandlers}
       >
         {track.album.coverUrl ? (
@@ -295,6 +308,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     minHeight: 60,
     backgroundColor: colors.surface,
+    userSelect: 'none',
   },
 
   art: {
@@ -328,13 +342,30 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
 
-  clickAction: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  clickContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    minHeight: 60,
+    backgroundColor: colors.surface,
+  },
+
+  clickContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    userSelect: 'none',
+  },
+
+  clickActionIcon: {
+    padding: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: spacing.xs,
+  },
+
+  clickable: {
+    cursor: 'pointer',
   },
 
   pressed: {

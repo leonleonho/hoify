@@ -14,9 +14,11 @@
     "expo-secure-store": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "graphql": "^16.14.2",
+    "lucide-react-native": "^1.18.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
+    "react-native-svg": "^15.15.5",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
@@ -26,6 +28,7 @@
     "@graphql-codegen/typescript": "^6.0.2",
     "@graphql-codegen/typescript-operations": "^6.0.3",
     "@storybook/addon-a11y": "^10.4.4",
+    "@storybook/addon-actions": "^9.0.8",
     "@storybook/addon-docs": "^10.4.4",
     "@storybook/addon-mcp": "^0.6.0",
     "@storybook/addon-vitest": "^10.4.4",
@@ -41,6 +44,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-storybook": "^10.4.4",
     "happy-dom": "^20.10.3",
+    "lucide-react": "^1.18.0",
     "playwright": "^1.60.0",
     "storybook": "^10.4.4",
     "typescript": "~6.0.3",

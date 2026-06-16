@@ -2,9 +2,10 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { List, ListItem } from './List';
 import { SongListItem } from './SongListItem';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../../constants/theme';
 import type { Track } from '../../hooks/generated';
+import { User, Volume2, Bell, Info, ChevronRight, Heart, Trash2, Plus, Check } from 'lucide-react-native';
 
 // ── mock track data ────────────────────────────────────────────────
 const mockTrack = (overrides: Partial<Track>): Track => ({
@@ -112,26 +113,26 @@ export const Settings: Story = {
       <ListItem
         title="Account"
         subtitle="Manage your profile and security"
-        leading={<Text style={styles.emoji}>👤</Text>}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        leading={<User size={20} color={colors.textSecondary} />}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
       <ListItem
         title="Audio Quality"
         subtitle="Streaming and downloads"
-        leading={<Text style={styles.emoji}>🔊</Text>}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        leading={<Volume2 size={20} color={colors.textSecondary} />}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
       <ListItem
         title="Notifications"
         subtitle="Push and email preferences"
-        leading={<Text style={styles.emoji}>🔔</Text>}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        leading={<Bell size={20} color={colors.textSecondary} />}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
       <ListItem
         title="About"
-        leading={<Text style={styles.emoji}>ℹ️</Text>}
+        leading={<Info size={20} color={colors.textSecondary} />}
         divider={false}
-        trailing={<Text style={styles.chevron}>›</Text>}
+        trailing={<ChevronRight size={22} color={colors.textMuted} />}
       />
     </List>
   ),
@@ -172,7 +173,7 @@ export const Interactable: Story = {
               divider={i < items.length - 1}
               trailing={
                 tapped === title ? (
-                  <Text style={styles.checked}>✓</Text>
+                  <Check size={16} color={colors.primary} />
                 ) : undefined
               }
             />
@@ -200,16 +201,16 @@ export const SongList: Story = {
           track={track}
           interactionMode="swipe"
           divider={i < tracks.length - 1}
-          onPress={() => Alert.alert('Play', track.title)}
+          onPress={() => console.log('Play', track.title)}
           swipeRightAction={{
-            icon: <Text style={styles.actionIcon}>❤️</Text>,
-            onAction: () => Alert.alert('Liked', track.title),
-            color: colors.primary,
+            icon: <Heart size={22} color="#fff" />,
+            onAction: () => console.log('Liked', track.title),
+            backgroundColor: colors.primary,
           }}
           swipeLeftAction={{
-            icon: <Text style={styles.actionIcon}>🗑️</Text>,
-            onAction: () => Alert.alert('Remove', track.title),
-            color: colors.error,
+            icon: <Trash2 size={22} color="#fff" />,
+            onAction: () => console.log('Remove', track.title),
+            backgroundColor: colors.error,
           }}
         />
       ))}
@@ -227,7 +228,7 @@ export const SongListNoSwipe: Story = {
           track={track}
           interactionMode="swipe"
           divider={i < 2}
-          onPress={() => Alert.alert('Play', track.title)}
+          onPress={() => console.log('Play', track.title)}
         />
       ))}
     </List>
@@ -245,9 +246,9 @@ export const SongListSwipeRight: Story = {
           interactionMode="swipe"
           divider={i < 2}
           swipeRightAction={{
-            icon: <Text style={styles.actionIcon}>➕</Text>,
-            onAction: () => Alert.alert('Added to queue', track.title),
-            color: colors.primary,
+            icon: <Plus size={22} color="#fff" />,
+            onAction: () => console.log('Added to queue', track.title),
+            backgroundColor: colors.primary,
           }}
         />
       ))}
@@ -266,9 +267,9 @@ export const SongListClickMode: Story = {
           interactionMode="click"
           divider={i < 2}
           swipeRightAction={{
-            icon: <Text style={styles.actionIcon}>➕</Text>,
-            onAction: () => Alert.alert('Added to queue', track.title),
-            color: colors.primary,
+            icon: <Plus size={22} color="#fff" />,
+            onAction: () => console.log('Added to queue', track.title),
+            backgroundColor: colors.primary,
           }}
         />
       ))}
@@ -282,24 +283,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     width: 360,
   },
-  emoji: {
-    fontSize: 20,
-  },
-  duration: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  chevron: {
-    fontSize: 22,
-    color: colors.textMuted,
-    fontWeight: '300',
-  },
-  checked: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 16,
-  },
   interactableWrapper: {
     width: 360,
     gap: spacing.md,
@@ -308,8 +291,5 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     textAlign: 'center',
-  },
-  actionIcon: {
-    fontSize: 22,
   },
 });
