@@ -1,0 +1,8 @@
+query MyPlaylists {
+  myPlaylists {
+    id
+    name
+    trackCount
+    isPublic
+  }
+}

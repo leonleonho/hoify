@@ -270,6 +270,23 @@ export const SongListDefaultClickMode: Story = {
   ),
 };
 
+export const SongListWithContextMenu: Story = {
+  args: {},
+  render: () => (
+    <List header="Suggestions">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="click"
+          divider={i < 2}
+          onPress={() => console.log('Play', track.title)}
+        />
+      ))}
+    </List>
+  ),
+};
+
 export const SongListDefaultSwipeMode: Story = {
   args: {},
   render: () => (

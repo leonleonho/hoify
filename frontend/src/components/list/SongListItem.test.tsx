@@ -9,6 +9,8 @@ import { LikeTrackDocument, UnlikeTrackDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated';
 import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 // ── helpers ─────────────────────────────────────────────────────────────
 
 const baseTrack = (overrides?: Partial<Track>): Track =>
@@ -150,8 +152,8 @@ describe('click mode — action buttons', () => {
     );
 
     const interactives = getInteractiveElements(container);
-    // Last interactive is the heart button
-    const heartBtn = interactives[interactives.length - 1];
+    // Third-to-last interactive is the heart button (after MoreVertical)
+    const heartBtn = interactives[interactives.length - 2];
     await user.click(heartBtn);
 
     expect(onAction).toHaveBeenCalledTimes(1);
@@ -169,8 +171,8 @@ describe('click mode — action buttons', () => {
     );
 
     const interactives = getInteractiveElements(container);
-    // Second-to-last interactive is the plus button (before heart)
-    const plusBtn = interactives[interactives.length - 2];
+    // Fourth-to-last interactive is the plus button (MoreVertical, Heart, then Plus)
+    const plusBtn = interactives[interactives.length - 3];
     await user.click(plusBtn);
 
     expect(onAction).toHaveBeenCalledTimes(1);
@@ -197,7 +199,7 @@ describe('click mode — default like action', () => {
     );
 
     const interactives = getInteractiveElements(container);
-    const heartBtn = interactives[interactives.length - 1];
+    const heartBtn = interactives[interactives.length - 2];
     await user.click(heartBtn);
 
     await waitFor(() => {
@@ -224,7 +226,7 @@ describe('click mode — default like action', () => {
     );
 
     const interactives = getInteractiveElements(container);
-    const heartBtn = interactives[interactives.length - 1];
+    const heartBtn = interactives[interactives.length - 2];
     await user.click(heartBtn);
 
     await waitFor(() => {

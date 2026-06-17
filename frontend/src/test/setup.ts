@@ -20,4 +20,5 @@ vi.mock('expo-av', () => ({
 vi.mock('lucide-react-native', () => ({
   Heart: 'Heart',
   Plus: 'Plus',
+  MoreVertical: 'MoreVertical',
 }));
