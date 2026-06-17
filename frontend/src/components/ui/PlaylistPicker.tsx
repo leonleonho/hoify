@@ -15,7 +15,6 @@ import {
   MyPlaylistsDocument,
   AddTracksToPlaylistDocument,
   CreatePlaylistDocument,
-  type Playlist,
 } from '../../hooks/generated';
 
 type PlaylistPickerProps = {

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { TrackInfo } from './TrackInfo';
 import { View, StyleSheet } from 'react-native';
 import { colors } from '@/constants/theme';
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 
 const mockTrack: Track = {
   id: 't1',

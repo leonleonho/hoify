@@ -1,4 +1,4 @@
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 import type { PlayerState } from '@/features/player/types/player';
 import type { PlayerContextValue } from '../PlayerProvider';
 

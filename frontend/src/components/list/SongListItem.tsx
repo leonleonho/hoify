@@ -13,7 +13,7 @@ import { Heart, Plus, MoreVertical } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@apollo/client/react';
 import { colors, spacing, typography } from '../../constants/theme';
-import type { Track } from '../../hooks/generated';
+import type { Track } from '../../hooks/generated/types';
 import { LikeTrackDocument, UnlikeTrackDocument } from '../../hooks/generated';
 import { useMusicPlayer } from '../../features/player/components/PlayerProvider';
 import { ContextMenu } from '../ui/ContextMenu';

@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from 'react';
 import { Audio, type AVPlaybackStatus } from 'expo-av';
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 import type { PlayerState } from '../types/player';
 
 const STREAM_BASE = 'http://localhost:4000/stream';

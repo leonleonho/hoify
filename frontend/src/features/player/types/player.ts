@@ -1,4 +1,4 @@
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 
 /** Playback state exposed to the UI. Read-only snapshot. */
 export type PlayerState = {

@@ -5,8 +5,8 @@ import { List, ListItem } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
-import type { SearchMusicQuery, Track } from '@/hooks/generated';
-
+import type { SearchMusicQuery } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 type SearchResultsData = SearchMusicQuery['searchMusic'];
 
 type SearchResultsProps = {

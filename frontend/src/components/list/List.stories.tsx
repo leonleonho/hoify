@@ -5,7 +5,7 @@ import { List, ListItem } from './List';
 import { SongListItem, defaultLikeAction, defaultAddToPlaylistAction } from './SongListItem';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../../constants/theme';
-import type { Track } from '../../hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 import { User, Volume2, Bell, Info, ChevronRight, Check } from 'lucide-react-native';
 import { PlayerProvider } from '../../features/player/components/PlayerProvider';
 

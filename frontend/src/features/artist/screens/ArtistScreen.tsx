@@ -10,7 +10,7 @@ import {
 import { useQuery } from '@apollo/client/react';
 import { useRouter } from 'expo-router';
 import { ArtistDocument } from '@/hooks/generated';
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
 import { List, ListItem } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';

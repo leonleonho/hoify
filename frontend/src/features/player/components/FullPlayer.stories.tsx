@@ -4,7 +4,7 @@ import { FullPlayer } from './FullPlayer';
 import { View, StyleSheet } from 'react-native';
 import { colors } from '@/constants/theme';
 import { withPlayerContext } from './storyUtils';
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 
 const mockTrack: Track = {
   id: 't1',

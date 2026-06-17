@@ -6,7 +6,7 @@ import React from 'react';
 
 import { SongListItem } from './SongListItem';
 import { LikeTrackDocument, UnlikeTrackDocument } from '@/hooks/generated';
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
