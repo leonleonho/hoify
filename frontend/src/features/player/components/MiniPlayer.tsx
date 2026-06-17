@@ -1,9 +1,12 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Heart } from 'lucide-react-native';
+import { useMutation } from '@apollo/client/react';
 import { colors, spacing } from '@/constants/theme';
 import { useMusicPlayer } from '../hooks/useMusicPlayer';
 import { TrackInfo } from './TrackInfo';
 import { PlayPauseButton } from './PlayPauseButton';
+import { LikeTrackDocument, UnlikeTrackDocument } from '../../../hooks/generated';
 
 /**
  * Fixed bottom bar showing current track with play/pause + next controls.
@@ -12,8 +15,21 @@ import { PlayPauseButton } from './PlayPauseButton';
  */
 export function MiniPlayer() {
   const { currentTrack, isPlaying, togglePlayPause, next, openFullPlayer } = useMusicPlayer();
+  const [likeTrack] = useMutation(LikeTrackDocument);
+  const [unlikeTrack] = useMutation(UnlikeTrackDocument);
+  const [liked, setLiked] = useState(false);
+
+  useEffect(() => {
+    if (currentTrack) setLiked(currentTrack.liked ?? false);
+  }, [currentTrack?.id]);
 
   if (!currentTrack) return null;
+
+  const toggleLike = () => {
+    const mutate = liked ? unlikeTrack : likeTrack;
+    mutate({ variables: { trackId: currentTrack.id } });
+    setLiked(!liked);
+  };
 
   return (
     <Pressable
@@ -22,6 +38,19 @@ export function MiniPlayer() {
       accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
     >
       <TrackInfo track={currentTrack} variant="mini" />
+      <Pressable
+        onPress={toggleLike}
+        hitSlop={8}
+        style={({ pressed }) => [styles.likeBtn, pressed && styles.likeBtnPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={liked ? 'Unlike' : 'Like'}
+      >
+        <Heart
+          size={20}
+          color={colors.primary}
+          fill={liked ? colors.primary : 'transparent'}
+        />
+      </Pressable>
       <View style={styles.controls}>
         <PlayPauseButton
           isPlaying={isPlaying}
@@ -69,6 +98,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  likeBtn: {
+    padding: spacing.sm,
+    borderRadius: 999,
+  },
+  likeBtnPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.85 }],
   },
   nextBtn: {
     padding: spacing.sm,
