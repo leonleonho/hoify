@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   PanResponder,
   Platform,
 } from 'react-native';
-import { Heart, Plus } from 'lucide-react-native';
+import { Heart, Plus, MoreVertical } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useMutation } from '@apollo/client/react';
 import { colors, spacing, typography } from '../../constants/theme';
-import type { Track } from '../../hooks/generated';
+import type { Track } from '../../hooks/generated/types';
 import { LikeTrackDocument, UnlikeTrackDocument } from '../../hooks/generated';
 import { useMusicPlayer } from '../../features/player/components/PlayerProvider';
+import { ContextMenu } from '../ui/ContextMenu';
+import { PlaylistPicker } from '../ui/PlaylistPicker';
 
 // ── duration formatter ──────────────────────────────────────────────
 function formatDuration(seconds: number | null | undefined): string {
@@ -96,6 +99,49 @@ export function SongListItem({
   const [likeTrack] = useMutation(LikeTrackDocument);
   const [unlikeTrack] = useMutation(UnlikeTrackDocument);
   const { playNext } = useMusicPlayer();
+  const router = useRouter();
+
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [playlistPickerVisible, setPlaylistPickerVisible] = useState(false);
+  const moreButtonRef = useRef<View>(null);
+
+  const handleContextMenu = useCallback((e: any) => {
+    if (Platform.OS !== 'web') return;
+    e.preventDefault?.();
+    setContextMenuPosition({ x: e.nativeEvent?.pageX ?? e.pageX, y: e.nativeEvent?.pageY ?? e.pageY });
+    setContextMenuVisible(true);
+  }, []);
+
+  const handleMorePress = useCallback(() => {
+    moreButtonRef.current?.measureInWindow((x, y, w, h) => {
+      setContextMenuPosition({ x, y: y + h + 4 });
+      setContextMenuVisible(true);
+    });
+  }, []);
+
+  const handleAddToQueue = useCallback(() => {
+    playNext(track);
+  }, [playNext, track]);
+
+  const handleGoToArtist = useCallback(() => {
+    router.push(`/artist/${track.album.artist.id}` as any);
+  }, [router, track]);
+
+  const handleGoToAlbum = useCallback(() => {
+    router.push(`/album/${track.album.id}` as any);
+  }, [router, track]);
+
+  const handleAddToPlaylist = useCallback(() => {
+    setPlaylistPickerVisible(true);
+  }, []);
+
+  const contextMenuItems = [
+    { label: 'Add to queue', icon: undefined, onPress: handleAddToQueue },
+    { label: 'Add to playlist', icon: undefined, onPress: handleAddToPlaylist },
+    { label: 'Go to artist', icon: undefined, onPress: handleGoToArtist },
+    { label: 'Go to album', icon: undefined, onPress: handleGoToAlbum },
+  ];
 
   const resolvedSwipeRight = swipeRightAction ?? {
     icon: <Heart size={22} color="#fff" fill={track.liked ? '#fff' : 'transparent'} />,
@@ -158,54 +204,83 @@ export function SongListItem({
     );
 
     return (
-      <Animated.View
-        style={[
-          divider ? styles.wrapperWithDivider : styles.wrapper,
-          styles.clickContainer,
-          onPress ? styles.clickable : undefined,
-          { backgroundColor: onPress ? bgColor : colors.surface },
-        ]}
-      >
-        {onPress ? (
-          <Pressable
-            onPress={onPress}
-            onPressIn={animateFlashIn}
-            onPressOut={animateFlashOut}
-            style={styles.clickFullWidth}
-          >
-            {content}
-          </Pressable>
-        ) : (
-          <View style={styles.clickFullWidth}>{content}</View>
-        )}
+      <>
+        <Animated.View
+          style={[
+            divider ? styles.wrapperWithDivider : styles.wrapper,
+            styles.clickContainer,
+            onPress ? styles.clickable : undefined,
+            { backgroundColor: onPress ? bgColor : colors.surface },
+          ]}
+          {...(Platform.OS === 'web' ? { onContextMenu: handleContextMenu } : {})}
+        >
+          {onPress ? (
+            <Pressable
+              onPress={onPress}
+              onPressIn={animateFlashIn}
+              onPressOut={animateFlashOut}
+              style={styles.clickFullWidth}
+            >
+              {content}
+            </Pressable>
+          ) : (
+            <View style={styles.clickFullWidth}>{content}</View>
+          )}
 
-        {resolvedSwipeLeft && (
-          <Pressable
-            onPress={resolvedSwipeLeft.onAction}
-            style={({ pressed }) =>
-              [
-                styles.clickActionIcon,
-                pressed ? styles.actionIconPressed : undefined,
-              ] as any
-            }
-          >
-            {resolvedSwipeLeft.icon}
-          </Pressable>
-        )}
-        {resolvedSwipeRight && (
-          <Pressable
-            onPress={resolvedSwipeRight.onAction}
-            style={({ pressed }) =>
-              [
-                styles.clickActionIcon,
-                pressed ? styles.actionIconPressed : undefined,
-              ] as any
-            }
-          >
-            {resolvedSwipeRight.icon}
-          </Pressable>
-        )}
-      </Animated.View>
+          {resolvedSwipeLeft && (
+            <Pressable
+              onPress={resolvedSwipeLeft.onAction}
+              style={({ pressed }) =>
+                [
+                  styles.clickActionIcon,
+                  pressed ? styles.actionIconPressed : undefined,
+                ] as any
+              }
+            >
+              {resolvedSwipeLeft.icon}
+            </Pressable>
+          )}
+          {resolvedSwipeRight && (
+            <Pressable
+              onPress={resolvedSwipeRight.onAction}
+              style={({ pressed }) =>
+                [
+                  styles.clickActionIcon,
+                  pressed ? styles.actionIconPressed : undefined,
+                ] as any
+              }
+            >
+              {resolvedSwipeRight.icon}
+            </Pressable>
+          )}
+
+          <View ref={moreButtonRef}>
+            <Pressable
+              onPress={handleMorePress}
+              style={({ pressed }) =>
+                [
+                  styles.clickActionIcon,
+                  pressed ? styles.actionIconPressed : undefined,
+                ] as any
+              }
+            >
+              <MoreVertical size={18} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        </Animated.View>
+
+        <ContextMenu
+          visible={contextMenuVisible}
+          onClose={() => setContextMenuVisible(false)}
+          position={contextMenuPosition}
+          items={contextMenuItems}
+        />
+        <PlaylistPicker
+          visible={playlistPickerVisible}
+          onClose={() => setPlaylistPickerVisible(false)}
+          trackId={track.id}
+        />
+      </>
     );
   }
 
@@ -272,7 +347,10 @@ export function SongListItem({
   ).current;
 
   return (
-    <View style={divider ? styles.wrapperWithDivider : styles.wrapper}>
+    <View
+      style={divider ? styles.wrapperWithDivider : styles.wrapper}
+      {...(Platform.OS === 'web' ? { onContextMenu: handleContextMenu } : {})}
+    >
       {/* Left-side action background — visible when swiping RIGHT */}
       {resolvedSwipeRight && (
         <Animated.View
@@ -337,7 +415,33 @@ export function SongListItem({
         <Text style={styles.duration}>
           {formatDuration(track.duration)}
         </Text>
+
+        <View ref={moreButtonRef}>
+          <Pressable
+            onPress={handleMorePress}
+            style={({ pressed }) =>
+              [
+                styles.clickActionIcon,
+                pressed ? styles.actionIconPressed : undefined,
+              ] as any
+            }
+          >
+            <MoreVertical size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
       </Animated.View>
+
+      <ContextMenu
+        visible={contextMenuVisible}
+        onClose={() => setContextMenuVisible(false)}
+        position={contextMenuPosition}
+        items={contextMenuItems}
+      />
+      <PlaylistPicker
+        visible={playlistPickerVisible}
+        onClose={() => setPlaylistPickerVisible(false)}
+        trackId={track.id}
+      />
     </View>
   );
 }

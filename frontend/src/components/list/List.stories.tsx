@@ -5,7 +5,7 @@ import { List, ListItem } from './List';
 import { SongListItem, defaultLikeAction, defaultAddToPlaylistAction } from './SongListItem';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../../constants/theme';
-import type { Track } from '../../hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 import { User, Volume2, Bell, Info, ChevronRight, Check } from 'lucide-react-native';
 import { PlayerProvider } from '../../features/player/components/PlayerProvider';
 
@@ -264,6 +264,23 @@ export const SongListDefaultClickMode: Story = {
           onPress={() => console.log('Play', track.title)}
           swipeRightAction={defaultLikeAction(true)}
           swipeLeftAction={defaultAddToPlaylistAction}
+        />
+      ))}
+    </List>
+  ),
+};
+
+export const SongListWithContextMenu: Story = {
+  args: {},
+  render: () => (
+    <List header="Suggestions">
+      {tracks.slice(0, 3).map((track, i) => (
+        <SongListItem
+          key={track.id}
+          track={track}
+          interactionMode="click"
+          divider={i < 2}
+          onPress={() => console.log('Play', track.title)}
         />
       ))}
     </List>

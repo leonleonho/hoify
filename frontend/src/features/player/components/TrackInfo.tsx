@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, typography } from '@/constants/theme';
-import type { Track } from '@/hooks/generated';
+import type { Track } from '@/hooks/generated/types';
 
 type TrackInfoProps = {
   track: Track;

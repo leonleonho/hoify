@@ -1,0 +1,6 @@
+mutation AddTracksToPlaylist($input: AddTracksToPlaylistInput!) {
+  addTracksToPlaylist(input: $input) {
+    id
+    trackCount
+  }
+}
