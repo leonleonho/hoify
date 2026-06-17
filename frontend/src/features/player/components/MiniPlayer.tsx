@@ -1,9 +1,19 @@
-import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Heart } from 'lucide-react-native';
+import { useMutation, useFragment } from '@apollo/client/react';
+import { gql } from '@apollo/client';
 import { colors, spacing } from '@/constants/theme';
 import { useMusicPlayer } from '../hooks/useMusicPlayer';
 import { TrackInfo } from './TrackInfo';
 import { PlayPauseButton } from './PlayPauseButton';
+import { LikeTrackDocument, UnlikeTrackDocument } from '../../../hooks/generated';
+
+/** Fragment so like state stays reactive with Apollo cache. */
+const TRACK_LIKED_FRAGMENT = gql`
+  fragment MiniPlayerTrack_liked on Track {
+    liked
+  }
+`;
 
 /**
  * Fixed bottom bar showing current track with play/pause + next controls.
@@ -12,16 +22,45 @@ import { PlayPauseButton } from './PlayPauseButton';
  */
 export function MiniPlayer() {
   const { currentTrack, isPlaying, togglePlayPause, next, openFullPlayer } = useMusicPlayer();
+  const [likeTrack] = useMutation(LikeTrackDocument);
+  const [unlikeTrack] = useMutation(UnlikeTrackDocument);
+
+  const { data: fragmentData } = useFragment<{ liked: boolean }>({
+    fragment: TRACK_LIKED_FRAGMENT,
+    from: { __typename: 'Track', id: currentTrack?.id ?? '' },
+  });
 
   if (!currentTrack) return null;
 
+  const liked = fragmentData?.liked ?? currentTrack.liked ?? false;
+
+  const toggleLike = () => {
+    const mutate = liked ? unlikeTrack : likeTrack;
+    mutate({ variables: { trackId: currentTrack.id } });
+  };
+
   return (
-    <Pressable
-      style={styles.container}
-      onPress={openFullPlayer}
-      accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
-    >
-      <TrackInfo track={currentTrack} variant="mini" />
+    <View style={styles.container}>
+      <Pressable
+        onPress={openFullPlayer}
+        style={styles.trackPressable}
+        accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
+      >
+        <TrackInfo track={currentTrack} variant="mini" />
+      </Pressable>
+      <Pressable
+        onPress={toggleLike}
+        hitSlop={8}
+        style={({ pressed }) => [styles.likeBtn, pressed && styles.likeBtnPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={liked ? 'Unlike' : 'Like'}
+      >
+        <Heart
+          size={20}
+          color={colors.primary}
+          fill={liked ? colors.primary : 'transparent'}
+        />
+      </Pressable>
       <View style={styles.controls}>
         <PlayPauseButton
           isPlaying={isPlaying}
@@ -30,7 +69,7 @@ export function MiniPlayer() {
         />
         <NextButton onPress={next} />
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -69,6 +108,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  trackPressable: {
+    flex: 1,
+  },
+  likeBtn: {
+    padding: spacing.sm,
+    borderRadius: 999,
+  },
+  likeBtnPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.85 }],
   },
   nextBtn: {
     padding: spacing.sm,
