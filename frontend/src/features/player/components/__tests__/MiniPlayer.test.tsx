@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MockedProvider } from '@apollo/client/testing/react';
 import React from 'react';
 import { MiniPlayer } from '../MiniPlayer';
 import { mockTrack1, makeMockContext } from './utils';
 import { PlayerContext, type PlayerContextValue } from '../PlayerProvider';
+import { LikeTrackDocument, UnlikeTrackDocument } from '@/hooks/generated';
 
-function renderMiniPlayer(contextValue: PlayerContextValue) {
+function renderMiniPlayer(contextValue: PlayerContextValue, mocks: any[] = []) {
   return render(
-    <PlayerContext.Provider value={contextValue}>
-      <MiniPlayer />
-    </PlayerContext.Provider>,
+    <MockedProvider mocks={mocks}>
+      <PlayerContext.Provider value={contextValue}>
+        <MiniPlayer />
+      </PlayerContext.Provider>
+    </MockedProvider>,
   );
 }
 
@@ -49,5 +53,57 @@ describe('MiniPlayer', () => {
     renderMiniPlayer(ctx);
     await user.click(screen.getByLabelText(/Tap to open full player/));
     expect(openFullPlayer).toHaveBeenCalledOnce();
+  });
+
+  describe('like button', () => {
+    it('calls likeTrack mutation on unliked track', async () => {
+      const user = userEvent.setup();
+      const likeMock = vi.fn(() => ({
+        data: { likeTrack: { __typename: 'Track', id: 'track-1', liked: true } },
+      }));
+      const ctx = makeMockContext({
+        currentTrack: { ...mockTrack1, liked: false },
+      });
+
+      const { container } = renderMiniPlayer(ctx, [
+        {
+          request: { query: LikeTrackDocument, variables: { trackId: 'track-1' } },
+          result: likeMock,
+        },
+      ]);
+
+      const interactives = container.querySelectorAll<HTMLElement>('[tabindex="0"]');
+      const likeBtn = interactives[1];
+      await user.click(likeBtn);
+
+      await waitFor(() => {
+        expect(likeMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('calls unlikeTrack mutation on liked track', async () => {
+      const user = userEvent.setup();
+      const unlikeMock = vi.fn(() => ({
+        data: { unlikeTrack: { __typename: 'Track', id: 'track-1', liked: false } },
+      }));
+      const ctx = makeMockContext({
+        currentTrack: { ...mockTrack1, liked: true },
+      });
+
+      const { container } = renderMiniPlayer(ctx, [
+        {
+          request: { query: UnlikeTrackDocument, variables: { trackId: 'track-1' } },
+          result: unlikeMock,
+        },
+      ]);
+
+      const interactives = container.querySelectorAll<HTMLElement>('[tabindex="0"]');
+      const likeBtn = interactives[1];
+      await user.click(likeBtn);
+
+      await waitFor(() => {
+        expect(unlikeMock).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 });
