@@ -52,6 +52,7 @@ export interface PlayerActions {
   resume: () => Promise<void>;
   togglePlayPause: () => Promise<void>;
   next: () => Promise<void>;
+  playNext: (track: Track) => void;
   previous: () => Promise<void>;
   seek: (positionMs: number) => Promise<void>;
   setVolume: (value: number) => Promise<void>;
@@ -182,6 +183,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (stateRef.current.isPlaying) await pause(); else await resume();
   }, [pause, resume]);
 
+  const playNext = useCallback((track: Track) => {
+    const pl = stateRef.current.playlist;
+    if (!pl.length) return;
+    const insertAt = idx.current + 1;
+    const updated = [...pl.slice(0, insertAt), track, ...pl.slice(insertAt)];
+    dispatch({ type: 'LOAD_TRACK', track: pl[idx.current], playlist: updated });
+  }, []);
+
   const next = useCallback(async () => {
     const pl = stateRef.current.playlist;
     if (!pl.length) return;
@@ -224,7 +233,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const value: PlayerContextValue = {
     ...s,
     load, play, playPlaylist, pause, resume,
-    togglePlayPause, next, previous, seek, setVolume,
+    togglePlayPause, next, playNext, previous, seek, setVolume,
     openFullPlayer, closeFullPlayer, isFullPlayerOpen,
   };
 
