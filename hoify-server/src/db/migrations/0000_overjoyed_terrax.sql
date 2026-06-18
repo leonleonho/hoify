@@ -1,3 +1,4 @@
+CREATE TYPE "public"."playlist_type" AS ENUM('liked', 'suggested');--> statement-breakpoint
 CREATE TABLE "albums" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"title" text NOT NULL,
@@ -37,6 +38,7 @@ CREATE TABLE "playlists" (
 	"description" text,
 	"user_id" uuid NOT NULL,
 	"is_public" boolean DEFAULT false NOT NULL,
+	"type" "playlist_type",
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -83,4 +85,9 @@ ALTER TABLE "playlists" ADD CONSTRAINT "playlists_user_id_users_id_fk" FOREIGN K
 ALTER TABLE "track_genres" ADD CONSTRAINT "track_genres_track_id_tracks_id_fk" FOREIGN KEY ("track_id") REFERENCES "public"."tracks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "track_genres" ADD CONSTRAINT "track_genres_genre_id_genres_id_fk" FOREIGN KEY ("genre_id") REFERENCES "public"."genres"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tracks" ADD CONSTRAINT "tracks_album_id_albums_id_fk" FOREIGN KEY ("album_id") REFERENCES "public"."albums"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "tracks_file_path_idx" ON "tracks" USING btree ("file_path");
+CREATE INDEX "albums_artist_id_idx" ON "albums" USING btree ("artist_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "albums_title_artist_idx" ON "albums" USING btree ("title","artist_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "one_liked_per_user" ON "playlists" USING btree ("user_id") WHERE type = 'liked';--> statement-breakpoint
+CREATE INDEX "playlists_user_id_idx" ON "playlists" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "tracks_file_path_idx" ON "tracks" USING btree ("file_path");--> statement-breakpoint
+CREATE INDEX "tracks_album_id_idx" ON "tracks" USING btree ("album_id");
