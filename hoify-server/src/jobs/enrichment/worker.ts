@@ -1,9 +1,9 @@
 import { Worker } from "bullmq";
 import { connection } from "./queue.js";
 import { parseFile } from "./parser.js";
-import { upsertOne } from "./upsert.js";
-import { logger } from "../util/logger.js";
-import type { EnqueuePayload } from "./types.js";
+import { upsertOne } from "./storage/storageUtils.js";
+import { logger } from "../../util/logger.js";
+import type { EnqueuePayload } from "./types/types.js";
 
 const CONCURRENCY = parseInt(
   process.env.ENRICHMENT_CONCURRENCY ?? "5",

@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { client } from "./db/index.js";
 import { createApp } from "./app.js";
-import { closeWorker } from "./enrichment/worker.js";
-import { connection } from "./enrichment/queue.js";
+import { closeWorker } from "./jobs/enrichment/worker.js";
+import { connection } from "./db/redis.js";
 import { logger } from "./util/logger.js";
 
 const PORT = parseInt(process.env.PORT ?? "4000", 10);

@@ -1,4 +1,4 @@
-import type { ParsedTrack } from "../../enrichment/types.js";
+import type { ParsedTrack } from "../enrichment/types/types.js";
 
 export type { ParsedTrack };
 

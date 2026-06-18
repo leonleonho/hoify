@@ -1,5 +1,5 @@
 export { parseFile } from "./parser.js";
-export { upsertOne } from "./upsert.js";
+export { upsertOne } from "./storage/storageUtils.js";
 export { enrichmentQueue, connection as redisConnection } from "./queue.js";
 export {
   enrichmentWorker,
@@ -7,4 +7,4 @@ export {
   getCounts,
   closeWorker,
 } from "./worker.js";
-export type { ParsedTrack, EnqueuePayload } from "./types.js";
+export type { ParsedTrack, EnqueuePayload } from "./types/types.js";

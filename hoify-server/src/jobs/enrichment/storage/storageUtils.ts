@@ -1,13 +1,13 @@
 import { eq, and, inArray } from "drizzle-orm";
-import { db } from "../db/index.js";
+import { db } from "../../../db/index.js";
 import {
   artists,
   albums,
   tracks,
   genres,
   trackGenres,
-} from "../db/schema.js";
-import type { ParsedTrack } from "./types.js";
+} from "../../../db/schema.js";
+import type { ParsedTrack } from "../types/types.js";
 
 export async function upsertOne(track: ParsedTrack): Promise<void> {
   // --- Genres: upsert, then build lookup ---

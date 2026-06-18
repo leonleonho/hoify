@@ -21,8 +21,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "scan:library": "tsx src/jobs/library-scanner/run.ts",
-    "enrichment:worker": "tsx src/enrichment/worker-entry.ts"
+    "scan:library": "tsx src/jobs/library-scanner/run.ts"
   },
   "dependencies": {
     "@apollo/server": "^4.12.0",

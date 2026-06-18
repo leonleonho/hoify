@@ -10,7 +10,7 @@ import "dotenv/config";
 import { client } from "../../db/index.js";
 import { logger } from "../../util/logger.js";
 import { scanLibrary } from "./scanner.js";
-import { connection } from "../../enrichment/queue.js";
+import { connection } from "../../db/redis.js";
 
 const MUSIC_LIBRARY_PATH = process.env.MUSIC_LIBRARY_PATH ?? "./music";
 
