@@ -1,5 +1,5 @@
 {
-  "id": "e0effd03-32c3-47fa-a99a-07948dcdcd81",
+  "id": "30bc0e0b-f9a1-48cd-a463-ed6b66687779",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -54,7 +54,44 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "albums_artist_id_idx": {
+          "name": "albums_artist_id_idx",
+          "columns": [
+            {
+              "expression": "artist_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "albums_title_artist_idx": {
+          "name": "albums_title_artist_idx",
+          "columns": [
+            {
+              "expression": "title",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "artist_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "albums_artist_id_artists_id_fk": {
           "name": "albums_artist_id_artists_id_fk",
@@ -271,6 +308,13 @@
           "notNull": true,
           "default": false
         },
+        "type": {
+          "name": "type",
+          "type": "playlist_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -286,7 +330,39 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "one_liked_per_user": {
+          "name": "one_liked_per_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "type = 'liked'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "playlists_user_id_idx": {
+          "name": "playlists_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "playlists_user_id_users_id_fk": {
           "name": "playlists_user_id_users_id_fk",
@@ -464,6 +540,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "tracks_album_id_idx": {
+          "name": "tracks_album_id_idx",
+          "columns": [
+            {
+              "expression": "album_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -574,7 +665,16 @@
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "public.playlist_type": {
+      "name": "playlist_type",
+      "schema": "public",
+      "values": [
+        "liked",
+        "suggested"
+      ]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "roles": {},

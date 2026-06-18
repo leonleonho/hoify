@@ -91,7 +91,10 @@ export const albums = pgTable(
       .default(sql`now()`)
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("albums_artist_id_idx").on(t.artistId)],
+  (t) => [
+    index("albums_artist_id_idx").on(t.artistId),
+    uniqueIndex("albums_title_artist_idx").on(t.title, t.artistId),
+  ],
 );
 
 export const albumsRelations = relations(albums, ({ one, many }) => ({

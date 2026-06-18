@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { client } from "./db/index.js";
 import { createApp } from "./app.js";
+import { closeWorker } from "./jobs/enrichment/worker.js";
+import { connection } from "./db/redis.js";
 import { logger } from "./util/logger.js";
 
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
@@ -13,18 +15,23 @@ async function start() {
     logger.info(`📡 GraphQL at http://localhost:${PORT}/graphql`);
     logger.info(`🎵 Streaming at http://localhost:${PORT}/stream/:trackId`);
     logger.info("📦 Database connected");
+    logger.info("⚙️  Enrichment worker started");
   });
 }
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
 process.on("SIGINT", async () => {
   logger.info("Shutting down...");
+  await closeWorker();
+  await connection.quit();
   await client.end();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   logger.info("Shutting down...");
+  await closeWorker();
+  await connection.quit();
   await client.end();
   process.exit(0);
 });

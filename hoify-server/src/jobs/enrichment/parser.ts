@@ -2,17 +2,7 @@ import { stat } from "node:fs/promises";
 import { parse } from "node:path";
 import { parseFile as parseAudio } from "music-metadata";
 import { logger } from "../../util/logger.js";
-import type { ParsedTrack } from "./types.js";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-export const PROGRESS_INTERVAL = 100;
-
-// ---------------------------------------------------------------------------
-// Parse a single audio file with music-metadata
-// ---------------------------------------------------------------------------
+import type { ParsedTrack } from "./types/types.js";
 
 export async function parseFile(filePath: string): Promise<ParsedTrack | null> {
   try {
