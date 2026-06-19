@@ -269,7 +269,8 @@ export async function searchMusic(query: string) {
         .select()
         .from(artists)
         .where(
-          sql`to_tsvector('english', ${artists.name}) @@ plainto_tsquery('english', ${sanitized})`,
+          sql`to_tsvector('english', ${artists.name}) @@ websearch_to_tsquery('english', ${sanitized})
+            OR ${artists.name} ILIKE '%' || ${sanitized} || '%'`,
         )
         .limit(50),
 
@@ -277,7 +278,8 @@ export async function searchMusic(query: string) {
         .select()
         .from(albums)
         .where(
-          sql`to_tsvector('english', ${albums.title}) @@ plainto_tsquery('english', ${sanitized})`,
+          sql`to_tsvector('english', ${albums.title}) @@ websearch_to_tsquery('english', ${sanitized})
+            OR ${albums.title} ILIKE '%' || ${sanitized} || '%'`,
         )
         .limit(50),
 
@@ -299,9 +301,12 @@ export async function searchMusic(query: string) {
         .innerJoin(albums, eq(tracks.albumId, albums.id))
         .innerJoin(artists, eq(albums.artistId, artists.id))
         .where(
-          sql`to_tsvector('english', ${tracks.title}) @@ plainto_tsquery('english', ${sanitized})
-            OR to_tsvector('english', ${albums.title}) @@ plainto_tsquery('english', ${sanitized})
-            OR to_tsvector('english', ${artists.name}) @@ plainto_tsquery('english', ${sanitized})`,
+          sql`to_tsvector('english', ${tracks.title}) @@ websearch_to_tsquery('english', ${sanitized})
+            OR to_tsvector('english', ${albums.title}) @@ websearch_to_tsquery('english', ${sanitized})
+            OR to_tsvector('english', ${artists.name}) @@ websearch_to_tsquery('english', ${sanitized})
+            OR ${tracks.title} ILIKE '%' || ${sanitized} || '%'
+            OR ${albums.title} ILIKE '%' || ${sanitized} || '%'
+            OR ${artists.name} ILIKE '%' || ${sanitized} || '%'`,
         )
         .limit(50),
 
@@ -309,7 +314,8 @@ export async function searchMusic(query: string) {
         .select()
         .from(playlists)
         .where(
-          sql`${playlists.isPublic} = true AND to_tsvector('english', ${playlists.name}) @@ plainto_tsquery('english', ${sanitized})`,
+          sql`${playlists.isPublic} = true AND to_tsvector('english', ${playlists.name}) @@ websearch_to_tsquery('english', ${sanitized})
+            OR ${playlists.isPublic} = true AND ${playlists.name} ILIKE '%' || ${sanitized} || '%'`,
         )
         .limit(50),
     ]);

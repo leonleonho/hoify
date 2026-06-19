@@ -48,19 +48,23 @@ export type NewUser = typeof users.$inferInsert;
 // Artists
 // ---------------------------------------------------------------------------
 
-export const artists = pgTable("artists", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull().unique(),
-  bio: text("bio"),
-  imageUrl: text("image_url"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`)
-    .$onUpdate(() => new Date()),
-});
+export const artists = pgTable(
+  "artists",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull().unique(),
+    bio: text("bio"),
+    imageUrl: text("image_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("idx_artists_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`)],
+);
 
 export const artistsRelations = relations(artists, ({ many }) => ({
   albums: many(albums),
@@ -94,6 +98,7 @@ export const albums = pgTable(
   (t) => [
     index("albums_artist_id_idx").on(t.artistId),
     uniqueIndex("albums_title_artist_idx").on(t.title, t.artistId),
+    index("idx_albums_title_trgm").using("gin", sql`${t.title} gin_trgm_ops`),
   ],
 );
 
@@ -142,6 +147,7 @@ export const tracks = pgTable(
   (t) => ({
     filePathIdx: uniqueIndex("tracks_file_path_idx").on(t.filePath),
     albumIdIdx: index("tracks_album_id_idx").on(t.albumId),
+    titleTrgmIdx: index("idx_tracks_title_trgm").using("gin", sql`${t.title} gin_trgm_ops`),
   }),
 );
 
@@ -229,6 +235,7 @@ export const playlists = pgTable(
   (t) => [
     uniqueIndex("one_liked_per_user").on(t.userId).where(sql`type = 'liked'`),
     index("playlists_user_id_idx").on(t.userId),
+    index("idx_playlists_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
   ],
 );
 
