@@ -9,6 +9,12 @@ let apiKeyMissingWarned = false;
 // Rate limiter: sliding window, max 3 req/s
 const requestTimestamps: number[] = [];
 
+/** @internal exported for testing */
+export function __testResetRateLimiter(): void {
+  requestTimestamps.length = 0;
+  apiKeyMissingWarned = false;
+}
+
 async function applyRateLimit(): Promise<void> {
   const now = Date.now();
   const windowStart = now - 1000;
