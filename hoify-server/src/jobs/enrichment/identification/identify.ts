@@ -2,7 +2,7 @@ import { parse } from "node:path";
 import { logger } from "../../../util/logger.js";
 import { getFingerprint } from "./fpcalc.js";
 import { lookupAcoustid } from "./acoustid.js";
-import { lookupMusicbrainz, lookupCoverArt } from "./musicbrainz.js";
+import { lookupMusicbrainz, lookupCoverArt, lookupReleaseAliases } from "./musicbrainz.js";
 import type { ParsedTrack } from "../types/types.js";
 import type { MusicbrainzRecording } from "./types.js";
 
@@ -11,6 +11,12 @@ interface Placeholders {
   artistIsPlaceholder: boolean;
   albumIsPlaceholder: boolean;
   genresMissing: boolean;
+}
+
+const NON_ENGLISH_RE = /[^\x00-\x7F]/;
+
+export function detectNonEnglish(track: ParsedTrack): boolean {
+  return NON_ENGLISH_RE.test(track.title + track.artist + track.album);
 }
 
 export function detectPlaceholders(track: ParsedTrack, filePath: string): Placeholders {
@@ -23,8 +29,8 @@ export function detectPlaceholders(track: ParsedTrack, filePath: string): Placeh
   };
 }
 
-export function needsFingerprint(p: Placeholders): boolean {
-  return p.titleIsPlaceholder || p.artistIsPlaceholder || p.albumIsPlaceholder;
+export function needsFingerprint(p: Placeholders, isNonEnglish = false): boolean {
+  return isNonEnglish || p.titleIsPlaceholder || p.artistIsPlaceholder || p.albumIsPlaceholder;
 }
 
 export function mergeOverrides(
@@ -42,6 +48,7 @@ export function mergeOverrides(
     if (p.genresMissing && mbData.genres.length > 0) merged.genreNames = mbData.genres;
     if (mbData.artistMbid) merged.musicbrainzArtistId = mbData.artistMbid;
     if (mbData.albumMbid) merged.musicbrainzAlbumId = mbData.albumMbid;
+    if (mbData.aliases && mbData.aliases.length > 0) merged.aliases = mbData.aliases;
   }
 
   return merged;
@@ -53,8 +60,10 @@ export async function identify(
 ): Promise<ParsedTrack> {
   try {
     const p = detectPlaceholders(track, filePath);
+    const isNonEnglish = detectNonEnglish(track);
 
-    if (!needsFingerprint(p) && !p.genresMissing) {
+    // Skip fingerprinting only for English tracks with complete metadata
+    if (!needsFingerprint(p, isNonEnglish) && !p.genresMissing) {
       logger.debug({ filePath }, "All metadata present — skipping identification");
       return track;
     }
@@ -63,15 +72,15 @@ export async function identify(
     let recordingMbid: string | null = null;
     let mbData: MusicbrainzRecording | null = null;
 
-    if (needsFingerprint(p)) {
-      logger.info(`Metadata incomplete — running fingerprint identification for ${filePath}`);
+    if (needsFingerprint(p, isNonEnglish)) {
+      logger.info(`Running fingerprint identification for ${filePath}`);
       const fpResult = await getFingerprint(filePath);
       if (fpResult) {
         fingerprint = fpResult.fingerprint;
         const acoustidMatch = await lookupAcoustid(fpResult.fingerprint, fpResult.duration);
         if (acoustidMatch) {
           recordingMbid = acoustidMatch.recordingMbid;
-          mbData = await lookupMusicbrainz(acoustidMatch.recordingMbid);
+          mbData = await lookupMusicbrainz(acoustidMatch.recordingMbid, isNonEnglish);
         }
       }
     }
@@ -80,6 +89,15 @@ export async function identify(
 
     if (fingerprint) merged.acoustidFingerprint = fingerprint;
     if (recordingMbid) merged.musicbrainzRecordingId = recordingMbid;
+
+    // --- Release aliases for non-English albums ---
+    if (isNonEnglish && merged.musicbrainzAlbumId) {
+      const releaseAliases = await lookupReleaseAliases(merged.musicbrainzAlbumId);
+      if (releaseAliases.length > 0) {
+        merged.albumAliases = releaseAliases;
+        merged.aliases = [...new Set([...merged.aliases, ...releaseAliases])];
+      }
+    }
 
     // --- Album art: prefer embedded, fall back to MusicBrainz ---
     if (!merged.embeddedPicture && merged.musicbrainzAlbumId) {

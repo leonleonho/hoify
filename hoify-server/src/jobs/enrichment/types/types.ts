@@ -20,6 +20,8 @@ export interface ParsedTrack {
   musicbrainzRecordingId?: string;
   musicbrainzArtistId?: string;
   musicbrainzAlbumId?: string;
+  aliases: string[];
+  albumAliases: string[];
   embeddedPicture?: ArtData;
 }
 

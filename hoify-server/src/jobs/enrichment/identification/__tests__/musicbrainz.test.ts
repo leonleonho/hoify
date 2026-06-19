@@ -29,6 +29,7 @@ function mbRecordingResponse(overrides: Partial<Record<string, unknown>> = {}) {
     releases: [{ id: "mb-album-1", title: "Real Album", date: "1999-05-12" }],
     genres: [{ name: "Rock" }],
     tags: [{ name: "alternative" }],
+    aliases: [{ name: "Real Alias" }],
     ...overrides,
   };
 }
@@ -46,6 +47,7 @@ describe("lookupMusicbrainz", () => {
       genres: expect.arrayContaining(["rock", "alternative"]),
       artistMbid: "mb-artist-1",
       albumMbid: "mb-album-1",
+      aliases: expect.arrayContaining(["Real Alias"]),
     });
   });
 

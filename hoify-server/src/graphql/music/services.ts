@@ -279,7 +279,8 @@ export async function searchMusic(query: string) {
         .from(albums)
         .where(
           sql`to_tsvector('english', ${albums.title}) @@ websearch_to_tsquery('english', ${sanitized})
-            OR ${albums.title} ILIKE '%' || ${sanitized} || '%'`,
+            OR ${albums.title} ILIKE '%' || ${sanitized} || '%'
+            OR EXISTS (SELECT 1 FROM unnest(${albums.aliases}) a WHERE a ILIKE '%' || ${sanitized} || '%')`,
         )
         .limit(50),
 
@@ -306,7 +307,8 @@ export async function searchMusic(query: string) {
             OR to_tsvector('english', ${artists.name}) @@ websearch_to_tsquery('english', ${sanitized})
             OR ${tracks.title} ILIKE '%' || ${sanitized} || '%'
             OR ${albums.title} ILIKE '%' || ${sanitized} || '%'
-            OR ${artists.name} ILIKE '%' || ${sanitized} || '%'`,
+            OR ${artists.name} ILIKE '%' || ${sanitized} || '%'
+            OR EXISTS (SELECT 1 FROM unnest(${tracks.aliases}) a WHERE a ILIKE '%' || ${sanitized} || '%')`,
         )
         .limit(50),
 

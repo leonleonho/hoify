@@ -18,6 +18,7 @@ jest.unstable_mockModule("../acoustid.js", () => ({
 jest.unstable_mockModule("../musicbrainz.js", () => ({
   lookupMusicbrainz: mockMusicbrainz,
   lookupCoverArt: mockCoverArt,
+  lookupReleaseAliases: jest.fn<() => Promise<string[]>>().mockResolvedValue([]),
 }));
 
 jest.unstable_mockModule("../../../../util/logger", () => ({
@@ -42,6 +43,8 @@ function makeTrack(overrides: Partial<ParsedTrack> = {}): ParsedTrack {
     discNumber: 1,
     duration: 240,
     genreNames: ["rock"],
+    aliases: [],
+    albumAliases: [],
     ...overrides,
   };
 }
@@ -89,7 +92,7 @@ describe("identify", () => {
 
     expect(mockFpcalc).toHaveBeenCalledTimes(1);
     expect(mockAcoustid).toHaveBeenCalledWith("ABCDEF", 240);
-    expect(mockMusicbrainz).toHaveBeenCalledWith("mb-rec-1");
+    expect(mockMusicbrainz).toHaveBeenCalledWith("mb-rec-1", false);
     expect(result.title).toBe("Real Title");
     expect(result.genreNames).toEqual(["alternative"]);
     expect(result.acoustidFingerprint).toBe("ABCDEF");

@@ -83,6 +83,14 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
     }
   }
 
+  // --- Album aliases: update when we have release aliases ---
+  if (track.albumAliases.length > 0) {
+    await db
+      .update(albums)
+      .set({ aliases: track.albumAliases })
+      .where(eq(albums.id, albumId));
+  }
+
   // --- Track: find by filePath -> update or insert ---
   const [existingTrack] = await db
     .select()
@@ -120,6 +128,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
           ...(track.musicbrainzRecordingId !== undefined && { musicbrainzRecordingId: track.musicbrainzRecordingId }),
           ...(track.musicbrainzArtistId !== undefined && { musicbrainzArtistId: track.musicbrainzArtistId }),
           ...(track.musicbrainzAlbumId !== undefined && { musicbrainzAlbumId: track.musicbrainzAlbumId }),
+          aliases: track.aliases,
         })
         .where(eq(tracks.id, trackId));
     }
@@ -140,6 +149,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
         musicbrainzRecordingId: track.musicbrainzRecordingId ?? null,
         musicbrainzArtistId: track.musicbrainzArtistId ?? null,
         musicbrainzAlbumId: track.musicbrainzAlbumId ?? null,
+        aliases: track.aliases,
       })
       .returning({ id: tracks.id });
     trackId = inserted.id;

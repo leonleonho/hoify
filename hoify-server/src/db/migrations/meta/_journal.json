@@ -29,6 +29,13 @@
       "when": 1781858746585,
       "tag": "0003_familiar_iron_lad",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781860241999,
+      "tag": "0004_dapper_thanos",
+      "breakpoints": true
     }
   ]
 }

@@ -19,15 +19,19 @@ function getClient(): MusicBrainzApi {
 
 export async function lookupMusicbrainz(
   recordingMbid: string,
+  includeAliases = false,
 ): Promise<MusicbrainzRecording | null> {
   try {
     const mb = getClient();
-    const data = (await mb.lookup("recording", recordingMbid, [
+    const inc = [
       "artists",
       "releases",
       "genres",
       "tags",
-    ])) as {
+    ];
+    if (includeAliases) inc.push("aliases");
+
+    const data = (await mb.lookup("recording", recordingMbid, inc)) as {
       title: string;
       "artist-credit"?: Array<{ artist: { id: string; name: string } }>;
       releases?: Array<{
@@ -37,6 +41,7 @@ export async function lookupMusicbrainz(
       }>;
       genres?: Array<{ name: string }>;
       tags?: Array<{ name: string }>;
+      aliases?: Array<{ name: string }>;
     };
 
     const artistCredit = data["artist-credit"]?.[0];
@@ -61,6 +66,7 @@ export async function lookupMusicbrainz(
       genres: [...genreNames],
       artistMbid: artistCredit?.artist.id,
       albumMbid: release?.id,
+      aliases: (data.aliases ?? []).map((a) => a.name),
     };
 
     logger.debug({ mbid: recordingMbid, title: result.title }, "MusicBrainz match found");
@@ -68,6 +74,24 @@ export async function lookupMusicbrainz(
   } catch (err) {
     logger.warn({ error: (err as Error).message, recordingMbid }, "MusicBrainz lookup failed");
     return null;
+  }
+}
+
+export async function lookupReleaseAliases(
+  releaseMbid: string,
+): Promise<string[]> {
+  try {
+    const mb = getClient();
+    const data = (await mb.lookup("release", releaseMbid, [
+      "aliases",
+    ])) as { aliases?: Array<{ name: string }> };
+    return (data.aliases ?? []).map((a) => a.name);
+  } catch (err) {
+    logger.warn(
+      { error: (err as Error).message, releaseMbid },
+      "Release alias lookup failed",
+    );
+    return [];
   }
 }
 

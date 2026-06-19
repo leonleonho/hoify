@@ -16,6 +16,7 @@ export interface MusicbrainzRecording {
   genres: string[];
   artistMbid?: string;
   albumMbid?: string;
+  aliases?: string[];
 }
 
 export interface IdentificationResult {

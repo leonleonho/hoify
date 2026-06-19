@@ -87,6 +87,7 @@ export const albums = pgTable(
       .references(() => artists.id),
     releaseYear: integer("release_year"),
     coverUrl: text("cover_url"),
+    aliases: text("aliases").array().default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -99,6 +100,7 @@ export const albums = pgTable(
     index("albums_artist_id_idx").on(t.artistId),
     uniqueIndex("albums_title_artist_idx").on(t.title, t.artistId),
     index("idx_albums_title_trgm").using("gin", sql`${t.title} gin_trgm_ops`),
+    index("idx_albums_aliases_gin").using("gin", sql`${t.aliases}`),
   ],
 );
 
@@ -136,6 +138,7 @@ export const tracks = pgTable(
     musicbrainzRecordingId: text("musicbrainz_recording_id"),
     musicbrainzArtistId: text("musicbrainz_artist_id"),
     musicbrainzAlbumId: text("musicbrainz_album_id"),
+    aliases: text("aliases").array().default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -148,6 +151,7 @@ export const tracks = pgTable(
     filePathIdx: uniqueIndex("tracks_file_path_idx").on(t.filePath),
     albumIdIdx: index("tracks_album_id_idx").on(t.albumId),
     titleTrgmIdx: index("idx_tracks_title_trgm").using("gin", sql`${t.title} gin_trgm_ops`),
+    aliasesGinIdx: index("idx_tracks_aliases_gin").using("gin", sql`${t.aliases}`),
   }),
 );
 
