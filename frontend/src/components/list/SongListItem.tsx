@@ -13,6 +13,7 @@ import { Heart, Plus, MoreVertical } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@apollo/client/react';
 import { colors, spacing, typography } from '../../constants/theme';
+import { artUrl } from '../../constants/api';
 import type { Track } from '../../hooks/generated/types';
 import { LikeTrackDocument, UnlikeTrackDocument } from '../../hooks/generated';
 import { useMusicPlayer } from '../../features/player/components/PlayerProvider';
@@ -187,7 +188,7 @@ export function SongListItem({
     const content = (
       <View style={styles.clickContent}>
         {track.album.coverUrl ? (
-          <Image source={{ uri: track.album.coverUrl }} style={styles.art} />
+          <Image source={{ uri: artUrl(track.album.coverUrl) }} style={styles.art} />
         ) : (
           <View style={styles.art} />
         )}
@@ -396,7 +397,7 @@ export function SongListItem({
       >
         {track.album.coverUrl ? (
           <Image
-            source={{ uri: track.album.coverUrl }}
+            source={{ uri: artUrl(track.album.coverUrl) }}
             style={styles.art}
           />
         ) : (

@@ -7,6 +7,7 @@ import { typeDefs, resolvers } from "./graphql/schema.js";
 import { authPlugin } from "./graphql/auth/plugin.js";
 import { resolveAuthContext } from "./util/auth.js";
 import streamRouter from "./routes/stream.js";
+import artRouter from "./routes/art.js";
 
 /**
  * Create and configure the Express + Apollo Server application.
@@ -46,6 +47,9 @@ export async function createApp() {
 
   // --- Music streaming ---
   app.use("/stream", streamRouter);
+
+  // --- Album art ---
+  app.use("/art", artRouter);
 
   // --- Landing page: redirect root to the GraphQL playground ---
   app.get("/", (_req, res) => {

@@ -50,7 +50,7 @@ export type NewUser = typeof users.$inferInsert;
 
 export const artists = pgTable("artists", {
   id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),
   bio: text("bio"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -127,6 +127,10 @@ export const tracks = pgTable(
     fileFormat: text("file_format"),
     fileSize: integer("file_size"),
     fileMtime: bigint("file_mtime", { mode: "number" }),
+    acoustidFingerprint: text("acoustid_fingerprint"),
+    musicbrainzRecordingId: text("musicbrainz_recording_id"),
+    musicbrainzArtistId: text("musicbrainz_artist_id"),
+    musicbrainzAlbumId: text("musicbrainz_album_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

@@ -15,6 +15,7 @@ import { List } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';
 import { Button } from '@/components/button/Button';
 import { colors, spacing, typography } from '@/constants/theme';
+import { artUrl } from '@/constants/api';
 
 type Props = {
   albumId: string;
@@ -82,7 +83,7 @@ export function AlbumScreen({ albumId }: Props) {
       <View style={styles.header}>
         {album.coverUrl && (
           <Image
-            source={{ uri: album.coverUrl }}
+            source={{ uri: artUrl(album.coverUrl) }}
             style={styles.coverImage}
           />
         )}

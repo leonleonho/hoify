@@ -11,6 +11,7 @@ dist/
 
 # dev directories
 hoify-server/music/**
+hoify-server/album-art/**
 
 # Logs
 npm-debug.log*

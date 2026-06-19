@@ -1,3 +1,5 @@
+import { writeFile, mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../../../db/index.js";
 import {
@@ -7,9 +9,10 @@ import {
   genres,
   trackGenres,
 } from "../../../db/schema.js";
-import type { ParsedTrack } from "../types/types.js";
+import { logger } from "../../../util/logger.js";
+import type { ParsedTrack, ArtData } from "../types/types.js";
 
-export async function upsertOne(track: ParsedTrack): Promise<void> {
+export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }> {
   // --- Genres: upsert, then build lookup ---
   const allGenreNames = [...new Set(track.genreNames)].filter(Boolean);
   const genreByName = new Map<string, string>();
@@ -30,24 +33,23 @@ export async function upsertOne(track: ParsedTrack): Promise<void> {
     }
   }
 
-  // --- Artist: find or create by name ---
-  // No unique constraint — rare duplicates possible under concurrency.
-  // MusicBrainz dedup will fix later.
+  // --- Artist: insert with onConflictDoNothing, then select ---
   let artistId: string;
-  const [existingArtist] = await db
-    .select({ id: artists.id })
-    .from(artists)
-    .where(eq(artists.name, track.artist))
-    .limit(1);
+  const [inserted] = await db
+    .insert(artists)
+    .values({ name: track.artist })
+    .onConflictDoNothing()
+    .returning({ id: artists.id });
 
-  if (existingArtist) {
-    artistId = existingArtist.id;
-  } else {
-    const [inserted] = await db
-      .insert(artists)
-      .values({ name: track.artist })
-      .returning({ id: artists.id });
+  if (inserted) {
     artistId = inserted.id;
+  } else {
+    const [existing] = await db
+      .select({ id: artists.id })
+      .from(artists)
+      .where(eq(artists.name, track.artist))
+      .limit(1);
+    artistId = existing!.id;
   }
 
   // --- Album: find or create by (title, artistId) ---
@@ -114,6 +116,10 @@ export async function upsertOne(track: ParsedTrack): Promise<void> {
           fileSize: track.fileSize,
           fileFormat: track.fileFormat,
           fileMtime: track.fileMtime,
+          ...(track.acoustidFingerprint !== undefined && { acoustidFingerprint: track.acoustidFingerprint }),
+          ...(track.musicbrainzRecordingId !== undefined && { musicbrainzRecordingId: track.musicbrainzRecordingId }),
+          ...(track.musicbrainzArtistId !== undefined && { musicbrainzArtistId: track.musicbrainzArtistId }),
+          ...(track.musicbrainzAlbumId !== undefined && { musicbrainzAlbumId: track.musicbrainzAlbumId }),
         })
         .where(eq(tracks.id, trackId));
     }
@@ -130,6 +136,10 @@ export async function upsertOne(track: ParsedTrack): Promise<void> {
         fileFormat: track.fileFormat,
         fileSize: track.fileSize,
         fileMtime: track.fileMtime,
+        acoustidFingerprint: track.acoustidFingerprint ?? null,
+        musicbrainzRecordingId: track.musicbrainzRecordingId ?? null,
+        musicbrainzArtistId: track.musicbrainzArtistId ?? null,
+        musicbrainzAlbumId: track.musicbrainzAlbumId ?? null,
       })
       .returning({ id: tracks.id });
     trackId = inserted.id;
@@ -151,4 +161,56 @@ export async function upsertOne(track: ParsedTrack): Promise<void> {
         .values(genreIds.map((genreId) => ({ trackId, genreId })));
     }
   }
+
+  return { albumId };
+}
+
+const ART_PATH = resolve(
+  process.env.ALBUM_ART_PATH ?? resolve(process.cwd(), "album-art"),
+);
+
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/bmp": "bmp",
+  "image/tiff": "tiff",
+};
+
+function mimeToExt(mime: string): string {
+  return MIME_TO_EXT[mime] ?? "jpg";
+}
+
+export async function saveAlbumArt(
+  albumId: string,
+  artData: ArtData,
+): Promise<void> {
+  // Skip if album already has cover art
+  const [album] = await db
+    .select({ coverUrl: albums.coverUrl })
+    .from(albums)
+    .where(eq(albums.id, albumId))
+    .limit(1);
+
+  if (album?.coverUrl) {
+    logger.debug({ albumId }, "Album art already exists — skipping");
+    return;
+  }
+
+  const ext = mimeToExt(artData.format);
+  const fileName = `${albumId}.${ext}`;
+  const filePath = resolve(ART_PATH, fileName);
+
+  await mkdir(ART_PATH, { recursive: true });
+  await writeFile(filePath, artData.data);
+
+  const coverUrl = `/art/${fileName}`;
+
+  await db
+    .update(albums)
+    .set({ coverUrl })
+    .where(eq(albums.id, albumId));
+
+  logger.debug({ albumId, coverUrl, size: artData.data.length }, "Album art saved");
 }

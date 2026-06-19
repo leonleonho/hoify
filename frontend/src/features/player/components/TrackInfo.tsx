@@ -1,7 +1,8 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, typography } from '@/constants/theme';
 import type { Track } from '@/hooks/generated/types';
+import { artUrl } from '@/constants/api';
 
 type TrackInfoProps = {
   track: Track;
@@ -11,18 +12,27 @@ type TrackInfoProps = {
 
 /** Displays album art placeholder + track title, artist, album name */
 export function TrackInfo({ track, variant = 'full' }: TrackInfoProps) {
+  const [imgFailed, setImgFailed] = useState(false);
   const isMini = variant === 'mini';
+
+  const artStyle = [styles.art, isMini ? styles.artMini : styles.artFull];
 
   return (
     <View style={[styles.row, isMini ? styles.rowMini : styles.rowFull]}>
-      {/* Album art placeholder */}
-      <View
-        style={[
-          styles.art,
-          isMini ? styles.artMini : styles.artFull,
-        ]}
-        accessibilityLabel={`Album art for ${track.album.title}`}
-      />
+      {/* Album art */}
+      {track.album.coverUrl && !imgFailed ? (
+        <Image
+          source={{ uri: artUrl(track.album.coverUrl) }}
+          style={artStyle}
+          onError={() => setImgFailed(true)}
+          accessibilityLabel={`Album art for ${track.album.title}`}
+        />
+      ) : (
+        <View
+          style={artStyle}
+          accessibilityLabel={`Album art for ${track.album.title}`}
+        />
+      )}
       {/* Metadata */}
       <View style={isMini ? styles.metaMini : styles.metaFull}>
         <Text
