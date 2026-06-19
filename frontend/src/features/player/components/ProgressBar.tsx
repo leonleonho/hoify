@@ -68,6 +68,7 @@ export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
       <Text style={styles.time}>{formatTime(displayPosition)}</Text>
       <View
         style={styles.track}
+        testID="progress-track"
         onLayout={onLayout}
         {...panResponder.panHandlers}
       >

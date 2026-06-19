@@ -1,8 +1,39 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { ProgressBar } from '../ProgressBar';
 import { formatTime } from '../../utils/formatTime';
+
+// Mock PanResponder so we control when seek fires
+let onGrant: ((e: any) => void) | null = null;
+let onMove: ((e: any) => void) | null = null;
+let onRelease: ((e: any) => void) | null = null;
+let onTerminate: (() => void) | null = null;
+
+vi.mock('react-native', async () => {
+  const rn = await vi.importActual<typeof import('react-native')>('react-native');
+  return {
+    ...rn,
+    PanResponder: {
+      create: vi.fn((config: Record<string, any>) => {
+        onGrant = (e: any) => config.onPanResponderGrant(e);
+        onMove = (e: any) => config.onPanResponderMove(e);
+        onRelease = (e: any) => config.onPanResponderRelease(e);
+        onTerminate = () => config.onPanResponderTerminate?.();
+        return {
+          panHandlers: {
+            onStartShouldSetResponder: () => true,
+            onMoveShouldSetResponder: () => true,
+            onResponderGrant: (e: any) => onGrant?.(e),
+            onResponderMove: (e: any) => onMove?.(e),
+            onResponderRelease: (e: any) => onRelease?.(e),
+            onResponderTerminate: () => onTerminate?.(),
+          },
+        };
+      }),
+    },
+  };
+});
 
 describe('formatTime', () => {
   it('formats zero', () => {
@@ -61,6 +92,13 @@ describe('formatTime with seconds * 1000 (backend returns seconds)', () => {
 });
 
 describe('ProgressBar', () => {
+  beforeEach(() => {
+    onGrant = null;
+    onMove = null;
+    onRelease = null;
+    onTerminate = null;
+  });
+
   it('displays elapsed and total time', () => {
     render(<ProgressBar position={65000} duration={200000} onSeek={() => {}} />);
     expect(screen.getByText('1:05')).toBeInTheDocument();
@@ -71,5 +109,42 @@ describe('ProgressBar', () => {
     render(<ProgressBar position={0} duration={0} onSeek={() => {}} />);
     const times = screen.getAllByText('0:00');
     expect(times).toHaveLength(2);
+  });
+
+  it('does not fire onSeek during grant or move, only on release', () => {
+    const onSeek = vi.fn();
+    render(<ProgressBar position={0} duration={100000} onSeek={onSeek} />);
+
+    onGrant!({ nativeEvent: { locationX: 50 } });
+    expect(onSeek).not.toHaveBeenCalled();
+
+    onMove!({ nativeEvent: { locationX: 75 } });
+    expect(onSeek).not.toHaveBeenCalled();
+
+    onRelease!({ nativeEvent: { locationX: 75 } });
+    expect(onSeek).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onSeek once per drag gesture despite multiple moves', () => {
+    const onSeek = vi.fn();
+    render(<ProgressBar position={0} duration={100000} onSeek={onSeek} />);
+
+    onGrant!({ nativeEvent: { locationX: 20 } });
+    onMove!({ nativeEvent: { locationX: 40 } });
+    onMove!({ nativeEvent: { locationX: 60 } });
+    onMove!({ nativeEvent: { locationX: 80 } });
+    expect(onSeek).not.toHaveBeenCalled();
+
+    onRelease!({ nativeEvent: { locationX: 80 } });
+    expect(onSeek).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onSeek on terminate', () => {
+    const onSeek = vi.fn();
+    render(<ProgressBar position={0} duration={100000} onSeek={onSeek} />);
+
+    onGrant!({ nativeEvent: { locationX: 50 } });
+    onTerminate!();
+    expect(onSeek).not.toHaveBeenCalled();
   });
 });
