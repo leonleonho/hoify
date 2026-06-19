@@ -7,6 +7,7 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:wipe": "docker compose down -v",
+    "dev:clean": "npm run docker:wipe && npm run docker:up && sleep 5 && npm run db:migrate",
     "dev": "tsx watch src/index.ts",
     "build": "tsc && rsync -am --include='*.graphql' --include='*/' --exclude='*' src/ dist/",
     "start": "node dist/index.js",
