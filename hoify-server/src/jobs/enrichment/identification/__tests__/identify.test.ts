@@ -19,6 +19,7 @@ jest.unstable_mockModule("../musicbrainz.js", () => ({
   lookupMusicbrainz: mockMusicbrainz,
   lookupCoverArt: mockCoverArt,
   lookupReleaseAliases: jest.fn<() => Promise<string[]>>().mockResolvedValue([]),
+  lookupArtistAliases: jest.fn<() => Promise<string[]>>().mockResolvedValue([]),
 }));
 
 jest.unstable_mockModule("../../../../util/logger", () => ({
@@ -45,6 +46,7 @@ function makeTrack(overrides: Partial<ParsedTrack> = {}): ParsedTrack {
     genreNames: ["rock"],
     aliases: [],
     albumAliases: [],
+    artistAliases: [],
     ...overrides,
   };
 }

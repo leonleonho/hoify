@@ -52,6 +52,14 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
     artistId = existing!.id;
   }
 
+  // --- Artist aliases: update when we have artist aliases ---
+  if (track.artistAliases.length > 0) {
+    await db
+      .update(artists)
+      .set({ aliases: track.artistAliases })
+      .where(eq(artists.id, artistId));
+  }
+
   // --- Album: find or create by (title, artistId) ---
   let albumId: string;
   const [existingAlbum] = await db

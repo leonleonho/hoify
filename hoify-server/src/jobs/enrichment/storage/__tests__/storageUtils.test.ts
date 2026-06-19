@@ -44,6 +44,7 @@ function makeTrack(guid: string, overrides: Partial<ParsedTrack> = {}): ParsedTr
     genreNames: ["rock", "alternative"],
     aliases: [],
     albumAliases: [],
+    artistAliases: [],
     ...overrides,
   };
 }

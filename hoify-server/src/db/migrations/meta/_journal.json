@@ -36,6 +36,13 @@
       "when": 1781860241999,
       "tag": "0004_dapper_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781861776775,
+      "tag": "0005_faulty_vapor",
+      "breakpoints": true
     }
   ]
 }

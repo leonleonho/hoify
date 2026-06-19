@@ -48,6 +48,7 @@ export async function parseFile(filePath: string): Promise<ParsedTrack | null> {
       genreNames: common.genre ?? [],
       aliases: [],
       albumAliases: [],
+      artistAliases: [],
     };
   } catch (err) {
     logger.warn({ filePath, error: (err as Error).message }, "Skipped unparseable file");

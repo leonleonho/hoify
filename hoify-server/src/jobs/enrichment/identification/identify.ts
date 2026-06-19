@@ -2,7 +2,7 @@ import { parse } from "node:path";
 import { logger } from "../../../util/logger.js";
 import { getFingerprint } from "./fpcalc.js";
 import { lookupAcoustid } from "./acoustid.js";
-import { lookupMusicbrainz, lookupCoverArt, lookupReleaseAliases } from "./musicbrainz.js";
+import { lookupMusicbrainz, lookupCoverArt, lookupReleaseAliases, lookupArtistAliases } from "./musicbrainz.js";
 import type { ParsedTrack } from "../types/types.js";
 import type { MusicbrainzRecording } from "./types.js";
 
@@ -96,6 +96,15 @@ export async function identify(
       if (releaseAliases.length > 0) {
         merged.albumAliases = releaseAliases;
         merged.aliases = [...new Set([...merged.aliases, ...releaseAliases])];
+      }
+    }
+
+    // --- Artist aliases for non-English artists ---
+    if (isNonEnglish && merged.musicbrainzArtistId) {
+      const artistAliases = await lookupArtistAliases(merged.musicbrainzArtistId);
+      if (artistAliases.length > 0) {
+        merged.artistAliases = artistAliases;
+        merged.aliases = [...new Set([...merged.aliases, ...artistAliases])];
       }
     }
 

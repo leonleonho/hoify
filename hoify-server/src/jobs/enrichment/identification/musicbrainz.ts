@@ -77,6 +77,24 @@ export async function lookupMusicbrainz(
   }
 }
 
+export async function lookupArtistAliases(
+  artistMbid: string,
+): Promise<string[]> {
+  try {
+    const mb = getClient();
+    const data = (await mb.lookup("artist", artistMbid, [
+      "aliases",
+    ])) as { aliases?: Array<{ name: string }> };
+    return (data.aliases ?? []).map((a) => a.name);
+  } catch (err) {
+    logger.warn(
+      { error: (err as Error).message, artistMbid },
+      "Artist alias lookup failed",
+    );
+    return [];
+  }
+}
+
 export async function lookupReleaseAliases(
   releaseMbid: string,
 ): Promise<string[]> {

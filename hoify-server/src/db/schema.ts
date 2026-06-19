@@ -55,6 +55,7 @@ export const artists = pgTable(
     name: text("name").notNull().unique(),
     bio: text("bio"),
     imageUrl: text("image_url"),
+    aliases: text("aliases").array().default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -63,7 +64,10 @@ export const artists = pgTable(
       .default(sql`now()`)
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("idx_artists_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`)],
+  (t) => [
+    index("idx_artists_name_trgm").using("gin", sql`${t.name} gin_trgm_ops`),
+    index("idx_artists_aliases_gin").using("gin", sql`${t.aliases}`),
+  ],
 );
 
 export const artistsRelations = relations(artists, ({ many }) => ({
