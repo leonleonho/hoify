@@ -2,7 +2,7 @@ import { stat } from "node:fs/promises";
 import { parse } from "node:path";
 import { parseFile as parseAudio } from "music-metadata";
 import { logger } from "../../util/logger.js";
-import type { ParsedTrack } from "./types/types.js";
+import type { ParsedTrack, ArtData } from "./types/types.js";
 
 export async function parseFile(filePath: string): Promise<ParsedTrack | null> {
   try {
@@ -13,9 +13,23 @@ export async function parseFile(filePath: string): Promise<ParsedTrack | null> {
 
     const { common, format } = audio;
 
+    let embeddedPicture: ArtData | undefined;
+
+    if (common.picture && common.picture.length > 0) {
+      const frontCover = common.picture.find(
+        (p) => p.type?.toLowerCase().includes("front"),
+      );
+      const pic = frontCover ?? common.picture[0];
+      embeddedPicture = {
+        data: Buffer.from(pic.data),
+        format: pic.format,
+      };
+    }
+
     return {
       filePath,
       fileFormat: format.codec ?? parse(filePath).ext.slice(1),
+      embeddedPicture,
       fileSize: fileStat.size,
       fileMtime: Math.floor(fileStat.mtimeMs),
       title: common.title ?? parse(filePath).name,

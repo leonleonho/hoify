@@ -14,6 +14,7 @@ async function start() {
     logger.info({ port: PORT }, `🚀 hoify-server ready at http://localhost:${PORT}`);
     logger.info(`📡 GraphQL at http://localhost:${PORT}/graphql`);
     logger.info(`🎵 Streaming at http://localhost:${PORT}/stream/:trackId`);
+    logger.info(`🖼️  Album art at http://localhost:${PORT}/art/:filename`);
     logger.info("📦 Database connected");
     logger.info("⚙️  Enrichment worker started");
   });

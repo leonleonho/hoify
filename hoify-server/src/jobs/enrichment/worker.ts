@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import { connection } from "./queue.js";
 import { parseFile } from "./parser.js";
 import { identify } from "./identification/identify.js";
-import { upsertOne } from "./storage/storageUtils.js";
+import { upsertOne, saveAlbumArt } from "./storage/storageUtils.js";
 import { logger } from "../../util/logger.js";
 import type { EnqueuePayload } from "./types/types.js";
 
@@ -28,7 +28,12 @@ export const enrichmentWorker = new Worker<EnqueuePayload>(
     }
 
     const enriched = await identify(filePath, parsed);
-    await upsertOne(enriched);
+    const { albumId } = await upsertOne(enriched);
+
+    if (enriched.embeddedPicture) {
+      await saveAlbumArt(albumId, enriched.embeddedPicture);
+    }
+
     processedCount++;
 
     return { success: true };

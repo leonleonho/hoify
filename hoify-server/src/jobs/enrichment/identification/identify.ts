@@ -2,7 +2,7 @@ import { parse } from "node:path";
 import { logger } from "../../../util/logger.js";
 import { getFingerprint } from "./fpcalc.js";
 import { lookupAcoustid } from "./acoustid.js";
-import { lookupMusicbrainz } from "./musicbrainz.js";
+import { lookupMusicbrainz, lookupCoverArt } from "./musicbrainz.js";
 import type { ParsedTrack } from "../types/types.js";
 import type { MusicbrainzRecording } from "./types.js";
 
@@ -80,6 +80,14 @@ export async function identify(
 
     if (fingerprint) merged.acoustidFingerprint = fingerprint;
     if (recordingMbid) merged.musicbrainzRecordingId = recordingMbid;
+
+    // --- Album art: prefer embedded, fall back to MusicBrainz ---
+    if (!merged.embeddedPicture && merged.musicbrainzAlbumId) {
+      const artData = await lookupCoverArt(merged.musicbrainzAlbumId);
+      if (artData) {
+        merged.embeddedPicture = artData;
+      }
+    }
 
     return merged;
   } catch (err) {

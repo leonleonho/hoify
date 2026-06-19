@@ -1,3 +1,8 @@
+export interface ArtData {
+  data: Buffer;
+  format: string;
+}
+
 export interface ParsedTrack {
   filePath: string;
   fileFormat: string;
@@ -15,6 +20,7 @@ export interface ParsedTrack {
   musicbrainzRecordingId?: string;
   musicbrainzArtistId?: string;
   musicbrainzAlbumId?: string;
+  embeddedPicture?: ArtData;
 }
 
 export interface EnqueuePayload {

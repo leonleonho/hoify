@@ -1,6 +1,7 @@
 import { MusicBrainzApi } from "musicbrainz-api";
 import { logger } from "../../../util/logger.js";
 import type { MusicbrainzRecording } from "./types.js";
+import type { ArtData } from "../types/types.js";
 
 let client: MusicBrainzApi | null = null;
 
@@ -66,6 +67,45 @@ export async function lookupMusicbrainz(
     return result;
   } catch (err) {
     logger.warn({ error: (err as Error).message, recordingMbid }, "MusicBrainz lookup failed");
+    return null;
+  }
+}
+
+export async function lookupCoverArt(
+  releaseMbid: string,
+): Promise<ArtData | null> {
+  const url = `https://coverartarchive.org/release/${releaseMbid}/front`;
+
+  try {
+    const response = await fetch(url);
+
+    if (response.status === 404) {
+      logger.debug({ releaseMbid }, "No cover art at Cover Art Archive");
+      return null;
+    }
+
+    if (!response.ok) {
+      logger.warn(
+        { status: response.status, releaseMbid },
+        "Cover Art Archive request failed",
+      );
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get("content-type") ?? "image/jpeg";
+
+    logger.debug({ releaseMbid, format: contentType }, "Cover art downloaded");
+
+    return {
+      data: Buffer.from(arrayBuffer),
+      format: contentType,
+    };
+  } catch (err) {
+    logger.warn(
+      { error: (err as Error).message, releaseMbid },
+      "Cover Art Archive request threw",
+    );
     return null;
   }
 }
