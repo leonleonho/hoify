@@ -1,12 +1,19 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Heart } from 'lucide-react-native';
 import { useMutation, useFragment } from '@apollo/client/react';
 import { gql } from '@apollo/client';
-import { colors, spacing } from '@/constants/theme';
+import { colors, spacing, typography } from '@/constants/theme';
 import { useMusicPlayer } from '../hooks/useMusicPlayer';
 import { TrackInfo } from './TrackInfo';
 import { PlayPauseButton } from './PlayPauseButton';
 import { LikeTrackDocument, UnlikeTrackDocument } from '../../../hooks/generated';
+
+const QUALITY_LABELS: Record<string, string> = {
+  original: 'Orig',
+  high: 'High',
+  medium: 'Med',
+  low: 'Low',
+};
 
 /** Fragment so like state stays reactive with Apollo cache. */
 const TRACK_LIKED_FRAGMENT = gql`
@@ -21,7 +28,7 @@ const TRACK_LIKED_FRAGMENT = gql`
  * Hidden when no track is loaded.
  */
 export function MiniPlayer() {
-  const { currentTrack, isPlaying, togglePlayPause, next, openFullPlayer } = useMusicPlayer();
+  const { currentTrack, isPlaying, togglePlayPause, next, openFullPlayer, quality } = useMusicPlayer();
   const [likeTrack] = useMutation(LikeTrackDocument);
   const [unlikeTrack] = useMutation(UnlikeTrackDocument);
 
@@ -47,6 +54,9 @@ export function MiniPlayer() {
         accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
       >
         <TrackInfo track={currentTrack} variant="mini" />
+        {quality !== 'original' && (
+          <Text style={styles.qualityBadge}>{QUALITY_LABELS[quality]}</Text>
+        )}
       </Pressable>
       <Pressable
         onPress={toggleLike}
@@ -111,6 +121,18 @@ const styles = StyleSheet.create({
   },
   trackPressable: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  qualityBadge: {
+    ...typography.caption,
+    color: colors.primary,
+    backgroundColor: colors.surfaceLight,
+    paddingHorizontal: spacing.xs + 2,
+    paddingVertical: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   likeBtn: {
     padding: spacing.sm,

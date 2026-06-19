@@ -15,6 +15,12 @@ vi.mock('expo-av', () => ({
   },
 }));
 
+// expo-secure-store uses native modules unavailable in test env
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: vi.fn().mockResolvedValue(null),
+  setItemAsync: vi.fn().mockResolvedValue(undefined),
+}));
+
 // lucide-react-native ships raw ESM with typeof guards that happy-dom can't
 // parse. Mock it so components importing icons don't crash at import time.
 vi.mock('lucide-react-native', () => ({

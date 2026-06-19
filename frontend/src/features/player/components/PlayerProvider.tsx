@@ -8,13 +8,18 @@ import React, {
 } from 'react';
 import { Audio, type AVPlaybackStatus } from 'expo-av';
 import type { Track } from '@/hooks/generated/types';
-import type { PlayerState } from '../types/player';
+import type { PlayerQuality, PlayerState } from '../types/player';
+import { getItem, setItem } from '@/utils/storage';
 
 const STREAM_BASE = 'http://localhost:4000/stream';
 const SEEK_THRESHOLD_MS = 3000;
 
-function buildStreamUrl(trackId: string): string {
-  return `${STREAM_BASE}/${encodeURIComponent(trackId)}`;
+function buildStreamUrl(trackId: string, quality: PlayerQuality, seek?: number): string {
+  let url = `${STREAM_BASE}/${encodeURIComponent(trackId)}?quality=${quality}`;
+  if (seek && quality !== 'original') {
+    url += `&seek=${Math.floor(seek / 1000)}`;
+  }
+  return url;
 }
 
 // ── state ───────────────────────────────────────────────────────────────────
@@ -24,6 +29,7 @@ export function initialState(volume = 0.8): PlayerState {
     currentTrack: null, playlist: [],
     isPlaying: false, isLoading: false,
     position: 0, duration: 0, volume,
+    quality: 'original',
   };
 }
 
@@ -33,10 +39,12 @@ export function reducer(state: PlayerState, action: any): PlayerState {
       return { ...state, ...action.patch };
     case 'STATUS': {
       const s = action.status;
-      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis, duration: s.durationMillis ?? 0, volume: s.volume ?? state.volume };
-    }
+      const offset = action.seekOffset ?? 0;
+      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis + offset, volume: s.volume ?? state.volume };    }
     case 'LOAD_TRACK':
-      return { ...state, currentTrack: action.track, playlist: action.playlist ?? state.playlist, isPlaying: false, isLoading: false, position: 0, duration: 0 };
+      // track.duration from GraphQL is seconds; convert to ms
+      const d = action.track?.duration ?? 0;
+      return { ...state, currentTrack: action.track, playlist: action.playlist ?? state.playlist, isPlaying: false, isLoading: false, position: 0, duration: d * 1000 };
     default:
       return state;
   }
@@ -56,6 +64,7 @@ export interface PlayerActions {
   previous: () => Promise<void>;
   seek: (positionMs: number) => Promise<void>;
   setVolume: (value: number) => Promise<void>;
+  setQuality: (value: PlayerQuality) => Promise<void>;
   openFullPlayer: () => void;
   closeFullPlayer: () => void;
   isFullPlayerOpen: boolean;
@@ -79,12 +88,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const sound = useRef<Audio.Sound | null>(null);
   const idx = useRef(-1);
   const ready = useRef(false);
+  const seekOffset = useRef(0);
 
   // Refs that always hold latest value, so callbacks don't go stale
   const stateRef = useRef(s);
   stateRef.current = s;
   const dispatchRef = useRef(dispatch);
   dispatchRef.current = dispatch;
+
+  // Load persisted quality on mount
+  useEffect(() => {
+    getItem('player_quality').then((q) => {
+      if (q === 'original' || q === 'high' || q === 'medium' || q === 'low') {
+        dispatch({ type: 'PATCH', patch: { quality: q as PlayerQuality } });
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     return () => { sound.current?.unloadAsync().catch(() => {}); };
@@ -106,7 +125,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         idx.current = nextIdx;
         dispatchRef.current({ type: 'LOAD_TRACK', track: pl[nextIdx] });
         // reload the new track async
-        const url = buildStreamUrl(pl[nextIdx].id);
+        const q = stateRef.current.quality;
+        const url = buildStreamUrl(pl[nextIdx].id, q);
         Audio.Sound.createAsync(
           { uri: url },
           { shouldPlay: true, volume: stateRef.current.volume },
@@ -120,7 +140,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
       return;
     }
-    dispatchRef.current({ type: 'STATUS', status });
+    dispatchRef.current({ type: 'STATUS', status, seekOffset: seekOffset.current });
   }, []);
 
   const ensure = useCallback(async () => {
@@ -133,10 +153,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ready.current = true;
   }, []);
 
-  const loadSound = useCallback(async (track: Track, autoPlay: boolean) => {
+  const loadSound = useCallback(async (track: Track, autoPlay: boolean, seekMs?: number) => {
     await ensure();
     try { await sound.current?.unloadAsync(); } catch {}
-    const url = buildStreamUrl(track.id);
+    const q = stateRef.current.quality;
+    const isTrans = q !== 'original';
+    const seek = seekMs && isTrans ? seekMs : undefined;
+    if (seek) {
+      seekOffset.current = seek;
+    } else {
+      seekOffset.current = 0;
+    }
+    const url = buildStreamUrl(track.id, q, seek);
     const { sound: snd } = await Audio.Sound.createAsync(
       { uri: url },
       { shouldPlay: autoPlay, volume: stateRef.current.volume },
@@ -217,9 +245,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [loadSound]);
 
   const seek = useCallback(async (ms: number) => {
+    const q = stateRef.current.quality;
+    if (q !== 'original') {
+      // For transcoded streams, seek via URL reload
+      const track = stateRef.current.currentTrack;
+      if (!track) return;
+      dispatch({ type: 'PATCH', patch: { isLoading: true } });
+      await loadSound(track, stateRef.current.isPlaying, ms);
+      dispatch({ type: 'PATCH', patch: { position: ms } });
+      return;
+    }
+    // Original quality — use native seek
     await sound.current?.setPositionAsync(ms);
     dispatch({ type: 'PATCH', patch: { position: ms } });
-  }, []);
+  }, [loadSound]);
 
   const setVolume = useCallback(async (v: number) => {
     const c = Math.max(0, Math.min(1, v));
@@ -227,13 +266,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'PATCH', patch: { volume: c } });
   }, []);
 
+  const setQuality = useCallback(async (q: PlayerQuality) => {
+    dispatch({ type: 'PATCH', patch: { quality: q } });
+    await setItem('player_quality', q);
+    // Reload current track with new quality
+    const track = stateRef.current.currentTrack;
+    if (track) {
+      const wasPlaying = stateRef.current.isPlaying;
+      const pos = stateRef.current.position;
+      dispatch({ type: 'PATCH', patch: { isLoading: true } });
+      await loadSound(track, wasPlaying, pos);
+    }
+  }, [loadSound]);
+
   const openFullPlayer = useCallback(() => setFullPlayerOpen(true), []);
   const closeFullPlayer = useCallback(() => setFullPlayerOpen(false), []);
 
   const value: PlayerContextValue = {
     ...s,
     load, play, playPlaylist, pause, resume,
-    togglePlayPause, next, playNext, previous, seek, setVolume,
+    togglePlayPause, next, playNext, previous, seek, setVolume, setQuality,
     openFullPlayer, closeFullPlayer, isFullPlayerOpen,
   };
 

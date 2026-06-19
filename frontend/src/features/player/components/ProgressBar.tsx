@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import { colors, spacing, typography } from '@/constants/theme';
+import { formatTime } from '../utils/formatTime';
 
 type ProgressBarProps = {
   position: number; // ms
@@ -14,26 +15,27 @@ type ProgressBarProps = {
   onSeek: (positionMs: number) => void;
 };
 
-import { formatTime } from '../utils/formatTime';
-
 /**
  * Seekable progress bar with elapsed/total time labels.
- * Uses PanResponder for smooth drag-to-seek.
+ * Uses PanResponder for drag-to-seek.
+ * Fires onSeek only on release — drag only updates local visual.
  */
 export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
   const barWidth = useRef(0);
+  const [dragTarget, setDragTarget] = useState<number | null>(null);
+
+  const displayPosition = dragTarget !== null ? dragTarget : position;
 
   const fraction =
-    duration > 0 ? Math.max(0, Math.min(1, position / duration)) : 0;
+    duration > 0 ? Math.max(0, Math.min(1, displayPosition / duration)) : 0;
 
-  const seekTo = useCallback(
+  const posToMs = useCallback(
     (pageX: number) => {
-      if (duration <= 0 || barWidth.current <= 0) return;
+      if (duration <= 0 || barWidth.current <= 0) return 0;
       const x = Math.max(0, Math.min(pageX, barWidth.current));
-      const ratio = x / barWidth.current;
-      onSeek(Math.round(ratio * duration));
+      return Math.round((x / barWidth.current) * duration);
     },
-    [duration, onSeek],
+    [duration],
   );
 
   const panResponder = useRef(
@@ -41,10 +43,18 @@ export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
-        seekTo(evt.nativeEvent.locationX);
+        setDragTarget(posToMs(evt.nativeEvent.locationX));
       },
       onPanResponderMove: (evt) => {
-        seekTo(evt.nativeEvent.locationX);
+        setDragTarget(posToMs(evt.nativeEvent.locationX));
+      },
+      onPanResponderRelease: (evt) => {
+        const ms = posToMs(evt.nativeEvent.locationX);
+        setDragTarget(null);
+        onSeek(ms);
+      },
+      onPanResponderTerminate: () => {
+        setDragTarget(null);
       },
     }),
   ).current;
@@ -55,9 +65,10 @@ export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.time}>{formatTime(position)}</Text>
+      <Text style={styles.time}>{formatTime(displayPosition)}</Text>
       <View
         style={styles.track}
+        testID="progress-track"
         onLayout={onLayout}
         {...panResponder.panHandlers}
       >
@@ -95,7 +106,7 @@ const styles = StyleSheet.create({
   },
   track: {
     flex: 1,
-    height: THUMB_SIZE + 8, // tall enough to tap comfortably
+    height: THUMB_SIZE + 8,
     justifyContent: 'center',
   },
   trackBg: {
