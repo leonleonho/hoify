@@ -13,7 +13,7 @@ interface Placeholders {
   genresMissing: boolean;
 }
 
-function detectPlaceholders(track: ParsedTrack, filePath: string): Placeholders {
+export function detectPlaceholders(track: ParsedTrack, filePath: string): Placeholders {
   const fileName = parse(filePath).name;
   return {
     titleIsPlaceholder: track.title === fileName,
@@ -23,11 +23,11 @@ function detectPlaceholders(track: ParsedTrack, filePath: string): Placeholders 
   };
 }
 
-function needsFingerprint(p: Placeholders): boolean {
+export function needsFingerprint(p: Placeholders): boolean {
   return p.titleIsPlaceholder || p.artistIsPlaceholder || p.albumIsPlaceholder;
 }
 
-function mergeOverrides(
+export function mergeOverrides(
   track: ParsedTrack,
   mbData: MusicbrainzRecording | null,
   p: Placeholders,

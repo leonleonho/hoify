@@ -9,6 +9,11 @@ const runFpcalcRaw = promisify(fpcalc);
 
 let fpcalcAvailable: boolean | null = null;
 
+/** @internal exported for testing */
+export function __testResetCache(): void {
+  fpcalcAvailable = null;
+}
+
 async function checkFpcalc(): Promise<boolean> {
   if (fpcalcAvailable !== null) return fpcalcAvailable;
 
