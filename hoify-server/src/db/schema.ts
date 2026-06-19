@@ -50,7 +50,7 @@ export type NewUser = typeof users.$inferInsert;
 
 export const artists = pgTable("artists", {
   id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),
   bio: text("bio"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at", { withTimezone: true })

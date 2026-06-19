@@ -30,24 +30,23 @@ export async function upsertOne(track: ParsedTrack): Promise<void> {
     }
   }
 
-  // --- Artist: find or create by name ---
-  // No unique constraint — rare duplicates possible under concurrency.
-  // MusicBrainz dedup will fix later.
+  // --- Artist: insert with onConflictDoNothing, then select ---
   let artistId: string;
-  const [existingArtist] = await db
-    .select({ id: artists.id })
-    .from(artists)
-    .where(eq(artists.name, track.artist))
-    .limit(1);
+  const [inserted] = await db
+    .insert(artists)
+    .values({ name: track.artist })
+    .onConflictDoNothing()
+    .returning({ id: artists.id });
 
-  if (existingArtist) {
-    artistId = existingArtist.id;
-  } else {
-    const [inserted] = await db
-      .insert(artists)
-      .values({ name: track.artist })
-      .returning({ id: artists.id });
+  if (inserted) {
     artistId = inserted.id;
+  } else {
+    const [existing] = await db
+      .select({ id: artists.id })
+      .from(artists)
+      .where(eq(artists.name, track.artist))
+      .limit(1);
+    artistId = existing!.id;
   }
 
   // --- Album: find or create by (title, artistId) ---

@@ -16,4 +16,4 @@ redis.on("connect", () => {
   logger.info("Redis connected");
 });
 
-export const connection = redis as any;
+export const connection = redis;

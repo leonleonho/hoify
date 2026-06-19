@@ -1,5 +1,7 @@
-import { Queue } from "bullmq";
-import { connection } from "../../db/redis.js";
+import { Queue, type ConnectionOptions } from "bullmq";
+import { connection as redisConnection } from "../../db/redis.js";
+
+const connection = redisConnection as ConnectionOptions;
 
 export { connection };
 
