@@ -39,7 +39,8 @@ describe("worker handler", () => {
   it("calls parseFile → identify → upsertOne → saveAlbumArt on success", async () => {
     expect(capturedHandler).not.toBeNull();
 
-    const parsed = { filePath: "/music/song.mp3", title: "Song", artist: "Artist", album: "Album", genreNames: ["rock"], aliases: [], albumAliases: [], artistAliases: [] } as any;
+    const parsed = { filePath: "/music/song.mp3", title: "Song", artist: "Artist", album: "Album", genreNames: ["rock"], aliases: [], albumAliases: [], artistAliases: [] // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
     const enriched = { ...parsed, musicbrainzRecordingId: "mbid-1", embeddedPicture: { data: Buffer.from("img"), format: "image/jpeg" } };
 
     mockParseFile.mockResolvedValue(parsed);
@@ -66,7 +67,8 @@ describe("worker handler", () => {
   });
 
   it("does not call saveAlbumArt when no embedded picture", async () => {
-    const parsed = { filePath: "/music/song.mp3", title: "Song", artist: "Artist", album: "Album", genreNames: [], aliases: [], albumAliases: [], artistAliases: [] } as any;
+    const parsed = { filePath: "/music/song.mp3", title: "Song", artist: "Artist", album: "Album", genreNames: [], aliases: [], albumAliases: [], artistAliases: [] // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
     mockParseFile.mockResolvedValue(parsed);
     mockIdentify.mockResolvedValue(parsed);
     mockUpsertOne.mockResolvedValue({ albumId: "album-1" });
