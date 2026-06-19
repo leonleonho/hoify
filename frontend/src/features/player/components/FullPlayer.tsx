@@ -6,6 +6,7 @@ import { TrackInfo } from './TrackInfo';
 import { ProgressBar } from './ProgressBar';
 import { VolumeControl } from './VolumeControl';
 import { PlayPauseButton } from './PlayPauseButton';
+import { QualitySelector } from './QualitySelector';
 
 /**
  * Expanded player view with full controls:
@@ -19,11 +20,13 @@ export function FullPlayer() {
     position,
     duration,
     volume,
+    quality,
     togglePlayPause,
     next,
     previous,
     seek,
     setVolume,
+    setQuality,
   } = useMusicPlayer();
   if (!currentTrack) {
     return (
@@ -55,6 +58,9 @@ export function FullPlayer() {
         />
         <NextTrackButton onPress={next} />
       </View>
+
+      {/* Stream quality */}
+      <QualitySelector quality={quality} onQualityChange={setQuality} />
 
       {/* Volume */}
       <VolumeControl volume={volume} onVolumeChange={setVolume} />

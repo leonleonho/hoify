@@ -46,6 +46,19 @@
 
   Skip if you don't need fingerprint-based identification. Without it, the enrichment pipeline falls back to ID3 tags only.
 
+- **ffmpeg** — for live audio transcoding to MP3 at selected bitrate:
+
+  ```bash
+  # macOS
+  brew install ffmpeg
+
+  # Ubuntu/Debian
+  sudo apt install ffmpeg
+
+  # Arch
+  sudo pacman -S ffmpeg
+  ```
+
 ```bash
 # Use the correct Node version
 nvm use

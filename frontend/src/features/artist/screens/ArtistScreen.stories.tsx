@@ -92,6 +92,7 @@ const meta = {
       position: 0,
       duration: 0,
       volume: 0.8,
+      quality: 'original',
     }),
     (Story) => (
       <View style={styles.wrapper}>

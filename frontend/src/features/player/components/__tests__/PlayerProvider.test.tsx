@@ -83,8 +83,9 @@ describe('reducer', () => {
     expect(s.isPlaying).toBe(true);
     expect(s.isLoading).toBe(false);
     expect(s.position).toBe(5000);
-    expect(s.duration).toBe(200000);
-    expect(s.volume).toBe(0.5); // volume from STATUS payload
+    // STATUS no longer sets duration — LOAD_TRACK sets it from track.duration
+    expect(s.duration).toBe(0);
+    expect(s.volume).toBe(0.5);
   });
 
   it('STATUS marks isBuffering as isLoading', () => {
@@ -106,7 +107,8 @@ describe('reducer', () => {
     const s = reducer(base, { type: 'LOAD_TRACK', track: mockTrack1 });
     expect(s.currentTrack?.id).toBe('track-1');
     expect(s.position).toBe(0);
-    expect(s.duration).toBe(0);
+    // track.duration from GraphQL is seconds; converted to ms
+    expect(s.duration).toBe((mockTrack1.duration ?? 0) * 1000);
     expect(s.isPlaying).toBe(false);
     expect(s.isLoading).toBe(false);
   });

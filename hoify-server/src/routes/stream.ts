@@ -1,14 +1,22 @@
 import { Router } from "express";
 import { createReadStream, existsSync, statSync } from "fs";
 import { resolve } from "path";
+import { spawn } from "child_process";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { tracks } from "../db/schema.js";
 
 const router = Router();
 
+const BITRATE_MAP: Record<string, string> = {
+  high: "320k",
+  medium: "160k",
+  low: "96k",
+};
+
 router.get("/:trackId", async (req, res) => {
   const { trackId } = req.params;
+  const quality = (req.query.quality as string) || "original";
 
   // Look up track in DB to get the stored filePath
   const track = await db
@@ -30,6 +38,51 @@ router.get("/:trackId", async (req, res) => {
     return;
   }
 
+  // Transcode via ffmpeg for non-original quality
+  if (quality !== "original") {
+    const bitrate = BITRATE_MAP[quality];
+    if (!bitrate) {
+      res.status(400).json({ error: `Invalid quality: ${quality}` });
+      return;
+    }
+
+    const seek = parseFloat(req.query.seek as string) || 0;
+    const args = seek > 0
+      ? ["-ss", String(seek), "-i", filePath, "-vn", "-f", "mp3", "-b:a", bitrate, "-"]
+      : ["-i", filePath, "-vn", "-f", "mp3", "-b:a", bitrate, "-"];
+
+    res.status(200);
+    res.set({
+      "Content-Type": "audio/mpeg",
+      "Accept-Ranges": "none",
+    });
+
+    const proc = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
+
+    let errData = "";
+    proc.stderr?.on("data", (chunk: Buffer) => { errData += chunk.toString(); });
+
+    proc.stdout?.pipe(res);
+
+    req.on("close", () => {
+      proc.kill();
+    });
+
+    proc.on("error", (err) => {
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Transcoding failed", detail: err.message });
+      }
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0 && !res.headersSent) {
+        res.status(500).json({ error: "Transcoding failed", detail: errData });
+      }
+    });
+    return;
+  }
+
+  // Original quality — serve raw file directly
   const stat = statSync(filePath);
   const fileSize = stat.size;
   const mimeType = getMimeType(filePath);

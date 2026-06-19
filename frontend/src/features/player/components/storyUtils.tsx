@@ -18,6 +18,7 @@ export function withPlayerContext(state: PlayerState) {
     previous: async () => {},
     seek: async () => {},
     setVolume: async () => {},
+    setQuality: async () => {},
     openFullPlayer: () => {},
     closeFullPlayer: () => {},
     isFullPlayerOpen: false,

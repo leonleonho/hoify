@@ -8,7 +8,7 @@ export const mockTrack1: Track = {
   title: 'Test Song One',
   filePath: 'music/test1.mp3',
   fileFormat: 'mp3',
-  duration: 200000,
+  duration: 200, // seconds from GraphQL
   discNumber: 1,
   trackNumber: 1,
   fileSize: 5000000,
@@ -44,7 +44,7 @@ export const mockTrack2: Track = {
   title: 'Test Song Two',
   filePath: 'music/test2.flac',
   fileFormat: 'flac',
-  duration: 300000,
+  duration: 300, // seconds from GraphQL
   discNumber: 1,
   trackNumber: 2,
   fileSize: 12000000,
@@ -83,6 +83,7 @@ export function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerSta
     position: 0,
     duration: 0,
     volume: 0.8,
+    quality: 'original',
     ...overrides,
   };
 }
@@ -102,6 +103,7 @@ export function makeMockContext(overrides: Partial<PlayerContextValue> = {}): Pl
     previous: async () => {},
     seek: async () => {},
     setVolume: async () => {},
+    setQuality: async () => {},
     openFullPlayer: () => {},
     closeFullPlayer: () => {},
     isFullPlayerOpen: false,
