@@ -11,6 +11,10 @@ export interface ParsedTrack {
   discNumber: number | null;
   duration: number | null;
   genreNames: string[];
+  acoustidFingerprint?: string;
+  musicbrainzRecordingId?: string;
+  musicbrainzArtistId?: string;
+  musicbrainzAlbumId?: string;
 }
 
 export interface EnqueuePayload {

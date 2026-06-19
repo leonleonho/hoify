@@ -15,6 +15,13 @@
       "when": 1781847393722,
       "tag": "0001_brave_spacker_dave",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781848514199,
+      "tag": "0002_workable_morg",
+      "breakpoints": true
     }
   ]
 }

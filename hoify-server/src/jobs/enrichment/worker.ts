@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import { connection } from "./queue.js";
 import { parseFile } from "./parser.js";
+import { identify } from "./identification/identify.js";
 import { upsertOne } from "./storage/storageUtils.js";
 import { logger } from "../../util/logger.js";
 import type { EnqueuePayload } from "./types/types.js";
@@ -26,7 +27,8 @@ export const enrichmentWorker = new Worker<EnqueuePayload>(
       return { success: false, error: "Parse failed" };
     }
 
-    await upsertOne(parsed);
+    const enriched = await identify(filePath, parsed);
+    await upsertOne(enriched);
     processedCount++;
 
     return { success: true };

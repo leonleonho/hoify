@@ -31,6 +31,20 @@
 
 - **Node.js** — version managed via [nvm] (see `.nvmrc`)
 - **Docker Desktop** or **Docker Compose** (for PostgreSQL)
+- **Chromaprint** *(optional)* — for AcoustID audio fingerprinting (identifies tracks with missing metadata):
+
+  ```bash
+  # macOS
+  brew install chromaprint
+
+  # Ubuntu/Debian
+  sudo apt install libchromaprint-tools
+
+  # Arch
+  sudo pacman -S chromaprint
+  ```
+
+  Skip if you don't need fingerprint-based identification. Without it, the enrichment pipeline falls back to ID3 tags only.
 
 ```bash
 # Use the correct Node version
@@ -202,6 +216,17 @@ The connection string is configured in `.env`:
 ```
 DATABASE_URL=postgresql://hoify:hoify_dev@localhost:5432/hoify
 ```
+
+### Enrichment & Identification
+
+Audio metadata is extracted from ID3 tags during library scanning. For files with missing tags (unknown artist, album, or title), optional fingerprint-based identification can fill the gaps.
+
+| Env Variable | Required | Description |
+|---|---|---|
+| `ACOUSTID_API_KEY` | No | AcoustID API key from https://acoustid.org/register. Enables fingerprint lookup. |
+| `MUSICBRAINZ_USER_AGENT` | No | User-Agent for MusicBrainz API requests. Default: `Hoify/0.1.0 (https://github.com/leon/hoify)` |
+
+Without `ACOUSTID_API_KEY`, fingerprinting is skipped and only embedded tags are used.
 
 ---
 

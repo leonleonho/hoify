@@ -113,6 +113,10 @@ export async function upsertOne(track: ParsedTrack): Promise<void> {
           fileSize: track.fileSize,
           fileFormat: track.fileFormat,
           fileMtime: track.fileMtime,
+          ...(track.acoustidFingerprint !== undefined && { acoustidFingerprint: track.acoustidFingerprint }),
+          ...(track.musicbrainzRecordingId !== undefined && { musicbrainzRecordingId: track.musicbrainzRecordingId }),
+          ...(track.musicbrainzArtistId !== undefined && { musicbrainzArtistId: track.musicbrainzArtistId }),
+          ...(track.musicbrainzAlbumId !== undefined && { musicbrainzAlbumId: track.musicbrainzAlbumId }),
         })
         .where(eq(tracks.id, trackId));
     }
@@ -129,6 +133,10 @@ export async function upsertOne(track: ParsedTrack): Promise<void> {
         fileFormat: track.fileFormat,
         fileSize: track.fileSize,
         fileMtime: track.fileMtime,
+        acoustidFingerprint: track.acoustidFingerprint ?? null,
+        musicbrainzRecordingId: track.musicbrainzRecordingId ?? null,
+        musicbrainzArtistId: track.musicbrainzArtistId ?? null,
+        musicbrainzAlbumId: track.musicbrainzAlbumId ?? null,
       })
       .returning({ id: tracks.id });
     trackId = inserted.id;
