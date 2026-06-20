@@ -18,6 +18,7 @@ query SearchMusic($query: String!) {
     tracks {
       id
       title
+      trackArtist
       trackNumber
       duration
       filePath

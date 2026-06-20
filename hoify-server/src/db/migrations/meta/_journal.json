@@ -43,6 +43,13 @@
       "when": 1781861776775,
       "tag": "0005_faulty_vapor",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781930957044,
+      "tag": "0006_careless_scorpion",
+      "breakpoints": true
     }
   ]
 }

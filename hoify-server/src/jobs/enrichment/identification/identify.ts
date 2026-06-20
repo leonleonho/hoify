@@ -43,6 +43,7 @@ export function mergeOverrides(
   if (mbData) {
     if (p.titleIsPlaceholder) merged.title = mbData.title;
     if (p.artistIsPlaceholder) merged.artist = mbData.artist;
+    if (p.artistIsPlaceholder) merged.albumArtist = mbData.artist;
     if (p.albumIsPlaceholder && mbData.album) merged.album = mbData.album;
     if (track.year === null && mbData.releaseYear !== null) merged.year = mbData.releaseYear;
     if (p.genresMissing && mbData.genres.length > 0) merged.genreNames = mbData.genres;

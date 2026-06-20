@@ -359,6 +359,7 @@ export type Track = {
   id: Scalars['ID']['output'];
   liked: Scalars['Boolean']['output'];
   title: Scalars['String']['output'];
+  trackArtist?: Maybe<Scalars['String']['output']>;
   trackNumber?: Maybe<Scalars['Int']['output']>;
   updatedAt: Scalars['String']['output'];
 };

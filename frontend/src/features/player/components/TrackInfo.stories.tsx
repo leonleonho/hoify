@@ -7,6 +7,7 @@ import type { Track } from '@/hooks/generated/types';
 const mockTrack: Track = {
   id: 't1',
   title: 'Bohemian Rhapsody',
+  trackArtist: null,
   filePath: 'Queen/A Night at the Opera/01 - Bohemian Rhapsody.mp3',
   duration: 354,
   fileFormat: 'mp3',
