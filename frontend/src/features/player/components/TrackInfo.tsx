@@ -45,7 +45,7 @@ export function TrackInfo({ track, variant = 'full' }: TrackInfoProps) {
           style={[typography.bodySmall, styles.subtitle]}
           numberOfLines={1}
         >
-          {track.album.artist.name}
+          {track.trackArtist ?? track.album.artist.name}
           {!isMini && ` — ${track.album.title}`}
         </Text>
       </View>

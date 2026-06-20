@@ -34,6 +34,7 @@ export async function parseFile(filePath: string): Promise<ParsedTrack | null> {
       fileMtime: Math.floor(fileStat.mtimeMs),
       title: common.title ?? parse(filePath).name,
       artist: common.artist ?? "Unknown Artist",
+      albumArtist: common.albumartist ?? common.artist ?? "Unknown Artist",
       album: common.album ?? "Unknown Album",
       year: common.year && !Number.isNaN(common.year) ? common.year : null,
       trackNumber:

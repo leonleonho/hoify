@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
 CREATE TYPE "public"."playlist_type" AS ENUM('liked', 'suggested');--> statement-breakpoint
 CREATE TABLE "albums" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -5,6 +6,7 @@ CREATE TABLE "albums" (
 	"artist_id" uuid NOT NULL,
 	"release_year" integer,
 	"cover_url" text,
+	"aliases" text[] DEFAULT '{}'::text[],
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -14,8 +16,10 @@ CREATE TABLE "artists" (
 	"name" text NOT NULL,
 	"bio" text,
 	"image_url" text,
+	"aliases" text[] DEFAULT '{}'::text[],
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "artists_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 CREATE TABLE "genres" (
@@ -56,10 +60,16 @@ CREATE TABLE "tracks" (
 	"track_number" integer,
 	"disc_number" integer DEFAULT 1,
 	"duration" integer,
+	"track_artist" text,
 	"file_path" text NOT NULL,
 	"file_format" text,
 	"file_size" integer,
 	"file_mtime" bigint,
+	"acoustid_fingerprint" text,
+	"musicbrainz_recording_id" text,
+	"musicbrainz_artist_id" text,
+	"musicbrainz_album_id" text,
+	"aliases" text[] DEFAULT '{}'::text[],
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -87,7 +97,14 @@ ALTER TABLE "track_genres" ADD CONSTRAINT "track_genres_genre_id_genres_id_fk" F
 ALTER TABLE "tracks" ADD CONSTRAINT "tracks_album_id_albums_id_fk" FOREIGN KEY ("album_id") REFERENCES "public"."albums"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "albums_artist_id_idx" ON "albums" USING btree ("artist_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "albums_title_artist_idx" ON "albums" USING btree ("title","artist_id");--> statement-breakpoint
+CREATE INDEX "idx_albums_title_trgm" ON "albums" USING gin ("title" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "idx_albums_aliases_gin" ON "albums" USING gin ("aliases");--> statement-breakpoint
+CREATE INDEX "idx_artists_name_trgm" ON "artists" USING gin ("name" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "idx_artists_aliases_gin" ON "artists" USING gin ("aliases");--> statement-breakpoint
 CREATE UNIQUE INDEX "one_liked_per_user" ON "playlists" USING btree ("user_id") WHERE type = 'liked';--> statement-breakpoint
 CREATE INDEX "playlists_user_id_idx" ON "playlists" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_playlists_name_trgm" ON "playlists" USING gin ("name" gin_trgm_ops);--> statement-breakpoint
 CREATE UNIQUE INDEX "tracks_file_path_idx" ON "tracks" USING btree ("file_path");--> statement-breakpoint
-CREATE INDEX "tracks_album_id_idx" ON "tracks" USING btree ("album_id");
+CREATE INDEX "tracks_album_id_idx" ON "tracks" USING btree ("album_id");--> statement-breakpoint
+CREATE INDEX "idx_tracks_title_trgm" ON "tracks" USING gin ("title" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "idx_tracks_aliases_gin" ON "tracks" USING gin ("aliases");

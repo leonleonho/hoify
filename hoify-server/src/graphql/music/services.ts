@@ -289,6 +289,7 @@ export async function searchMusic(query: string) {
         .select({
           id: tracks.id,
           title: tracks.title,
+          trackArtist: tracks.trackArtist,
           albumId: tracks.albumId,
           trackNumber: tracks.trackNumber,
           discNumber: tracks.discNumber,

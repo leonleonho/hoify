@@ -13,6 +13,10 @@ dist/
 hoify-server/music/**
 hoify-server/album-art/**
 
+# Beets
+hoify-server/.beets/
+hoify-server/ingest/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

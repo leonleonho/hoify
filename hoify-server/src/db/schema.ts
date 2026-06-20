@@ -134,6 +134,7 @@ export const tracks = pgTable(
     trackNumber: integer("track_number"),
     discNumber: integer("disc_number").default(1),
     duration: integer("duration"),
+    trackArtist: text("track_artist"),
     filePath: text("file_path").notNull(),
     fileFormat: text("file_format"),
     fileSize: integer("file_size"),

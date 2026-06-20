@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1781742839344,
-      "tag": "0000_overjoyed_terrax",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1781847393722,
-      "tag": "0001_brave_spacker_dave",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1781848514199,
-      "tag": "0002_workable_morg",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1781858746585,
-      "tag": "0003_familiar_iron_lad",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1781860241999,
-      "tag": "0004_dapper_thanos",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1781861776775,
-      "tag": "0005_faulty_vapor",
+      "when": 1781931515349,
+      "tag": "0000_lonely_wendigo",
       "breakpoints": true
     }
   ]

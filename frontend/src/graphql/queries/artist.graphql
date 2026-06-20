@@ -16,6 +16,7 @@ query Artist($id: ID!) {
       tracks {
         id
         title
+        trackArtist
         trackNumber
         duration
         filePath

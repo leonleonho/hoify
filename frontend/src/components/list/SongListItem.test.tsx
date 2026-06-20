@@ -18,6 +18,7 @@ const baseTrack = (overrides?: Partial<Track>): Track =>
     __typename: 'Track',
     id: 'track-1',
     title: 'Midnight Waves',
+    trackArtist: null,
     duration: 204,
     discNumber: 1,
     trackNumber: 1,

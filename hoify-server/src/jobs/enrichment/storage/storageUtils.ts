@@ -33,39 +33,32 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
     }
   }
 
-  // --- Artist: insert with onConflictDoNothing, then select ---
-  let artistId: string;
-  const [inserted] = await db
+  // --- Album artist (canonical artist for album linking) ---
+  const albumArtistName = track.albumArtist ?? track.artist;
+  let albumArtistId: string;
+  const [insertedAlbumArtist] = await db
     .insert(artists)
-    .values({ name: track.artist })
+    .values({ name: albumArtistName })
     .onConflictDoNothing()
     .returning({ id: artists.id });
 
-  if (inserted) {
-    artistId = inserted.id;
+  if (insertedAlbumArtist) {
+    albumArtistId = insertedAlbumArtist.id;
   } else {
     const [existing] = await db
       .select({ id: artists.id })
       .from(artists)
-      .where(eq(artists.name, track.artist))
+      .where(eq(artists.name, albumArtistName))
       .limit(1);
-    artistId = existing!.id;
+    albumArtistId = existing!.id;
   }
 
-  // --- Artist aliases: update when we have artist aliases ---
-  if (track.artistAliases.length > 0) {
-    await db
-      .update(artists)
-      .set({ aliases: track.artistAliases })
-      .where(eq(artists.id, artistId));
-  }
-
-  // --- Album: find or create by (title, artistId) ---
+  // --- Album: find or create by (title, albumArtistId) ---
   let albumId: string;
   const [existingAlbum] = await db
     .select({ id: albums.id })
     .from(albums)
-    .where(and(eq(albums.title, track.album), eq(albums.artistId, artistId)))
+    .where(and(eq(albums.title, track.album), eq(albums.artistId, albumArtistId)))
     .limit(1);
 
   if (existingAlbum) {
@@ -73,7 +66,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
   } else {
     const [inserted] = await db
       .insert(albums)
-      .values({ title: track.album, artistId, releaseYear: track.year })
+      .values({ title: track.album, artistId: albumArtistId, releaseYear: track.year })
       .onConflictDoNothing()
       .returning({ id: albums.id });
 
@@ -84,7 +77,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
         .select({ id: albums.id })
         .from(albums)
         .where(
-          and(eq(albums.title, track.album), eq(albums.artistId, artistId)),
+          and(eq(albums.title, track.album), eq(albums.artistId, albumArtistId)),
         )
         .limit(1);
       albumId = other!.id;
@@ -126,6 +119,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
         .set({
           title: track.title,
           albumId,
+          trackArtist: track.artist,
           trackNumber: track.trackNumber,
           discNumber: track.discNumber,
           duration: track.duration,
@@ -146,6 +140,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
       .values({
         title: track.title,
         albumId,
+        trackArtist: track.artist,
         trackNumber: track.trackNumber,
         discNumber: track.discNumber,
         duration: track.duration,

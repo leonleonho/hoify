@@ -10,6 +10,7 @@ export interface ParsedTrack {
   fileMtime: number;
   title: string;
   artist: string;
+  albumArtist: string | null;
   album: string;
   year: number | null;
   trackNumber: number | null;

@@ -22,6 +22,7 @@ type Album {
 type Track {
   id: ID!
   title: String!
+  trackArtist: String
   album: Album!
   trackNumber: Int
   discNumber: Int

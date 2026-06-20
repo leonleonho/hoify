@@ -197,7 +197,7 @@ export function SongListItem({
             {track.title}
           </Text>
           <Text style={styles.artist} numberOfLines={1}>
-            {track.album.artist.name}
+            {track.trackArtist ?? track.album.artist.name}
           </Text>
         </View>
         <Text style={styles.duration}>{formatDuration(track.duration)}</Text>
@@ -409,7 +409,7 @@ export function SongListItem({
             {track.title}
           </Text>
           <Text style={styles.artist} numberOfLines={1}>
-            {track.album.artist.name}
+            {track.trackArtist ?? track.album.artist.name}
           </Text>
         </View>
 

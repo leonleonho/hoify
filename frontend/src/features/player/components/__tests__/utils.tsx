@@ -6,6 +6,7 @@ export const mockTrack1: Track = {
   __typename: 'Track',
   id: 'track-1',
   title: 'Test Song One',
+  trackArtist: null,
   filePath: 'music/test1.mp3',
   fileFormat: 'mp3',
   duration: 200, // seconds from GraphQL
@@ -17,8 +18,7 @@ export const mockTrack1: Track = {
     id: 'album-1',
     title: 'Test Album',
     coverUrl: null,
-    artist: {
-      __typename: 'Artist',
+    artist: {      __typename: 'Artist',
       id: 'artist-1',
       name: 'Test Artist',
       albums: [],
@@ -42,6 +42,7 @@ export const mockTrack2: Track = {
   __typename: 'Track',
   id: 'track-2',
   title: 'Test Song Two',
+  trackArtist: null,
   filePath: 'music/test2.flac',
   fileFormat: 'flac',
   duration: 300, // seconds from GraphQL
@@ -53,8 +54,7 @@ export const mockTrack2: Track = {
     id: 'album-1',
     title: 'Test Album',
     coverUrl: null,
-    artist: {
-      __typename: 'Artist',
+    artist: {      __typename: 'Artist',
       id: 'artist-1',
       name: 'Test Artist',
       albums: [],
