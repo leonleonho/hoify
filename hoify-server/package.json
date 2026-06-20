@@ -7,8 +7,11 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:wipe": "docker compose down -v",
-    "dev:clean": "npm run docker:wipe && npm run docker:up && sleep 5 && npm run db:migrate && npm run clean:album-art",
+    "dev:clean": "npm run docker:wipe && npm run docker:up && sleep 5 && npm run db:migrate && npm run clean:all",
+    "clean:all": "npm run clean:album-art && npm run clean:beets && npm run clean:music",
     "clean:album-art": "rm -rf ./album-art",
+    "clean:beets": "rm -rf ./.beets",
+    "clean:music": "rm -rf ./music",
     "dev": "tsx watch src/index.ts",
     "build": "tsc && rsync -am --include='*.graphql' --include='*/' --exclude='*' src/ dist/",
     "start": "node dist/index.js",
@@ -23,6 +26,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "ingest:beets": "tsx src/jobs/beets-ingest/run.ts",
     "scan:library": "tsx src/jobs/library-scanner/run.ts"
   },
   "dependencies": {
