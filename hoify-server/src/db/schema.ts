@@ -3,6 +3,7 @@ import {
   bigint,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -217,6 +218,48 @@ export const trackGenresRelations = relations(trackGenres, ({ one }) => ({
 
 export type TrackGenre = typeof trackGenres.$inferSelect;
 export type NewTrackGenre = typeof trackGenres.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Music Requests
+// ---------------------------------------------------------------------------
+
+export const musicRequestStatusEnum = pgEnum("music_request_status", [
+  "pending",
+  "downloading",
+  "completed",
+  "failed",
+]);
+
+export const musicRequests = pgTable("music_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  artistName: text("artist_name").notNull(),
+  albumName: text("album_name"),
+  songName: text("song_name"),
+  downloadPath: text("download_path"),
+  pluginUsed: text("plugin_used"),
+  downloadMeta: jsonb("download_meta"),
+  status: musicRequestStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`)
+    .$onUpdate(() => new Date()),
+});
+
+export type MusicRequest = typeof musicRequests.$inferSelect;
+export type NewMusicRequest = typeof musicRequests.$inferInsert;
+
+export const musicRequestsRelations = relations(musicRequests, ({ one }) => ({
+  user: one(users, {
+    fields: [musicRequests.userId],
+    references: [users.id],
+  }),
+}));
 
 // ---------------------------------------------------------------------------
 // Playlists

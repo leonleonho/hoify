@@ -1,0 +1,13 @@
+web:
+  port: 5030
+  ip_address: 0.0.0.0
+  authentication:
+    disabled: true
+feature:
+  swagger: true
+directories:
+  downloads: /downloads
+  incomplete: /downloads/.incomplete
+soulseek:
+  username: "hoifyServer"
+  password: "password"

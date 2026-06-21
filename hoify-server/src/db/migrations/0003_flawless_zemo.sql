@@ -1,0 +1,1 @@
+ALTER TABLE "music_requests" ALTER COLUMN "album_name" DROP NOT NULL;

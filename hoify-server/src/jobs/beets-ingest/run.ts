@@ -1,9 +1,13 @@
 /**
- * Beets Ingest — standalone entry point.
+ * Beets Ingest — standalone entry point + programmable import.
  *
- * Usage:
+ * Usage (CLI):
  *   BEETS_INGEST_PATH=/path/to/ingest npx tsx src/jobs/beets-ingest/run.ts
  *   npm run ingest:beets
+ *
+ * Usage (programmatic):
+ *   import { ingestAndScan } from "./jobs/beets-ingest/run.js";
+ *   await ingestAndScan(ingestPath);
  */
 
 import "dotenv/config";
@@ -62,7 +66,7 @@ asciify_paths: no
   return configPath;
 }
 
-async function hasAudioFiles(dir: string): Promise<boolean> {
+export async function hasAudioFiles(dir: string): Promise<boolean> {
   const entries = await readdir(dir, { withFileTypes: true });
   const audioExts = new Set([".mp3", ".flac", ".wav", ".ogg", ".aac", ".m4a", ".wma"]);
   for (const e of entries) {
@@ -76,7 +80,7 @@ async function hasAudioFiles(dir: string): Promise<boolean> {
   return false;
 }
 
-function runBeetsImport(ingestPath: string): Promise<void> {
+export function runBeetsImport(ingestPath: string): Promise<void> {
   mkdirSync(BEETS_DIR, { recursive: true });
   const beetsConfig = writeBeetsConfig();
 
@@ -114,22 +118,15 @@ function runBeetsImport(ingestPath: string): Promise<void> {
   });
 }
 
-async function main() {
-  logger.info({ path: INGEST_PATH }, "=== Hoify Beets Ingest ===");
-
-  if (!existsSync(INGEST_PATH)) {
-    mkdirSync(INGEST_PATH, { recursive: true });
-    logger.info({ path: INGEST_PATH }, "Created ingest directory");
-  }
-
-  const hasAudio = await hasAudioFiles(INGEST_PATH);
+export async function ingestAndScan(ingestPath: string): Promise<void> {
+  const hasAudio = await hasAudioFiles(ingestPath);
   if (!hasAudio) {
-    logger.warn({ path: INGEST_PATH }, "No audio files found in ingest directory — nothing to do");
-    process.exit(0);
+    logger.warn({ path: ingestPath }, "No audio files found in ingest directory — nothing to do");
+    return;
   }
 
   logger.info("Running beets import...");
-  await runBeetsImport(INGEST_PATH);
+  await runBeetsImport(ingestPath);
 
   logger.info("Beets import complete. Scanning music library for DB insertion...");
   const summary = await scanLibrary(MUSIC_LIBRARY_PATH);
@@ -142,6 +139,17 @@ async function main() {
     },
     "=== Summary ===",
   );
+}
+
+async function main() {
+  logger.info({ path: INGEST_PATH }, "=== Hoify Beets Ingest ===");
+
+  if (!existsSync(INGEST_PATH)) {
+    mkdirSync(INGEST_PATH, { recursive: true });
+    logger.info({ path: INGEST_PATH }, "Created ingest directory");
+  }
+
+  await ingestAndScan(INGEST_PATH);
 }
 
 main()
