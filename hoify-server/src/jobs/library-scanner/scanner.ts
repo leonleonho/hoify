@@ -2,7 +2,7 @@ import { stat } from "node:fs/promises";
 import { db } from "../../db/index.js";
 import { tracks } from "../../db/schema.js";
 import { walkDirectory } from "./walker.js";
-import { enrichmentQueue } from "../enrichment/queue.js";
+import { getEnrichmentQueue } from "../enrichment/queue.js";
 import { logger } from "../../util/logger.js";
 import type { ScanSummary } from "./types.js";
 
@@ -30,7 +30,7 @@ export async function scanLibrary(rootDir: string): Promise<ScanSummary> {
       continue;
     }
 
-    await enrichmentQueue.add("parse-track", { filePath: fp });
+    await getEnrichmentQueue().add("parse-track", { filePath: fp });
     enqueuedCount++;
   }
 

@@ -2,7 +2,7 @@ import { eq, desc } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 import { db } from "../../db/index.js";
 import { musicRequests } from "../../db/schema.js";
-import { musicRequestQueue } from "../../jobs/music-request/queue.js";
+import { getMusicRequestQueue } from "../../jobs/music-request/queue.js";
 import { fmtDate } from "../music/services.js";
 import type { Context } from "../auth/resolvers.js";
 
@@ -45,7 +45,7 @@ export const resolvers = {
         .returning();
 
       try {
-        await musicRequestQueue.add("request", {
+        await getMusicRequestQueue().add("request", {
           requestId: request.id,
           artistName,
           albumName: albumName ?? null,
