@@ -1,0 +1,1 @@
+ALTER TABLE "music_requests" ADD COLUMN "download_path" text;

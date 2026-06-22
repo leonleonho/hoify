@@ -1,0 +1,16 @@
+type MusicRequest {
+  id: ID!
+  artistName: String!
+  albumName: String!
+  songName: String
+  status: String!
+  createdAt: String!
+}
+
+type Query {
+  musicRequests: [MusicRequest!]!
+}
+
+type Mutation {
+  requestMusicDownload(artistName: String!, albumName: String, songName: String): MusicRequest!
+}

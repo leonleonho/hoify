@@ -31,6 +31,21 @@ services:
       timeout: 5s
       retries: 5
 
+  slskd:
+    image: slskd/slskd:latest
+    container_name: hoify-slskd
+    restart: unless-stopped
+    ports:
+      - "${SLSKD_PORT:-5030}:5030"
+    volumes:
+      - slskd_data:/app/.slskd
+      - ${SLSKD_DOWNLOAD_DIR:-./ingest}:/downloads:rw
+      - ./slskd.yml:/app/slskd.yml:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
+  slskd_data:

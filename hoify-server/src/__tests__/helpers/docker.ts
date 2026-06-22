@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 
-const IMAGE = "postgres:16-alpine";
+const PG_IMAGE = "postgres:16-alpine";
+const REDIS_IMAGE = "redis:7-alpine";
 const POLL_INTERVAL_MS = 800;
 const MAX_RETRIES = 40; // ~32 seconds total
 
@@ -10,10 +11,10 @@ export interface ContainerInfo {
 }
 
 /**
- * Get the host port Docker mapped for the container's port 5432.
+ * Get the host port Docker mapped for the container's internal port.
  */
-function getHostPort(containerId: string): number {
-  const output = execSync(`docker port ${containerId} 5432`, {
+function getHostPort(containerId: string, internalPort: number): number {
+  const output = execSync(`docker port ${containerId} ${internalPort}`, {
     encoding: "utf-8",
   }).trim();
   // output: "0.0.0.0:54321" or "127.0.0.1:54321"
@@ -40,15 +41,14 @@ function ensureDockerAvailable(): void {
 }
 
 /**
- * Check if the postgres:16-alpine image is available locally.
- * Pull it if missing.
+ * Check if an image is available locally; pull if missing.
  */
-async function ensureImage(): Promise<void> {
+async function ensureImage(image: string, label: string): Promise<void> {
   try {
-    execSync(`docker image inspect ${IMAGE}`, { stdio: "ignore" });
+    execSync(`docker image inspect ${image}`, { stdio: "ignore" });
   } catch {
-    console.log(`Pulling ${IMAGE}...`);
-    execSync(`docker pull ${IMAGE}`, { stdio: "inherit" });
+    console.log(`Pulling ${label}...`);
+    execSync(`docker pull ${image}`, { stdio: "inherit" });
   }
 }
 
@@ -69,10 +69,31 @@ async function waitForPostgres(containerId: string): Promise<void> {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
 
-  // Timed out — capture logs for debugging
   const logs = execSync(`docker logs ${containerId}`).toString();
   throw new Error(
     `Postgres container did not become ready within ${(MAX_RETRIES * POLL_INTERVAL_MS) / 1000}s.\nContainer logs:\n${logs}`,
+  );
+}
+
+/**
+ * Wait until redis-cli ping succeeds inside the container.
+ */
+async function waitForRedis(containerId: string): Promise<void> {
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      execSync(
+        `docker exec ${containerId} redis-cli ping`,
+        { stdio: "ignore" },
+      );
+      return;
+    } catch {
+      // Not ready yet
+    }
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  }
+
+  throw new Error(
+    `Redis container did not become ready within ${(MAX_RETRIES * POLL_INTERVAL_MS) / 1000}s`,
   );
 }
 
@@ -90,7 +111,7 @@ export async function startContainer(
   },
 ): Promise<ContainerInfo & { cleanup: () => Promise<void> }> {
   ensureDockerAvailable();
-  await ensureImage();
+  await ensureImage(PG_IMAGE, "PostgreSQL");
 
   const user = options?.user ?? "hoify";
   const password = options?.password ?? "hoify_dev";
@@ -104,7 +125,7 @@ export async function startContainer(
       -e POSTGRES_PASSWORD=${password} \
       -e POSTGRES_DB=${database} \
       -p 0:5432 \
-      ${IMAGE}`,
+      ${PG_IMAGE}`,
     { encoding: "utf-8" },
   ).trim();
 
@@ -115,13 +136,53 @@ export async function startContainer(
     throw err;
   }
 
-  const port = getHostPort(containerId);
+  const port = getHostPort(containerId, 5432);
 
   const cleanup = async () => {
     try {
       execSync(`docker rm -f ${containerId}`, { stdio: "ignore" });
     } catch {
       // Container already removed — idempotent
+    }
+  };
+
+  return { port, containerId, cleanup };
+}
+
+/**
+ * Start a fresh Redis 7 container on a dynamically-assigned port.
+ * Blocks until ready to accept connections.
+ */
+export async function startRedisContainer(): Promise<
+  ContainerInfo & { cleanup: () => Promise<void> }
+> {
+  ensureDockerAvailable();
+  await ensureImage(REDIS_IMAGE, "Redis");
+
+  const containerName = `hoify-redis-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const containerId = execSync(
+    `docker run -d \
+      --name ${containerName} \
+      -p 0:6379 \
+      ${REDIS_IMAGE}`,
+    { encoding: "utf-8" },
+  ).trim();
+
+  try {
+    await waitForRedis(containerId);
+  } catch (err) {
+    execSync(`docker rm -f ${containerId}`, { stdio: "ignore" });
+    throw err;
+  }
+
+  const port = getHostPort(containerId, 6379);
+
+  const cleanup = async () => {
+    try {
+      execSync(`docker rm -f ${containerId}`, { stdio: "ignore" });
+    } catch {
+      // Already gone
     }
   };
 

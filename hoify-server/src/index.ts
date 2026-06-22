@@ -2,6 +2,7 @@ import "dotenv/config";
 import { client } from "./db/index.js";
 import { createApp } from "./app.js";
 import { closeWorker } from "./jobs/enrichment/worker.js";
+import { closeWorker as closeMusicRequestWorker } from "./jobs/music-request/worker.js";
 import { connection } from "./db/redis.js";
 import { logger } from "./util/logger.js";
 
@@ -24,6 +25,7 @@ async function start() {
 process.on("SIGINT", async () => {
   logger.info("Shutting down...");
   await closeWorker();
+  await closeMusicRequestWorker();
   await connection.quit();
   await client.end();
   process.exit(0);
@@ -32,6 +34,7 @@ process.on("SIGINT", async () => {
 process.on("SIGTERM", async () => {
   logger.info("Shutting down...");
   await closeWorker();
+  await closeMusicRequestWorker();
   await connection.quit();
   await client.end();
   process.exit(0);
