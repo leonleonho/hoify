@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { Input } from '@/components/input/Input';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useSearchMusic } from '@/features/search/hooks/useSearchMusic';
+import { useDiscogsSearch } from '@/features/search/hooks/useDiscogsSearch';
 import { SearchResults } from '@/features/search/components/SearchResults';
 
 const DEBOUNCE_MS = 300;
@@ -25,7 +26,27 @@ export default function IndexScreen() {
   }, []);
 
   const { searchResults, loading, error } = useSearchMusic(debouncedQuery);
+
+  const backendEmpty =
+    searchResults !== null &&
+    searchResults.artists.length === 0 &&
+    searchResults.albums.length === 0 &&
+    searchResults.tracks.length === 0;
+
+  const {
+    results: discogsResults,
+    loading: discogsLoading,
+    error: discogsError,
+    searched: discogsSearched,
+    search: discogsSearch,
+  } = useDiscogsSearch(debouncedQuery);
   const hasActiveSearch = debouncedQuery.trim().length >= 2;
+
+  const handleSubmit = useCallback(() => {
+    if (backendEmpty && !discogsSearched && hasActiveSearch) {
+      discogsSearch();
+    }
+  }, [backendEmpty, discogsSearched, hasActiveSearch, discogsSearch]);
 
   return (
     <View style={styles.container}>
@@ -34,6 +55,7 @@ export default function IndexScreen() {
           placeholder="Search for songs, artists, albums…"
           value={query}
           onChangeText={handleChangeText}
+          onSubmitEditing={handleSubmit}
           returnKeyType="search"
         />
       </View>
@@ -49,6 +71,11 @@ export default function IndexScreen() {
               data={searchResults}
               loading={false}
               error={null}
+              onExtendedSearch={discogsSearch}
+              discogsResults={discogsResults}
+              discogsLoading={discogsLoading}
+              discogsError={discogsError}
+              discogsSearched={discogsSearched}
             />
           ) : (
             loading && (
