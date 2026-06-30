@@ -1,4 +1,11 @@
 import type { DiscogsResult } from './types';
+import type {
+  DiscogsArtistDetail,
+  DiscogsReleaseDetail,
+  DiscogsDetailType,
+  DiscogsArtistReleasesResponse,
+  DiscogsArtistRelease,
+} from './detail-types';
 
 interface DiscogsApiResult {
   id: number;
@@ -75,4 +82,48 @@ export async function searchDiscogs(query: string): Promise<DiscogsResult[]> {
       style: r.style,
       uri: r.uri,
     }));
+}
+
+export async function fetchDiscogsArtist(id: number): Promise<DiscogsArtistDetail> {
+  await rateLimit();
+
+  const response = await fetch(`${DISCOGS_API_BASE}/artists/${id}?token=${getToken()}`, {
+    headers: { 'User-Agent': USER_AGENT },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discogs API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchDiscogsRelease(id: number, type: DiscogsDetailType): Promise<DiscogsReleaseDetail> {
+  await rateLimit();
+
+  const endpoint = type === 'master' ? 'masters' : 'releases';
+  const response = await fetch(`${DISCOGS_API_BASE}/${endpoint}/${id}?token=${getToken()}`, {
+    headers: { 'User-Agent': USER_AGENT },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discogs API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchDiscogsArtistReleases(id: number): Promise<DiscogsArtistRelease[]> {
+  await rateLimit();
+
+  const response = await fetch(`${DISCOGS_API_BASE}/artists/${id}/releases?token=${getToken()}&per_page=50&sort=year&sort_order=desc`, {
+    headers: { 'User-Agent': USER_AGENT },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discogs API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data: DiscogsArtistReleasesResponse = await response.json();
+  return data.releases;
 }

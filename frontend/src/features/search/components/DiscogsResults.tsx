@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { List } from '@/components/list/List';
 import { colors, spacing, typography } from '@/constants/theme';
 import type { DiscogsResult } from '../discogs/types';
@@ -81,6 +82,15 @@ const rowStyles = StyleSheet.create({
 });
 
 export function DiscogsResults({ results, loading, error }: DiscogsResultsProps) {
+  const router = useRouter();
+
+  const handleResultPress = (result: DiscogsResult) => {
+    if (result.type === 'artist') {
+      router.push(`/discogs/artist/${result.id}` as any);
+    } else if (result.type === 'master' || result.type === 'release') {
+      router.push(`/discogs/album/${result.id}?type=${result.type}` as any);
+    }
+  };
   if (loading) {
     return (
       <List header="DISCOGS">
@@ -114,10 +124,10 @@ export function DiscogsResults({ results, loading, error }: DiscogsResultsProps)
   return (
     <List header="DISCOGS">
       {results.map((result, index) => (
-        <View key={result.id}>
+        <Pressable key={result.id} onPress={() => handleResultPress(result)}>
           <DiscogsResultRow result={result} />
           {index < results.length - 1 && <View style={styles.divider} />}
-        </View>
+        </Pressable>
       ))}
     </List>
   );
