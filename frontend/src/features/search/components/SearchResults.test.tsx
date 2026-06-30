@@ -33,7 +33,9 @@ const emptyData: SearchData = {
 };
 
 const populatedData: SearchData = {
-  artists: [{ __typename: 'Artist', id: 'a1', name: 'Artist One', imageUrl: null, albums: [] }],
+  artists: [{
+    id: 'a1', name: 'Artist One', imageUrl: null,
+  }],
   albums: [],
   tracks: [],
   playlists: [],
