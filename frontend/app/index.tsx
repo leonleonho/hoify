@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { Input } from '@/components/input/Input';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useSearchMusic } from '@/features/search/hooks/useSearchMusic';
+import { useDiscogsSearch } from '@/features/search/hooks/useDiscogsSearch';
 import { SearchResults } from '@/features/search/components/SearchResults';
 
 const DEBOUNCE_MS = 300;
@@ -25,6 +26,13 @@ export default function IndexScreen() {
   }, []);
 
   const { searchResults, loading, error } = useSearchMusic(debouncedQuery);
+  const {
+    results: discogsResults,
+    loading: discogsLoading,
+    error: discogsError,
+    searched: discogsSearched,
+    search: discogsSearch,
+  } = useDiscogsSearch(debouncedQuery);
   const hasActiveSearch = debouncedQuery.trim().length >= 2;
 
   return (
@@ -49,6 +57,11 @@ export default function IndexScreen() {
               data={searchResults}
               loading={false}
               error={null}
+              onExtendedSearch={discogsSearch}
+              discogsResults={discogsResults}
+              discogsLoading={discogsLoading}
+              discogsError={discogsError}
+              discogsSearched={discogsSearched}
             />
           ) : (
             loading && (
