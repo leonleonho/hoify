@@ -26,6 +26,13 @@ export default function IndexScreen() {
   }, []);
 
   const { searchResults, loading, error } = useSearchMusic(debouncedQuery);
+
+  const backendEmpty =
+    searchResults !== null &&
+    searchResults.artists.length === 0 &&
+    searchResults.albums.length === 0 &&
+    searchResults.tracks.length === 0;
+
   const {
     results: discogsResults,
     loading: discogsLoading,
@@ -35,6 +42,12 @@ export default function IndexScreen() {
   } = useDiscogsSearch(debouncedQuery);
   const hasActiveSearch = debouncedQuery.trim().length >= 2;
 
+  const handleSubmit = useCallback(() => {
+    if (backendEmpty && !discogsSearched && hasActiveSearch) {
+      discogsSearch();
+    }
+  }, [backendEmpty, discogsSearched, hasActiveSearch, discogsSearch]);
+
   return (
     <View style={styles.container}>
       <View style={styles.searchBar}>
@@ -42,6 +55,7 @@ export default function IndexScreen() {
           placeholder="Search for songs, artists, albums…"
           value={query}
           onChangeText={handleChangeText}
+          onSubmitEditing={handleSubmit}
           returnKeyType="search"
         />
       </View>

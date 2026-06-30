@@ -61,16 +61,18 @@ export async function searchDiscogs(query: string): Promise<DiscogsResult[]> {
 
   const data: DiscogsSearchResponse = await response.json();
 
-  return data.results.map((r) => ({
-    id: r.id,
-    type: r.type,
-    title: r.title,
-    year: r.year,
-    thumb: r.thumb,
-    coverImage: r.cover_image,
-    format: r.format,
-    genre: r.genre,
-    style: r.style,
-    uri: r.uri,
-  }));
+  return data.results
+    .filter((r) => r.type !== 'label')
+    .map((r) => ({
+      id: r.id,
+      type: r.type,
+      title: r.title,
+      year: r.year,
+      thumb: r.thumb,
+      coverImage: r.cover_image,
+      format: r.format,
+      genre: r.genre,
+      style: r.style,
+      uri: r.uri,
+    }));
 }
