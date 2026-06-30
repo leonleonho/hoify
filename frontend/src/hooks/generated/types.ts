@@ -94,6 +94,16 @@ export type Genre = {
   tracks: Array<Track>;
 };
 
+export type MusicRequest = {
+  __typename?: 'MusicRequest';
+  albumName: Scalars['String']['output'];
+  artistName: Scalars['String']['output'];
+  createdAt: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  songName?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
   addTracksToPlaylist: Playlist;
@@ -113,6 +123,7 @@ export type Mutation = {
   login: AuthPayload;
   removeTracksFromPlaylist: Playlist;
   reorderPlaylistTracks: Playlist;
+  requestMusicDownload: MusicRequest;
   unlikeTrack: Track;
   updateAlbum?: Maybe<Album>;
   updateArtist?: Maybe<Artist>;
@@ -209,6 +220,13 @@ export type MutationReorderPlaylistTracksArgs = {
 };
 
 
+export type MutationRequestMusicDownloadArgs = {
+  albumName?: InputMaybe<Scalars['String']['input']>;
+  artistName: Scalars['String']['input'];
+  songName?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type MutationUnlikeTrackArgs = {
   trackId: Scalars['ID']['input'];
 };
@@ -276,6 +294,7 @@ export type Query = {
   genre?: Maybe<Genre>;
   genres: Array<Genre>;
   me: User;
+  musicRequests: Array<MusicRequest>;
   myPlaylists: Array<Playlist>;
   playlist?: Maybe<Playlist>;
   searchMusic: SearchResults;

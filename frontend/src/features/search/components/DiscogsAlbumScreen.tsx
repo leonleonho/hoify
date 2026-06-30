@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useMutation } from '@apollo/client/react';
+import { Button } from '@/components/button/Button';
 import { List, ListItem } from '@/components/list/List';
 import { colors, spacing, typography } from '@/constants/theme';
+import { RequestMusicDownloadDocument } from '@/hooks/generated';
 import { fetchDiscogsRelease } from '../discogs/client';
 import type { DiscogsReleaseDetail, DiscogsDetailType } from '../discogs/detail-types';
 
@@ -18,6 +21,28 @@ export function DiscogsAlbumScreen({ albumId, type }: Props) {
   const [release, setRelease] = useState<DiscogsReleaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requestedAlbum, setRequestedAlbum] = useState(false);
+  const [requestedTracks, setRequestedTracks] = useState<Set<number>>(new Set());
+
+  const [requestMusic, { loading: requesting }] = useMutation(RequestMusicDownloadDocument);
+
+  const handleRequestAlbum = useCallback(() => {
+    if (!release || requestedAlbum) return;
+    const artistName = release.artists[0]?.name ?? 'Unknown Artist';
+    requestMusic({
+      variables: { artistName, albumName: release.title },
+    }).then(() => setRequestedAlbum(true));
+  }, [release, requestedAlbum, requestMusic]);
+
+  const handleRequestTrack = useCallback((trackIndex: number) => {
+    if (!release || requestedTracks.has(trackIndex)) return;
+    const track = release.tracklist[trackIndex];
+    if (!track) return;
+    const artistName = release.artists[0]?.name ?? 'Unknown Artist';
+    requestMusic({
+      variables: { artistName, albumName: release.title, songName: track.title },
+    }).then(() => setRequestedTracks((prev) => new Set(prev).add(trackIndex)));
+  }, [release, requestedTracks, requestMusic]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +98,15 @@ export function DiscogsAlbumScreen({ albumId, type }: Props) {
         {release.year && <Text style={styles.year}>{release.year}</Text>}
       </View>
 
+      {/* Request album download */}
+      <Button
+        title={requestedAlbum ? 'Requested' : 'Request Album'}
+        variant={requestedAlbum ? 'ghost' : 'primary'}
+        disabled={requestedAlbum}
+        loading={requesting}
+        onPress={handleRequestAlbum}
+      />
+
       {/* Genre/Style badges */}
       {release.genres && release.genres.length > 0 && (
         <View style={styles.tagRow}>
@@ -97,6 +131,16 @@ export function DiscogsAlbumScreen({ albumId, type }: Props) {
               key={`${track.position}-${i}`}
               title={`${track.position}. ${track.title}`}
               subtitle={track.duration}
+              trailing={
+                <Button
+                  title={requestedTracks.has(i) ? 'Requested' : 'Request'}
+                  variant="ghost"
+                  size="sm"
+                  disabled={requestedTracks.has(i)}
+                  loading={requesting}
+                  onPress={() => handleRequestTrack(i)}
+                />
+              }
               divider={i < release.tracklist.length - 1}
             />
           ))}
