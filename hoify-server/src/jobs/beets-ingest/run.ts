@@ -152,13 +152,16 @@ async function main() {
   await ingestAndScan(INGEST_PATH);
 }
 
-main()
-  .catch((err) => {
-    logger.error(err, "Fatal error");
-    process.exit(1);
-  })
-  .finally(async () => {
-    await connection.quit();
-    await client.end();
-    logger.info("Connections closed. Goodbye!");
-  });
+const isMainModule = process.argv[1]?.endsWith("run.ts") || process.argv[1]?.endsWith("run.js");
+if (isMainModule) {
+  main()
+    .catch((err) => {
+      logger.error(err, "Fatal error");
+      process.exit(1);
+    })
+    .finally(async () => {
+      await connection.quit();
+      await client.end();
+      logger.info("Connections closed. Goodbye!");
+    });
+}
