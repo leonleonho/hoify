@@ -15,7 +15,7 @@ const drizzleLogger = {
   },
 };
 
-export let client = postgres(connectionString);
+export let client = postgres(connectionString, { idle_timeout: 0 });
 export let db = drizzle(client, { logger: drizzleLogger });
 
 /**

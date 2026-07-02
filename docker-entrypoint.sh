@@ -1,17 +1,27 @@
 #!/bin/sh
 set -e
 
+# Fix ownership of bind-mounted dirs to match container user
+chown -R node:node /music /album-art /ingest /app/backend 2>/dev/null || true
+
+# Wait for Postgres to accept connections
+echo "Waiting for postgres..."
+for i in $(seq 1 30); do
+  pg_isready -h postgres -U hoify -d hoify -q 2>/dev/null && break
+  sleep 1
+done
+
 echo "Running database migrations..."
-cd /app/backend && npx drizzle-kit migrate & wait $!
+su-exec node sh -c "cd /app/backend && npx drizzle-kit migrate" & wait $!
 
 echo "Starting hoify backend..."
-cd /app/backend && npx tsx src/index.ts &
+su-exec node sh -c "cd /app/backend && npx tsx src/index.ts" &
 
 sleep 1
 
 echo "Starting hoify frontend on port ${FRONTEND_PORT:-3000}..."
 cd /app/frontend/dist
-exec node -e "
+exec su-exec node node -e "
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

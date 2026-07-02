@@ -22,23 +22,21 @@ RUN npm run build:web
 # Stage 3: Runtime
 FROM node:22-alpine
 
-RUN addgroup -S hoify && adduser -S hoify -G hoify
+RUN apk add --no-cache beets chromaprint py3-packaging su-exec
 
 # Backend (run via tsx — avoids pre-existing TS strict-mode type errors)
-COPY --from=build-backend --chown=hoify:hoify /build/backend/src                   /app/backend/src
-COPY --from=build-backend --chown=hoify:hoify /build/backend/node_modules           /app/backend/node_modules
-COPY --from=build-backend --chown=hoify:hoify /build/backend/package.json           /app/backend/
-COPY --from=build-backend --chown=hoify:hoify /build/backend/drizzle.config.ts      /app/backend/
-COPY --from=build-backend --chown=hoify:hoify /build/backend/src/db/migrations      /app/backend/src/db/migrations
+COPY --from=build-backend /build/backend/src                   /app/backend/src
+COPY --from=build-backend /build/backend/node_modules           /app/backend/node_modules
+COPY --from=build-backend /build/backend/package.json           /app/backend/
+COPY --from=build-backend /build/backend/drizzle.config.ts      /app/backend/
+COPY --from=build-backend /build/backend/src/db/migrations      /app/backend/src/db/migrations
 
 # Frontend (pre-built static files)
-COPY --from=build-frontend --chown=hoify:hoify /build/frontend/dist  /app/frontend/dist
+COPY --from=build-frontend /build/frontend/dist  /app/frontend/dist
 
 # Entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-USER hoify
 
 EXPOSE 4000 3000
 

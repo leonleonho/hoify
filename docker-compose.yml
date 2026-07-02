@@ -44,12 +44,15 @@ services:
     volumes:
       - ${SLSKD_DATA_DIR:-./data/slskd}:/app/.slskd
       - ${SLSKD_DOWNLOAD_DIR:-./ingest}:/downloads:rw
-      - ./hoify-server/slskd.yml:/app/slskd.yml:ro
+      - ${SLSKD_DATA_DIR:-./data/slskd}/slskd.yml:/app/slskd.yml
     networks:
       - hoify-net
 
   hoify:
-    image: hoify:latest
+    build:
+      context: .
+      args:
+        DOCKER_EXPO_PUBLIC_API_URL: ${DOCKER_EXPO_PUBLIC_API_URL:-http://localhost:4000/graphql}
     container_name: hoify-app
     restart: unless-stopped
     ports:
@@ -72,7 +75,7 @@ services:
       MUSICBRAINZ_USER_AGENT: ${MUSICBRAINZ_USER_AGENT:-Hoify/1.0}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
-      - ${MUSIC_DIR:-./music}:/music:ro
+      - ${MUSIC_DIR:-./music}:/music
       - ${ALBUM_ART_DIR:-./album-art}:/album-art
       - ${INGEST_DIR:-./ingest}:/ingest
     depends_on:
