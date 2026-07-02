@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+echo "Running database migrations..."
+cd /app/backend && npx drizzle-kit migrate & wait $!
+
 echo "Starting hoify backend..."
 cd /app/backend && npx tsx src/index.ts &
 

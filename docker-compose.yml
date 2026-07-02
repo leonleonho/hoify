@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hoify-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hoify}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hoify_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-hoify}
+    volumes:
+      - ${POSTGRES_DATA_DIR:-./data/postgres}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hoify} -d ${POSTGRES_DB:-hoify}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hoify-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: hoify-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ${REDIS_DATA_DIR:-./data/redis}:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hoify-net
+
+  slskd:
+    image: slskd/slskd:latest
+    container_name: hoify-slskd
+    restart: unless-stopped
+    ports:
+      - "${SLSKD_PORT:-5030}:5030"
+    volumes:
+      - ${SLSKD_DATA_DIR:-./data/slskd}:/app/.slskd
+      - ${SLSKD_DOWNLOAD_DIR:-./ingest}:/downloads:rw
+      - ./hoify-server/slskd.yml:/app/slskd.yml:ro
+    networks:
+      - hoify-net
+
+  hoify:
+    image: hoify:latest
+    container_name: hoify-app
+    restart: unless-stopped
+    ports:
+      - "${HOIFY_PORT:-4000}:4000"
+      - "${HOIFY_FRONTEND_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://hoify:hoify_dev@postgres:5432/hoify}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      PORT: 4000
+      FRONTEND_PORT: 3000
+      MUSIC_LIBRARY_PATH: /music
+      ALBUM_ART_PATH: /album-art
+      BEETS_INGEST_PATH: /ingest
+      SLSKD_ENABLED: ${SLSKD_ENABLED:-false}
+      SLSKD_URL: ${SLSKD_URL:-http://slskd:5030}
+      SLSKD_API_KEY: ${SLSKD_API_KEY:-}
+      SLSKD_DOWNLOAD_DIR: /ingest
+      ACOUSTID_API_KEY: ${ACOUSTID_API_KEY:-}
+      MUSICBRAINZ_USER_AGENT: ${MUSICBRAINZ_USER_AGENT:-Hoify/1.0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ${MUSIC_DIR:-./music}:/music:ro
+      - ${ALBUM_ART_DIR:-./album-art}:/album-art
+      - ${INGEST_DIR:-./ingest}:/ingest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hoify-net
+
+networks:
+  hoify-net:
+    driver: bridge

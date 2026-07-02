@@ -25,9 +25,11 @@ FROM node:22-alpine
 RUN addgroup -S hoify && adduser -S hoify -G hoify
 
 # Backend (run via tsx — avoids pre-existing TS strict-mode type errors)
-COPY --from=build-backend --chown=hoify:hoify /build/backend/src         /app/backend/src
-COPY --from=build-backend --chown=hoify:hoify /build/backend/node_modules /app/backend/node_modules
-COPY --from=build-backend --chown=hoify:hoify /build/backend/package.json /app/backend/
+COPY --from=build-backend --chown=hoify:hoify /build/backend/src                   /app/backend/src
+COPY --from=build-backend --chown=hoify:hoify /build/backend/node_modules           /app/backend/node_modules
+COPY --from=build-backend --chown=hoify:hoify /build/backend/package.json           /app/backend/
+COPY --from=build-backend --chown=hoify:hoify /build/backend/drizzle.config.ts      /app/backend/
+COPY --from=build-backend --chown=hoify:hoify /build/backend/src/db/migrations      /app/backend/src/db/migrations
 
 # Frontend (pre-built static files)
 COPY --from=build-frontend --chown=hoify:hoify /build/frontend/dist  /app/frontend/dist
