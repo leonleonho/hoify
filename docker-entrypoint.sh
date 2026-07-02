@@ -2,14 +2,7 @@
 set -e
 
 # Fix ownership of bind-mounted dirs to match container user
-chown -R node:node /music /album-art /ingest /app/backend 2>/dev/null || true
-
-# Wait for Postgres to accept connections
-echo "Waiting for postgres..."
-for i in $(seq 1 30); do
-  pg_isready -h postgres -U hoify -d hoify -q 2>/dev/null && break
-  sleep 1
-done
+chown -R node:node /music /album-art /ingest /beets-data /app/backend 2>/dev/null || true
 
 echo "Running database migrations..."
 su-exec node sh -c "cd /app/backend && npx drizzle-kit migrate" & wait $!

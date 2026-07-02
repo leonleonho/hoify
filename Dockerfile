@@ -22,7 +22,7 @@ RUN npm run build:web
 # Stage 3: Runtime
 FROM node:22-alpine
 
-RUN apk add --no-cache beets chromaprint py3-packaging su-exec
+RUN apk add --no-cache beets chromaprint ffmpeg py3-packaging su-exec
 
 # Backend (run via tsx — avoids pre-existing TS strict-mode type errors)
 COPY --from=build-backend /build/backend/src                   /app/backend/src

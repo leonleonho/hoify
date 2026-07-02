@@ -27,7 +27,9 @@ const INGEST_PATH = resolve(
 const MUSIC_LIBRARY_PATH = resolve(
   process.env.MUSIC_LIBRARY_PATH ?? resolve(SERVER_DIR, "music"),
 );
-const BEETS_DIR = resolve(SERVER_DIR, ".beets");
+const BEETS_DIR = resolve(
+  process.env.BEETS_DIR ?? resolve(SERVER_DIR, ".beets"),
+);
 
 function writeBeetsConfig(): string {
   const configPath = resolve(BEETS_DIR, "config.yaml");

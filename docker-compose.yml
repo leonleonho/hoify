@@ -66,6 +66,7 @@ services:
       FRONTEND_PORT: 3000
       MUSIC_LIBRARY_PATH: /music
       ALBUM_ART_PATH: /album-art
+      BEETS_DIR: /beets-data
       BEETS_INGEST_PATH: /ingest
       SLSKD_ENABLED: ${SLSKD_ENABLED:-false}
       SLSKD_URL: ${SLSKD_URL:-http://slskd:5030}
@@ -78,6 +79,7 @@ services:
       - ${MUSIC_DIR:-./music}:/music
       - ${ALBUM_ART_DIR:-./album-art}:/album-art
       - ${INGEST_DIR:-./ingest}:/ingest
+      - ${BEETS_DATA_DIR:-./data/beets}:/beets-data
     depends_on:
       postgres:
         condition: service_healthy
