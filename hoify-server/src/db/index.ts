@@ -15,7 +15,9 @@ const drizzleLogger = {
   },
 };
 
-export let client = postgres(connectionString);
+const postgresOptions = { idle_timeout: 0, max_lifetime: 0 };
+
+export let client = postgres(connectionString, postgresOptions);
 export let db = drizzle(client, { logger: drizzleLogger });
 
 /**
@@ -25,6 +27,6 @@ export let db = drizzle(client, { logger: drizzleLogger });
  */
 export async function reconnect(url: string): Promise<void> {
   await client.end();
-  client = postgres(url);
+  client = postgres(url, postgresOptions);
   db = drizzle(client, { logger: drizzleLogger });
 }

@@ -10,8 +10,9 @@ import { Audio, type AVPlaybackStatus } from 'expo-av';
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
+import { API_BASE } from '@/constants/api';
 
-const STREAM_BASE = 'http://localhost:4000/stream';
+const STREAM_BASE = `${API_BASE}/stream`;
 const SEEK_THRESHOLD_MS = 3000;
 
 function buildStreamUrl(trackId: string, quality: PlayerQuality, seek?: number): string {
