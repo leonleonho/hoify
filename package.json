@@ -24,5 +24,6 @@
       "eslint --fix",
       "eslint"
     ]
-  }
+  },
+  "version": "0.0.1"
 }
