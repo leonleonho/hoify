@@ -28,8 +28,9 @@ COPY --from=build-backend /build/backend/package.json           /app/backend/
 COPY --from=build-backend /build/backend/drizzle.config.ts      /app/backend/
 COPY --from=build-backend /build/backend/src/db/migrations      /app/backend/src/db/migrations
 
-# Frontend (pre-built static files)
-COPY --from=build-frontend /build/frontend/dist  /app/frontend/dist
+# Frontend (pre-built static files + serve script)
+COPY --from=build-frontend /build/frontend/dist       /app/frontend/dist
+COPY --from=build-frontend /build/frontend/serve.mjs  /app/frontend/serve.mjs
 
 # Entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

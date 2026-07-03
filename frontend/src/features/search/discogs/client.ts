@@ -31,7 +31,8 @@ const USER_AGENT = 'HoifyMusicApp/1.0';
 let lastRequestTime = 0;
 
 function getToken(): string {
-  const token = process.env.EXPO_PUBLIC_DISCOGS_TOKEN;
+  const cfg = typeof window !== 'undefined' ? window.__HOIFY_CONFIG__ : undefined;
+  const token = cfg?.EXPO_PUBLIC_DISCOGS_TOKEN || process.env.EXPO_PUBLIC_DISCOGS_TOKEN;
   if (!token) throw new Error('Discogs token not configured. Set EXPO_PUBLIC_DISCOGS_TOKEN');
   return token;
 }
