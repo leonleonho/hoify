@@ -9,3 +9,4 @@ hoify-server/music
 hoify-server/album-art
 hoify-server/ingest
 frontend/.expo
+frontend/.env
