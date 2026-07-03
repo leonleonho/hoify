@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.FRONTEND_PORT || 3000;
+const BACKEND = process.env.BACKEND_URL || 'http://localhost:4000';
 
 const MIME = {
   '.html': 'text/html',
@@ -38,12 +39,48 @@ const MIME = {
   '.ttf': 'font/ttf',
 };
 
+// Proxy /graphql, /stream/*, /art/* to backend
+const isApiPath = (url) =>
+  url.startsWith('/graphql') || url.startsWith('/stream/') || url.startsWith('/art/');
+
 http.createServer((req, res) => {
+  if (isApiPath(req.url)) {
+    const opts = new URL(BACKEND + req.url);
+    const proxy = http.request(
+      {
+        hostname: opts.hostname,
+        port: opts.port,
+        path: opts.pathname + opts.search,
+        method: req.method,
+        headers: req.headers,
+      },
+      (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res);
+      },
+    );
+    proxy.on('error', () => {
+      res.writeHead(502);
+      res.end('Bad Gateway');
+    });
+    req.pipe(proxy);
+    return;
+  }
+
+  // Serve static files
   let file = req.url === '/' ? '/index.html' : req.url.split('?')[0];
   fs.readFile(path.join(__dirname, file), (err, data) => {
     if (err) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not found');
+      // SPA fallback: serve index.html for unknown routes
+      fs.readFile(path.join(__dirname, 'index.html'), (err2, index) => {
+        if (err2) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not found');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(index);
+      });
       return;
     }
     res.writeHead(200, {

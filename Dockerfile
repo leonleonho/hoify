@@ -14,9 +14,6 @@ COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
 
-ARG DOCKER_EXPO_PUBLIC_API_URL=http://localhost:4000/graphql
-ENV EXPO_PUBLIC_API_URL=$DOCKER_EXPO_PUBLIC_API_URL
-
 RUN npm run build:web
 
 # Stage 3: Runtime
