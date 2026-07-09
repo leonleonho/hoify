@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  PanResponder,
   Pressable,
   StyleSheet,
   View,
@@ -12,6 +13,7 @@ import { FullPlayer } from './FullPlayer';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const PANEL_HEIGHT = SCREEN_HEIGHT * 0.92;
+const DISMISS_THRESHOLD = PANEL_HEIGHT * 0.25;
 
 export function FullPlayerOverlay() {
   const { isFullPlayerOpen, closeFullPlayer } = useMusicPlayer();
@@ -19,48 +21,63 @@ export function FullPlayerOverlay() {
 
   const slideAnim = useRef(new Animated.Value(PANEL_HEIGHT)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
+  const panY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isFullPlayerOpen) {
       setRender(true);
+      panY.setValue(0);
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
+          toValue: 0, duration: 300, useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
+          toValue: 1, duration: 300, useNativeDriver: true,
         }),
       ]).start();
     } else {
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: PANEL_HEIGHT,
-          duration: 250,
-          useNativeDriver: true,
+          toValue: PANEL_HEIGHT, duration: 250, useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
+          toValue: 0, duration: 250, useNativeDriver: true,
         }),
       ]).start(() => setRender(false));
     }
-  }, [isFullPlayerOpen, slideAnim, backdropAnim]);
+  }, [isFullPlayerOpen, slideAnim, backdropAnim, panY]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 5,
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) panY.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > DISMISS_THRESHOLD || gs.vy > 0.5) {
+          // Transfer drag offset to slideAnim so the close animation
+          // starts from the current visual position, not from 0.
+          slideAnim.setValue(gs.dy);
+          panY.setValue(0);
+          closeFullPlayer();
+        } else {
+          Animated.spring(panY, {
+            toValue: 0, useNativeDriver: true,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
+      },
+    }),
+  ).current;
 
   if (!render) return null;
 
   return (
     <View style={styles.root}>
-      <Animated.View
-        style={[
-          styles.backdrop,
-          { opacity: backdropAnim },
-        ]}
-      >
+      <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={closeFullPlayer}
@@ -71,10 +88,10 @@ export function FullPlayerOverlay() {
       <Animated.View
         style={[
           styles.panel,
-          { transform: [{ translateY: slideAnim }] },
+          { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
         ]}
       >
-        <View style={styles.handleRow}>
+        <View style={styles.handleRow} {...panResponder.panHandlers}>
           <View style={styles.handle} />
         </View>
         <FullPlayer />
