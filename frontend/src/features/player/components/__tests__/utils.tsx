@@ -84,6 +84,8 @@ export function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerSta
     duration: 0,
     volume: 0.8,
     quality: 'original',
+    repeatMode: 'off',
+    shuffle: false,
     ...overrides,
   };
 }
@@ -106,6 +108,8 @@ export function makeMockContext(overrides: Partial<PlayerContextValue> = {}): Pl
     setQuality: async () => {},
     openFullPlayer: () => {},
     closeFullPlayer: () => {},
+    toggleRepeat: () => {},
+    toggleShuffle: () => {},
     isFullPlayerOpen: false,
     ...overrides,
   };

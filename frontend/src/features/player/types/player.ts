@@ -2,6 +2,8 @@ import type { Track } from '@/hooks/generated/types';
 
 export type PlayerQuality = 'original' | 'high' | 'medium' | 'low';
 
+export type RepeatMode = 'off' | 'all' | 'one';
+
 /** Playback state exposed to the UI. Read-only snapshot. */
 export type PlayerState = {
   /** The track currently loaded (or null if nothing loaded) */
@@ -20,4 +22,8 @@ export type PlayerState = {
   volume: number;
   /** Stream quality: original (passthrough), high (320k), medium (160k), low (96k) */
   quality: PlayerQuality;
+  /** Repeat mode: off, repeat all, or repeat one */
+  repeatMode: RepeatMode;
+  /** Whether shuffle is active */
+  shuffle: boolean;
 };
