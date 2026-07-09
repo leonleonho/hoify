@@ -131,6 +131,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const s = stateRef.current;
       const pl = s.playlist;
 
+      // Reset seek offset so the next track's STATUS doesn't apply old seek
+      seekOffset.current = 0;
+
       // Repeat-one: replay same track
       if (s.repeatMode === 'one' && s.currentTrack) {
         const track = s.currentTrack;

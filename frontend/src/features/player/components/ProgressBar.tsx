@@ -22,6 +22,10 @@ type ProgressBarProps = {
  */
 export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
   const barWidth = useRef(0);
+  const durationRef = useRef(duration);
+  durationRef.current = duration;
+  const onSeekRef = useRef(onSeek);
+  onSeekRef.current = onSeek;
   const [dragTarget, setDragTarget] = useState<number | null>(null);
 
   const displayPosition = dragTarget !== null ? dragTarget : position;
@@ -31,11 +35,13 @@ export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
 
   const posToMs = useCallback(
     (pageX: number) => {
-      if (duration <= 0 || barWidth.current <= 0) return 0;
-      const x = Math.max(0, Math.min(pageX, barWidth.current));
-      return Math.round((x / barWidth.current) * duration);
+      const dur = durationRef.current;
+      const w = barWidth.current;
+      if (dur <= 0 || w <= 0) return 0;
+      const x = Math.max(0, Math.min(pageX, w));
+      return Math.round((x / w) * dur);
     },
-    [duration],
+    [], // reads refs, never stale
   );
 
   const panResponder = useRef(
@@ -51,7 +57,7 @@ export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
       onPanResponderRelease: (evt) => {
         const ms = posToMs(evt.nativeEvent.locationX);
         setDragTarget(null);
-        onSeek(ms);
+        onSeekRef.current(ms);
       },
       onPanResponderTerminate: () => {
         setDragTarget(null);
