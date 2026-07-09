@@ -10,11 +10,8 @@ import {
   trackGenres,
 } from "../../../db/schema.js";
 import { logger } from "../../../util/logger.js";
+import { musicLibraryPath, albumArtPath as ART_PATH } from "../../../paths.js";
 import type { ParsedTrack, ArtData } from "../types/types.js";
-
-const MUSIC_LIBRARY_PATH = resolve(
-  process.env.MUSIC_LIBRARY_PATH ?? resolve(process.cwd(), "music"),
-);
 
 export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }> {
   // --- Genres: upsert, then build lookup ---
@@ -130,7 +127,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
       "Upgrading to higher bitrate track",
     );
 
-    if (existing.filePath.startsWith(MUSIC_LIBRARY_PATH)) {
+    if (existing.filePath.startsWith(musicLibraryPath)) {
       try { await unlink(existing.filePath); } catch { /* file may already be gone */ }
     }
 
@@ -246,10 +243,6 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
 
   return { albumId };
 }
-
-const ART_PATH = resolve(
-  process.env.ALBUM_ART_PATH ?? resolve(process.cwd(), "album-art"),
-);
 
 const MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",

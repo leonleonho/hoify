@@ -11,17 +11,16 @@ import { client } from "../../db/index.js";
 import { logger } from "../../util/logger.js";
 import { scanLibrary } from "./scanner.js";
 import { connection } from "../../db/redis.js";
-
-const MUSIC_LIBRARY_PATH = process.env.MUSIC_LIBRARY_PATH ?? "./music";
+import { musicLibraryPath } from "../../paths.js";
 
 async function main() {
   logger.info("=== Hoify Library Scanner ===\n");
   logger.info(
-    { path: MUSIC_LIBRARY_PATH },
-    `Music library path: ${MUSIC_LIBRARY_PATH}`,
+    { path: musicLibraryPath },
+    `Music library path: ${musicLibraryPath}`,
   );
 
-  const summary = await scanLibrary(MUSIC_LIBRARY_PATH);
+  const summary = await scanLibrary(musicLibraryPath);
 
   logger.info(
     {
