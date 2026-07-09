@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import {
   artists,
@@ -119,7 +119,12 @@ export async function deleteAlbum(id: string) {
 
 export async function listTracks(albumId: string | null) {
   const filter = albumId ? eq(tracks.albumId, albumId) : undefined;
-  return db.select().from(tracks).where(filter).limit(50);
+  return db
+    .select()
+    .from(tracks)
+    .where(filter)
+    .orderBy(asc(tracks.discNumber), asc(tracks.trackNumber))
+    .limit(50);
 }
 
 export async function getTrack(id: string) {
