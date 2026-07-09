@@ -19,17 +19,9 @@ import { client } from "../../db/index.js";
 import { connection } from "../../db/redis.js";
 import { logger } from "../../util/logger.js";
 import { scanLibrary } from "../library-scanner/scanner.js";
+import { musicLibraryPath as MUSIC_LIBRARY_PATH, beetsDir as BEETS_DIR, ingestPath as INGEST_PATH } from "../../paths.js";
 
 const SERVER_DIR = process.cwd();
-const INGEST_PATH = resolve(
-  process.env.BEETS_INGEST_PATH ?? resolve(SERVER_DIR, "ingest"),
-);
-const MUSIC_LIBRARY_PATH = resolve(
-  process.env.MUSIC_LIBRARY_PATH ?? resolve(SERVER_DIR, "music"),
-);
-const BEETS_DIR = resolve(
-  process.env.BEETS_DIR ?? resolve(SERVER_DIR, ".beets"),
-);
 
 function writeBeetsConfig(): string {
   const configPath = resolve(BEETS_DIR, "config.yaml");

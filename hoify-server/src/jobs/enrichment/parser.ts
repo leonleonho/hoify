@@ -47,6 +47,7 @@ export async function parseFile(filePath: string): Promise<ParsedTrack | null> {
           : 1,
       duration: format.duration ? Math.round(format.duration) : null,
       genreNames: common.genre ?? [],
+      bitrate: format.bitrate ? Math.round(format.bitrate) : null,
       aliases: [],
       albumAliases: [],
       artistAliases: [],

@@ -36,12 +36,14 @@ function makeTrack(guid: string, overrides: Partial<ParsedTrack> = {}): ParsedTr
     fileMtime: 1000,
     title: `Song ${guid}`,
     artist: `Artist ${guid}`,
+    albumArtist: `Artist ${guid}`,
     album: `Album ${guid}`,
     year: 2022,
     trackNumber: 1,
     discNumber: 1,
     duration: 200,
     genreNames: ["rock", "alternative"],
+    bitrate: 320000,
     aliases: [],
     albumAliases: [],
     artistAliases: [],
@@ -101,8 +103,8 @@ describe("upsertOne", () => {
   it("reuses existing artist on duplicate name", async () => {
     const { db, schema, storage } = await loadDeps();
 
-    await storage.upsertOne(makeTrack("dup-artist-1", { artist: "Shared Artist" }));
-    await storage.upsertOne(makeTrack("dup-artist-2", { artist: "Shared Artist", album: "Other Album", title: "Other Song" }));
+    await storage.upsertOne(makeTrack("dup-artist-1", { artist: "Shared Artist", albumArtist: "Shared Artist" }));
+    await storage.upsertOne(makeTrack("dup-artist-2", { artist: "Shared Artist", albumArtist: "Shared Artist", album: "Other Album", title: "Other Song" }));
 
     const rows = await db
       .select()
@@ -114,8 +116,8 @@ describe("upsertOne", () => {
   it("reuses existing album on duplicate title+artist", async () => {
     const { db, schema, storage } = await loadDeps();
 
-    await storage.upsertOne(makeTrack("dup-album-1", { artist: "Dup Artist A", album: "Shared Album" }));
-    await storage.upsertOne(makeTrack("dup-album-2", { artist: "Dup Artist A", album: "Shared Album", title: "Other Song" }));
+    await storage.upsertOne(makeTrack("dup-album-1", { artist: "Dup Artist A", albumArtist: "Dup Artist A", album: "Shared Album" }));
+    await storage.upsertOne(makeTrack("dup-album-2", { artist: "Dup Artist A", albumArtist: "Dup Artist A", album: "Shared Album", title: "Other Song" }));
 
     const rows = await db
       .select()
@@ -153,6 +155,97 @@ describe("upsertOne", () => {
       .limit(1);
     expect(trackRow).toBeDefined();
     expect(trackRow!.albumId).toBe(albumId);
+  });
+
+  it("skips duplicate with same artist+title and lower bitrate", async () => {
+    const { db, schema, storage } = await loadDeps();
+    const artist = "Dedup Artist";
+    const album = "Dedup Album";
+    const title = "Dedup Song";
+
+    // First insert at high bitrate
+    await storage.upsertOne(makeTrack("dedup-high", { artist, albumArtist: artist, album, title, bitrate: 320000 }));
+
+    // Same artist+title, different file, lower bitrate
+    await storage.upsertOne(makeTrack("dedup-low", { artist, albumArtist: artist, album, title, bitrate: 128000 }));
+
+    const rows = await db
+      .select()
+      .from(schema.tracks)
+      .innerJoin(schema.albums, eq(schema.tracks.albumId, schema.albums.id))
+      .innerJoin(schema.artists, eq(schema.albums.artistId, schema.artists.id))
+      .where(
+        and(eq(schema.artists.name, artist), eq(schema.tracks.title, title)),
+      );
+    expect(rows.length).toBe(1);
+    expect(rows[0].tracks.filePath).toContain("dedup-high");
+  });
+
+  it("upgrades to higher bitrate dupe and deletes old file reference", async () => {
+    const { db, schema, storage } = await loadDeps();
+    const artist = "Upgrade Artist";
+    const album = "Upgrade Album";
+    const title = "Upgrade Song";
+
+    // First insert at low bitrate
+    await storage.upsertOne(makeTrack("upgrade-low", { artist, albumArtist: artist, album, title, bitrate: 128000, filePath: "/music/test/upgrade-old.mp3" }));
+
+    // Same artist+title, high bitrate
+    await storage.upsertOne(makeTrack("upgrade-high", { artist, albumArtist: artist, album, title, bitrate: 320000, filePath: "/music/test/upgrade-new.mp3" }));
+
+    const rows = await db
+      .select()
+      .from(schema.tracks)
+      .innerJoin(schema.albums, eq(schema.tracks.albumId, schema.albums.id))
+      .innerJoin(schema.artists, eq(schema.albums.artistId, schema.artists.id))
+      .where(
+        and(eq(schema.artists.name, artist), eq(schema.tracks.title, title)),
+      );
+    expect(rows.length).toBe(1);
+    expect(rows[0].tracks.filePath).toBe("/music/test/upgrade-new.mp3");
+    expect(rows[0].tracks.bitrate).toBe(320000);
+  });
+
+  it("keeps existing when bitrate is equal", async () => {
+    const { db, schema, storage } = await loadDeps();
+    const artist = "Equal Artist";
+    const album = "Equal Album";
+    const title = "Equal Song";
+
+    await storage.upsertOne(makeTrack("equal-first", { artist, albumArtist: artist, album, title, bitrate: 256000 }));
+    await storage.upsertOne(makeTrack("equal-second", { artist, albumArtist: artist, album, title, bitrate: 256000 }));
+
+    const rows = await db
+      .select()
+      .from(schema.tracks)
+      .innerJoin(schema.albums, eq(schema.tracks.albumId, schema.albums.id))
+      .innerJoin(schema.artists, eq(schema.albums.artistId, schema.artists.id))
+      .where(
+        and(eq(schema.artists.name, artist), eq(schema.tracks.title, title)),
+      );
+    expect(rows.length).toBe(1);
+    expect(rows[0].tracks.filePath).toContain("equal-first");
+  });
+
+  it("keeps existing when new track has no bitrate but existing does", async () => {
+    const { db, schema, storage } = await loadDeps();
+    const artist = "NoBitrate Artist";
+    const album = "NoBitrate Album";
+    const title = "NoBitrate Song";
+
+    await storage.upsertOne(makeTrack("nobitrate-existing", { artist, albumArtist: artist, album, title, bitrate: 256000 }));
+    await storage.upsertOne(makeTrack("nobitrate-new", { artist, albumArtist: artist, album, title, bitrate: null }));
+
+    const rows = await db
+      .select()
+      .from(schema.tracks)
+      .innerJoin(schema.albums, eq(schema.tracks.albumId, schema.albums.id))
+      .innerJoin(schema.artists, eq(schema.albums.artistId, schema.artists.id))
+      .where(
+        and(eq(schema.artists.name, artist), eq(schema.tracks.title, title)),
+      );
+    expect(rows.length).toBe(1);
+    expect(rows[0].tracks.filePath).toContain("nobitrate-existing");
   });
 });
 

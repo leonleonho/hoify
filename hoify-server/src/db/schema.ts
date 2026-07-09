@@ -138,6 +138,7 @@ export const tracks = pgTable(
     trackArtist: text("track_artist"),
     filePath: text("file_path").notNull(),
     fileFormat: text("file_format"),
+    bitrate: integer("bitrate"),
     fileSize: integer("file_size"),
     fileMtime: bigint("file_mtime", { mode: "number" }),
     acoustidFingerprint: text("acoustid_fingerprint"),

@@ -4,6 +4,7 @@ import { resolve } from "path";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { albums } from "../db/schema.js";
+import { albumArtPath } from "../paths.js";
 
 const router = Router();
 
@@ -46,12 +47,9 @@ router.get("/:filename", async (req, res) => {
     return;
   }
 
-  const artPath = resolve(
-    process.env.ALBUM_ART_PATH ?? resolve(process.cwd(), "album-art"),
-  );
-  const filePath = resolve(artPath, filename);
+  const filePath = resolve(albumArtPath, filename);
 
-  if (!filePath.startsWith(artPath)) {
+  if (!filePath.startsWith(albumArtPath)) {
     res.status(400).json({ error: "Invalid path" });
     return;
   }
