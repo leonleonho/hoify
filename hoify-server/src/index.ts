@@ -6,6 +6,7 @@ import { closeWorker as closeMusicRequestWorker } from "./jobs/music-request/wor
 import { connection } from "./db/redis.js";
 import { logger } from "./util/logger.js";
 import { ingestAndScan } from "./jobs/beets-ingest/run.js";
+import { startWatchIngest } from "./jobs/beets-ingest/watcher.js";
 import { ingestPath } from "./paths.js";
 
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
@@ -22,9 +23,16 @@ async function start() {
     logger.info("⚙️  Enrichment worker started");
 
     // non-blocking: run beets import + library scan at boot
-    ingestAndScan(ingestPath).catch((err) => {
-      logger.error(err, "Beets ingest failed at startup");
-    });
+    ingestAndScan(ingestPath)
+      .then(() => {
+        logger.info("Startup ingest complete. Starting file watcher...");
+        startWatchIngest(ingestPath);
+      })
+      .catch((err) => {
+        logger.error(err, "Beets ingest failed at startup");
+        logger.info("Starting file watcher anyway...");
+        startWatchIngest(ingestPath);
+      });
   });
 }
 
