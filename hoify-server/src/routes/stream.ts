@@ -62,11 +62,34 @@ router.get("/:trackId", async (req, res) => {
     let errData = "";
     proc.stderr?.on("data", (chunk: Buffer) => { errData += chunk.toString(); });
 
+    const IDLE_TIMEOUT_MS = 60_000;
+    const KILL_GRACE_MS = 5_000;
+
+    let killed = false;
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      if (!killed) idleTimer = setTimeout(doKill, IDLE_TIMEOUT_MS).unref();
+    };
+
+    const doKill = () => {
+      if (killed) return;
+      killed = true;
+      if (idleTimer) clearTimeout(idleTimer);
+      proc.stdout?.unpipe(res);
+      proc.kill("SIGTERM");
+      setTimeout(() => {
+        try { proc.kill("SIGKILL"); } catch { /* already dead */ }
+      }, KILL_GRACE_MS).unref();
+    };
+
+    proc.stdout?.on("data", resetIdleTimer);
+    resetIdleTimer();
     proc.stdout?.pipe(res);
 
-    req.on("close", () => {
-      proc.kill();
-    });
+    req.on("close", doKill);
+    res.on("close", doKill);
 
     proc.on("error", (err) => {
       if (!res.headersSent) {
