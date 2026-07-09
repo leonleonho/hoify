@@ -6,7 +6,7 @@ import express from "express";
 import { typeDefs, resolvers } from "./graphql/schema.js";
 import { authPlugin } from "./graphql/auth/plugin.js";
 import { resolveAuthContext } from "./util/auth.js";
-import streamRouter from "./routes/stream.js";
+import streamRouter from "./routes/stream/index.js";
 import artRouter from "./routes/art.js";
 
 /**
