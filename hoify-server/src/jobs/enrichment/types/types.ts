@@ -24,6 +24,7 @@ export interface ParsedTrack {
   aliases: string[];
   albumAliases: string[];
   artistAliases: string[];
+  bitrate: number | null;
   embeddedPicture?: ArtData;
 }
 

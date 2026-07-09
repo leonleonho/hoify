@@ -36,6 +36,13 @@
       "when": 1782024702374,
       "tag": "0004_complex_menace",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782030000000,
+      "tag": "0005_hoify_bitrate",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, ne, inArray } from "drizzle-orm";
 import { db } from "../../../db/index.js";
 import {
   artists,
@@ -11,6 +11,10 @@ import {
 } from "../../../db/schema.js";
 import { logger } from "../../../util/logger.js";
 import type { ParsedTrack, ArtData } from "../types/types.js";
+
+const MUSIC_LIBRARY_PATH = resolve(
+  process.env.MUSIC_LIBRARY_PATH ?? resolve(process.cwd(), "music"),
+);
 
 export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }> {
   // --- Genres: upsert, then build lookup ---
@@ -92,6 +96,68 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
       .where(eq(albums.id, albumId));
   }
 
+  // --- Dedup: same artist + title, different file path, keep higher bitrate ---
+  const [duplicate] = await db
+    .select({ track: tracks })
+    .from(tracks)
+    .innerJoin(albums, eq(tracks.albumId, albums.id))
+    .where(
+      and(
+        eq(tracks.title, track.title),
+        eq(albums.artistId, albumArtistId),
+        ne(tracks.filePath, track.filePath),
+      ),
+    )
+    .limit(1);
+
+  if (duplicate) {
+    const existing = duplicate.track;
+    const newIsBetter =
+      track.bitrate != null &&
+      (existing.bitrate == null || track.bitrate > existing.bitrate);
+
+    if (!newIsBetter) {
+      logger.debug(
+        { title: track.title, artist: albumArtistName },
+        "Skipping dup — existing track has equal or better bitrate",
+      );
+      return { albumId: existing.albumId };
+    }
+
+    // New file has higher bitrate — update existing row, delete old file
+    logger.debug(
+      { title: track.title, oldFile: existing.filePath, newFile: track.filePath },
+      "Upgrading to higher bitrate track",
+    );
+
+    if (existing.filePath.startsWith(MUSIC_LIBRARY_PATH)) {
+      try { await unlink(existing.filePath); } catch { /* file may already be gone */ }
+    }
+
+    await db
+      .update(tracks)
+      .set({
+        title: track.title,
+        albumId,
+        trackArtist: track.artist,
+        trackNumber: track.trackNumber,
+        discNumber: track.discNumber,
+        duration: track.duration,
+        filePath: track.filePath,
+        fileFormat: track.fileFormat,
+        fileSize: track.fileSize,
+        fileMtime: track.fileMtime,
+        bitrate: track.bitrate,
+        acoustidFingerprint: track.acoustidFingerprint ?? null,
+        musicbrainzRecordingId: track.musicbrainzRecordingId ?? null,
+        musicbrainzArtistId: track.musicbrainzArtistId ?? null,
+        musicbrainzAlbumId: track.musicbrainzAlbumId ?? null,
+      })
+      .where(eq(tracks.id, existing.id));
+
+    return { albumId };
+  }
+
   // --- Track: find by filePath -> update or insert ---
   const [existingTrack] = await db
     .select()
@@ -111,7 +177,8 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
       existingTrack.duration !== track.duration ||
       existingTrack.fileSize !== track.fileSize ||
       existingTrack.fileFormat !== track.fileFormat ||
-      existingTrack.fileMtime !== track.fileMtime;
+      existingTrack.fileMtime !== track.fileMtime ||
+      existingTrack.bitrate !== track.bitrate;
 
     if (changed) {
       await db
@@ -126,6 +193,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
           fileSize: track.fileSize,
           fileFormat: track.fileFormat,
           fileMtime: track.fileMtime,
+          bitrate: track.bitrate,
           ...(track.acoustidFingerprint !== undefined && { acoustidFingerprint: track.acoustidFingerprint }),
           ...(track.musicbrainzRecordingId !== undefined && { musicbrainzRecordingId: track.musicbrainzRecordingId }),
           ...(track.musicbrainzArtistId !== undefined && { musicbrainzArtistId: track.musicbrainzArtistId }),
@@ -146,6 +214,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
         duration: track.duration,
         filePath: track.filePath,
         fileFormat: track.fileFormat,
+        bitrate: track.bitrate ?? null,
         fileSize: track.fileSize,
         fileMtime: track.fileMtime,
         acoustidFingerprint: track.acoustidFingerprint ?? null,
