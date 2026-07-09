@@ -11,6 +11,7 @@ import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
 import { API_BASE } from '@/constants/api';
+import { useMediaSession } from '../hooks/useMediaSession';
 
 const STREAM_BASE = `${API_BASE}/stream`;
 const SEEK_THRESHOLD_MS = 3000;
@@ -282,6 +283,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const openFullPlayer = useCallback(() => setFullPlayerOpen(true), []);
   const closeFullPlayer = useCallback(() => setFullPlayerOpen(false), []);
+
+  // Wire browser Media Session API (lock screen / system tray controls)
+  useMediaSession(s.currentTrack, s.isPlaying, {
+    play: resume,
+    pause: pause,
+    nexttrack: next,
+    previoustrack: previous,
+    seekto: seek,
+  });
 
   const value: PlayerContextValue = {
     ...s,
