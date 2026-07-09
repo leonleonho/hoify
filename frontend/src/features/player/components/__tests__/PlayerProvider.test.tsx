@@ -290,4 +290,80 @@ describe('PlayerProvider', () => {
     );
     err.mockRestore();
   });
+
+  // ── repeat / shuffle tests ─────────────────────────────────────────────
+
+  it('toggleRepeat cycles off → all → one → off', () => {
+    const cap = renderProvider();
+    expect(cap.current.repeatMode).toBe('off');
+
+    act(() => cap.current.toggleRepeat());
+    expect(cap.current.repeatMode).toBe('all');
+
+    act(() => cap.current.toggleRepeat());
+    expect(cap.current.repeatMode).toBe('one');
+
+    act(() => cap.current.toggleRepeat());
+    expect(cap.current.repeatMode).toBe('off');
+  });
+
+  it('toggleShuffle toggles shuffle boolean', () => {
+    const cap = renderProvider();
+    expect(cap.current.shuffle).toBe(false);
+
+    act(() => cap.current.toggleShuffle());
+    expect(cap.current.shuffle).toBe(true);
+
+    act(() => cap.current.toggleShuffle());
+    expect(cap.current.shuffle).toBe(false);
+  });
+
+  it('repeat-one next replays same track', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+    });
+    const callsAfterPlay = mockCreateAsync.mock.calls.length;
+
+    // Switch to repeat-one
+    act(() => cap.current.toggleRepeat());
+    act(() => cap.current.toggleRepeat()); // off → all → one
+    expect(cap.current.repeatMode).toBe('one');
+
+    await act(async () => {
+      await cap.current.next();
+    });
+    // Should have called createAsync again (reloads same track)
+    expect(mockCreateAsync.mock.calls.length).toBeGreaterThan(callsAfterPlay);
+  });
+
+  it('repeat-off next at end stops playback', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist([mockTrack1, mockTrack2], 1);
+    });
+    expect(cap.current.isPlaying).toBe(false); // LOAD_TRACK sets isPlaying false
+
+    // next at last track with repeat off should stop
+    await act(async () => {
+      await cap.current.next();
+    });
+    expect(cap.current.isPlaying).toBe(false);
+  });
+
+  it('previous with repeat-one seeks to position 0', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+    });
+
+    act(() => cap.current.toggleRepeat());
+    act(() => cap.current.toggleRepeat()); // off → all → one
+
+    await act(async () => {
+      await cap.current.previous();
+    });
+    // With repeat-one, previous should call setPositionAsync(0)
+    expect(mockSound.setPositionAsync).toHaveBeenCalledWith(0);
+  });
 });

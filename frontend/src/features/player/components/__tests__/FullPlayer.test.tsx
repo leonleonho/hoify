@@ -38,6 +38,24 @@ describe('FullPlayer', () => {
     expect(screen.getByLabelText('Next track')).toBeInTheDocument();
   });
 
+  it('renders shuffle and repeat buttons', () => {
+    const ctx = makeMockContext({ currentTrack: mockTrack1 });
+    renderFullPlayer(ctx);
+    expect(screen.getByLabelText('Shuffle off')).toBeInTheDocument();
+    expect(screen.getByLabelText('Repeat off')).toBeInTheDocument();
+  });
+
+  it('shows active labels for shuffle and repeat', () => {
+    const ctx = makeMockContext({
+      currentTrack: mockTrack1,
+      shuffle: true,
+      repeatMode: 'one',
+    });
+    renderFullPlayer(ctx);
+    expect(screen.getByLabelText('Shuffle on')).toBeInTheDocument();
+    expect(screen.getByLabelText('Repeat one')).toBeInTheDocument();
+  });
+
   it('renders volume control', () => {
     const ctx = makeMockContext({ currentTrack: mockTrack1 });
     renderFullPlayer(ctx);

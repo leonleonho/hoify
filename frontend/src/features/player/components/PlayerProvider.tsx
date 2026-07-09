@@ -8,9 +8,10 @@ import React, {
 } from 'react';
 import { Audio, type AVPlaybackStatus } from 'expo-av';
 import type { Track } from '@/hooks/generated/types';
-import type { PlayerQuality, PlayerState } from '../types/player';
+import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
 import { API_BASE } from '@/constants/api';
+import { useMediaSession } from '../hooks/useMediaSession';
 
 const STREAM_BASE = `${API_BASE}/stream`;
 const SEEK_THRESHOLD_MS = 3000;
@@ -23,6 +24,14 @@ function buildStreamUrl(trackId: string, quality: PlayerQuality, seek?: number):
   return url;
 }
 
+/** Picks random playlist index different from current. Returns current if only one track. */
+function getRandomIndex(current: number, length: number): number {
+  if (length <= 1) return current;
+  let next: number;
+  do { next = Math.floor(Math.random() * length); } while (next === current);
+  return next;
+}
+
 // ── state ───────────────────────────────────────────────────────────────────
 
 export function initialState(volume = 0.8): PlayerState {
@@ -30,7 +39,7 @@ export function initialState(volume = 0.8): PlayerState {
     currentTrack: null, playlist: [],
     isPlaying: false, isLoading: false,
     position: 0, duration: 0, volume,
-    quality: 'original',
+    quality: 'original', repeatMode: 'off', shuffle: false,
   };
 }
 
@@ -68,6 +77,8 @@ export interface PlayerActions {
   setQuality: (value: PlayerQuality) => Promise<void>;
   openFullPlayer: () => void;
   closeFullPlayer: () => void;
+  toggleRepeat: () => void;
+  toggleShuffle: () => void;
   isFullPlayerOpen: boolean;
 }
 
@@ -117,20 +128,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (status.didJustFinish && !status.isLooping) {
-      const pl = stateRef.current.playlist;
-      if (pl.length <= 1) {
-        dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
-      } else {
-        const nextIdx = (idx.current + 1) % pl.length;
-        // fire-and-forget — callback context, not awaited
-        idx.current = nextIdx;
-        dispatchRef.current({ type: 'LOAD_TRACK', track: pl[nextIdx] });
-        // reload the new track async
-        const q = stateRef.current.quality;
-        const url = buildStreamUrl(pl[nextIdx].id, q);
+      const s = stateRef.current;
+      const pl = s.playlist;
+
+      // Reset seek offset so the next track's STATUS doesn't apply old seek
+      seekOffset.current = 0;
+
+      // Repeat-one: replay same track
+      if (s.repeatMode === 'one' && s.currentTrack) {
+        const track = s.currentTrack;
+        dispatchRef.current({ type: 'LOAD_TRACK', track });
+        const url = buildStreamUrl(track.id, s.quality);
         Audio.Sound.createAsync(
           { uri: url },
-          { shouldPlay: true, volume: stateRef.current.volume },
+          { shouldPlay: true, volume: s.volume },
           handleStatus,
         ).then(({ sound: snd }) => {
           sound.current?.unloadAsync().catch(() => {});
@@ -138,7 +149,41 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }).catch(() => {
           dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
         });
+        return;
       }
+
+      // No tracks or single track without repeat-all: stop
+      if (pl.length <= 1 && s.repeatMode !== 'all') {
+        dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
+        return;
+      }
+
+      let nextIdx: number;
+      if (s.shuffle) {
+        nextIdx = getRandomIndex(idx.current, pl.length);
+      } else {
+        nextIdx = (idx.current + 1) % pl.length;
+      }
+
+      // Repeat-off: stop at end of playlist
+      if (s.repeatMode === 'off' && nextIdx === 0 && idx.current === pl.length - 1) {
+        dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
+        return;
+      }
+
+      idx.current = nextIdx;
+      dispatchRef.current({ type: 'LOAD_TRACK', track: pl[nextIdx] });
+      const url = buildStreamUrl(pl[nextIdx].id, s.quality);
+      Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true, volume: s.volume },
+        handleStatus,
+      ).then(({ sound: snd }) => {
+        sound.current?.unloadAsync().catch(() => {});
+        sound.current = snd;
+      }).catch(() => {
+        dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
+      });
       return;
     }
     dispatchRef.current({ type: 'STATUS', status, seekOffset: seekOffset.current });
@@ -221,9 +266,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const next = useCallback(async () => {
-    const pl = stateRef.current.playlist;
+    const s = stateRef.current;
+    const pl = s.playlist;
     if (!pl.length) return;
-    const i = (idx.current + 1) % pl.length;
+
+    // Repeat-one: replay same track
+    if (s.repeatMode === 'one' && s.currentTrack) {
+      dispatch({ type: 'PATCH', patch: { isLoading: true } });
+      await loadSound(s.currentTrack, true, 0);
+      dispatch({ type: 'LOAD_TRACK', track: s.currentTrack, playlist: pl });
+      return;
+    }
+
+    let i: number;
+    if (s.shuffle) {
+      i = getRandomIndex(idx.current, pl.length);
+    } else {
+      i = (idx.current + 1) % pl.length;
+    }
+
+    // Repeat-off: stop at end
+    if (s.repeatMode === 'off' && i === 0 && idx.current === pl.length - 1) {
+      await sound.current?.setPositionAsync(0);
+      dispatch({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
+      idx.current = pl.length - 1;
+      return;
+    }
+
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
     await loadSound(pl[i], true);
     dispatch({ type: 'LOAD_TRACK', track: pl[i], playlist: pl });
@@ -231,14 +300,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [loadSound]);
 
   const previous = useCallback(async () => {
-    const { playlist, position } = stateRef.current;
+    const s = stateRef.current;
+    const { playlist, position } = s;
     if (!playlist.length) return;
+
+    // Repeat-one: restart current track
+    if (s.repeatMode === 'one') {
+      await sound.current?.setPositionAsync(0);
+      dispatch({ type: 'PATCH', patch: { position: 0 } });
+      return;
+    }
+
     if (position > SEEK_THRESHOLD_MS) {
       await sound.current?.setPositionAsync(0);
       dispatch({ type: 'PATCH', patch: { position: 0 } });
       return;
     }
-    const i = idx.current <= 0 ? playlist.length - 1 : idx.current - 1;
+    let i: number;
+    if (s.shuffle) {
+      i = getRandomIndex(idx.current, playlist.length);
+    } else {
+      i = idx.current <= 0 ? playlist.length - 1 : idx.current - 1;
+    }
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
     await loadSound(playlist[i], true);
     dispatch({ type: 'LOAD_TRACK', track: playlist[i] });
@@ -280,14 +363,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadSound]);
 
+  const toggleRepeat = useCallback(() => {
+    const current = stateRef.current.repeatMode;
+    const next: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'one', one: 'off' };
+    dispatch({ type: 'PATCH', patch: { repeatMode: next[current] } });
+  }, []);
+
+  const toggleShuffle = useCallback(() => {
+    dispatch({ type: 'PATCH', patch: { shuffle: !stateRef.current.shuffle } });
+  }, []);
+
   const openFullPlayer = useCallback(() => setFullPlayerOpen(true), []);
   const closeFullPlayer = useCallback(() => setFullPlayerOpen(false), []);
+
+  // Wire browser Media Session API (lock screen / system tray controls)
+  useMediaSession(s.currentTrack, s.isPlaying, {
+    play: resume,
+    pause: pause,
+    nexttrack: next,
+    previoustrack: previous,
+    seekto: seek,
+  });
 
   const value: PlayerContextValue = {
     ...s,
     load, play, playPlaylist, pause, resume,
     togglePlayPause, next, playNext, previous, seek, setVolume, setQuality,
-    openFullPlayer, closeFullPlayer, isFullPlayerOpen,
+    openFullPlayer, closeFullPlayer, toggleRepeat, toggleShuffle, isFullPlayerOpen,
   };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;

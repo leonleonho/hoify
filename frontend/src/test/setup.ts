@@ -27,4 +27,7 @@ vi.mock('lucide-react-native', () => ({
   Heart: 'Heart',
   Plus: 'Plus',
   MoreVertical: 'MoreVertical',
+  Shuffle: 'Shuffle',
+  Repeat: 'Repeat',
+  Repeat1: 'Repeat1',
 }));

@@ -21,6 +21,8 @@ export function withPlayerContext(state: PlayerState) {
     setQuality: async () => {},
     openFullPlayer: () => {},
     closeFullPlayer: () => {},
+    toggleRepeat: () => {},
+    toggleShuffle: () => {},
     isFullPlayerOpen: false,
   };
   return (Story: React.ComponentType) => (

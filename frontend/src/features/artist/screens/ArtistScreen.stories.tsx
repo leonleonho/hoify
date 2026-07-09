@@ -93,6 +93,8 @@ const meta = {
       duration: 0,
       volume: 0.8,
       quality: 'original',
+      repeatMode: 'off',
+      shuffle: false,
     }),
     (Story) => (
       <View style={styles.wrapper}>
