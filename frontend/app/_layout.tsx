@@ -3,6 +3,7 @@ import { ApolloProvider } from '@apollo/client/react';
 import { Redirect, Slot, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { client } from '@/apollo/client';
 import { MeDocument } from '@/hooks/generated';
 import { colors } from '@/constants/theme';
@@ -70,13 +71,13 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <AuthGate>
         <PlayerProvider>
-          <View style={styles.shell}>
+          <SafeAreaView style={styles.shell}>
             <View style={styles.content}>
               <Slot />
             </View>
             <MiniPlayer />
             <FullPlayerOverlay />
-          </View>
+          </SafeAreaView>
         </PlayerProvider>
       </AuthGate>
     </ApolloProvider>
