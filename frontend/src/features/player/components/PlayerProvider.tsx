@@ -9,16 +9,19 @@ import React, {
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
-import { API_BASE } from '@/constants/api';
+import { getApiBase } from '@/constants/api';
 import { useMediaSession } from '../hooks/useMediaSession';
 import * as AudioManager from '../utils/AudioManager';
 import type { PlaybackStatus } from '../utils/AudioManager';
 
-const STREAM_BASE = `${API_BASE}/stream`;
 const SEEK_THRESHOLD_MS = 3000;
 
+function getStreamBase(): string {
+  return `${getApiBase()}/stream`;
+}
+
 function buildStreamUrl(trackId: string, quality: PlayerQuality, seek?: number): string {
-  let url = `${STREAM_BASE}/${encodeURIComponent(trackId)}?quality=${quality}`;
+  let url = `${getStreamBase()}/${encodeURIComponent(trackId)}?quality=${quality}`;
   if (seek && quality !== 'original') {
     url += `&seek=${Math.floor(seek / 1000)}`;
   }

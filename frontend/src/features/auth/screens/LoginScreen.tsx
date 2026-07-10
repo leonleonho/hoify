@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,36 @@ import { colors, spacing, typography } from '../../../constants/theme';
 import { Button } from '../../../components/button/Button';
 import { Input } from '../../../components/input/Input';
 import { useLogin } from '../hooks/useLogin';
+import { setApiBase } from '../../../constants/api';
+import { getItem, setItem } from '../../../utils/storage';
 
 export function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
+  const [serverHost, setServerHost] = useState<string | null>(null);
   const { login, loading, error } = useLogin();
+
+  const isNative = Platform.OS !== 'web';
+
+  useEffect(() => {
+    if (!isNative) return;
+    getItem('server_host').then((saved) => {
+      if (saved) {
+        setServerHost(saved);
+        setApiBase(saved);
+      } else {
+        setServerHost('');
+      }
+    });
+  }, [isNative]);
+
+  const handleHostChange = (value: string) => {
+    setServerHost(value);
+    setItem('server_host', value);
+    setApiBase(value);
+  };
 
   const displayError = error?.message ?? localError;
 
@@ -81,6 +104,22 @@ export function LoginScreen() {
             returnKeyType="go"
             onSubmitEditing={handleLogin}
           />
+
+          {isNative && serverHost !== null ? (
+            <>
+              <View style={styles.spacer} />
+              <Input
+                label="Server URL"
+                placeholder="e.g. http://10.0.2.2:4000"
+                value={serverHost}
+                onChangeText={handleHostChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                disabled={loading}
+              />
+            </>
+          ) : undefined}
 
           {displayError ? (
             <Text style={styles.errorText}>{displayError}</Text>

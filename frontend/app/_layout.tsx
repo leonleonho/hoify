@@ -9,6 +9,8 @@ import { colors } from '@/constants/theme';
 import { MiniPlayer } from '@/features/player/components/MiniPlayer';
 import { FullPlayerOverlay } from '@/features/player/components/FullPlayerOverlay';
 import { PlayerProvider } from '@/features/player/components/PlayerProvider';
+import { loadSavedApiBase } from '@/constants/api';
+import { useEffect, useState } from 'react';
 
 /**
  * Root layout wrapper — provides Apollo client and auth gating.
@@ -49,6 +51,20 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [configReady, setConfigReady] = useState(false);
+
+  useEffect(() => {
+    loadSavedApiBase().then(() => setConfigReady(true));
+  }, []);
+
+  if (!configReady) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <ApolloProvider client={client}>
       <StatusBar style="auto" />
