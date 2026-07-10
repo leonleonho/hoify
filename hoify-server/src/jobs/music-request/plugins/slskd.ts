@@ -202,8 +202,10 @@ export class SlskdPlugin implements DownloadPlugin {
       logger.info("Resumed transfers all failed, re-searching");
     }
 
+    // Strip Discogs-style parenthetical numbers from artist name, e.g. "Lisa (456)" -> "Lisa"
+    const cleanArtist = req.artistName.replace(/\s*\(\d+\)\s*$/, "");
     // Build search text: "Artist - Song"
-    const searchText = `${req.artistName} - ${req.songName}`;
+    const searchText = `${cleanArtist} - ${req.songName}`;
     logger.info({ searchText }, "slskd search");
 
     const { id: searchId } = await apiFetch<{ id: string }>(
