@@ -9,7 +9,7 @@ import React, {
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
-import { getApiBase } from '@/constants/api';
+import { getApiBase, artUrl } from '@/constants/api';
 import { useMediaSession } from '../hooks/useMediaSession';
 import * as AudioManager from '../utils/AudioManager';
 import type { PlaybackStatus } from '../utils/AudioManager';
@@ -394,6 +394,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     previoustrack: previous,
     seekto: seek,
   });
+
+  // Sync native lock screen controls (Android/iOS) with current track
+  useEffect(() => {
+    if (s.currentTrack) {
+      const track = s.currentTrack;
+      AudioManager.setLockScreenMetadata({
+        title: track.title,
+        artist: track.trackArtist ?? track.album.artist.name,
+        albumTitle: track.album.title,
+        artworkUrl: track.album.coverUrl ? artUrl(track.album.coverUrl) : undefined,
+      });
+    } else {
+      AudioManager.clearLockScreenControls();
+    }
+  }, [s.currentTrack]);
 
   const value: PlayerContextValue = {
     ...s,

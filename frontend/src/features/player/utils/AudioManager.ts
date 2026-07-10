@@ -1,6 +1,14 @@
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioStatus, AudioPlayer } from 'expo-audio';
 
+/** Metadata displayed on the device lock screen / system notification. */
+export interface LockScreenMetadata {
+  title?: string;
+  artist?: string;
+  albumTitle?: string;
+  artworkUrl?: string;
+}
+
 /**
  * Module-level singleton owning a single expo-audio AudioPlayer instance.
  *
@@ -15,6 +23,8 @@ import type { AudioStatus, AudioPlayer } from 'expo-audio';
 let _player: AudioPlayer | null = null;
 let _onStatus: StatusCallback | null = null;
 let _statusSubscription: { remove: () => void } | null = null;
+let _lockScreenActivated = false;
+let _lastLockScreenMeta: LockScreenMetadata | null = null;
 
 type StatusCallback = (status: PlaybackStatus) => void;
 
@@ -103,7 +113,8 @@ export async function ensureAudioMode(): Promise<void> {
   await setAudioModeAsync({
     playsInSilentMode: true,
     shouldPlayInBackground: true,
-    interruptionMode: 'duckOthers',
+    // 'doNotMix' is required for lock screen controls to work
+    interruptionMode: 'doNotMix',
   });
 }
 
@@ -161,4 +172,39 @@ export async function setVolumeAsync(v: number): Promise<void> {
   if (_player) {
     _player.volume = v;
   }
+}
+
+/** Activate lock screen controls and set metadata for the current track. */
+export function setLockScreenMetadata(meta: LockScreenMetadata): void {
+  const p = getPlayer();
+  _lastLockScreenMeta = meta;
+  if (!_lockScreenActivated) {
+    p.setActiveForLockScreen(
+      true,
+      {
+        title: meta.title,
+        artist: meta.artist,
+        albumTitle: meta.albumTitle,
+        artworkUrl: meta.artworkUrl,
+      },
+      { showSeekForward: true, showSeekBackward: true },
+    );
+    _lockScreenActivated = true;
+  } else {
+    p.updateLockScreenMetadata({
+      title: meta.title,
+      artist: meta.artist,
+      albumTitle: meta.albumTitle,
+      artworkUrl: meta.artworkUrl,
+    });
+  }
+}
+
+/** Remove lock screen controls and clear now-playing info. */
+export function clearLockScreenControls(): void {
+  if (_player && _lockScreenActivated) {
+    _player.clearLockScreenControls();
+  }
+  _lockScreenActivated = false;
+  _lastLockScreenMeta = null;
 }
