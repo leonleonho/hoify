@@ -56,9 +56,4 @@ describe('FullPlayer', () => {
     expect(screen.getByLabelText('Repeat one')).toBeInTheDocument();
   });
 
-  it('renders volume control', () => {
-    const ctx = makeMockContext({ currentTrack: mockTrack1 });
-    renderFullPlayer(ctx);
-    expect(screen.getByText('🔊')).toBeInTheDocument();
-  });
 });

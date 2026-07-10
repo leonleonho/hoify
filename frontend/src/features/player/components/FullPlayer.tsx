@@ -5,7 +5,7 @@ import { colors, spacing, typography } from '@/constants/theme';
 import { useMusicPlayer } from '../hooks/useMusicPlayer';
 import { TrackInfo } from './TrackInfo';
 import { ProgressBar } from './ProgressBar';
-import { VolumeControl } from './VolumeControl';
+// import { VolumeControl } from './VolumeControl';
 import { PlayPauseButton } from './PlayPauseButton';
 import { QualitySelector } from './QualitySelector';
 import type { RepeatMode } from '../types/player';
@@ -71,7 +71,7 @@ export function FullPlayer() {
       <QualitySelector quality={quality} onQualityChange={setQuality} />
 
       {/* Volume */}
-      <VolumeControl volume={volume} onVolumeChange={setVolume} />
+      {/* <VolumeControl volume={volume} onVolumeChange={setVolume} /> */}
     </View>
   );
 }

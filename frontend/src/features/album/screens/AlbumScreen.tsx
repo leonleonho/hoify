@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   Image,
   StyleSheet,
   ActivityIndicator,
@@ -11,7 +11,6 @@ import { useQuery } from '@apollo/client/react';
 import { AlbumDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated/types';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
-import { List } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';
 import { Button } from '@/components/button/Button';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -74,12 +73,8 @@ export function AlbumScreen({ albumId }: Props) {
     playPlaylist(tracksWithAlbum, index);
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
-      {/* Album header */}
+  const headerComponent = (
+    <View>
       <View style={styles.header}>
         {album.coverUrl && (
           <Image
@@ -94,21 +89,37 @@ export function AlbumScreen({ albumId }: Props) {
         )}
       </View>
 
-      {/* Play All button */}
       <Button title="Play All" onPress={handlePlayAll} />
 
-      {/* Tracks */}
-      <List header="TRACKS">
-        {tracksWithAlbum.map((track, index) => (
+      {tracksWithAlbum.length > 0 && (
+        <Text style={styles.sectionHeader}>TRACKS</Text>
+      )}
+    </View>
+  );
+
+  return (
+    <FlatList
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      data={tracksWithAlbum}
+      keyExtractor={(track) => track.id}
+      renderItem={({ item, index }) => (
+        <View
+          style={[
+            styles.cardItem,
+            index === 0 && styles.cardItemFirst,
+            index === tracksWithAlbum.length - 1 && styles.cardItemLast,
+          ]}
+        >
           <SongListItem
-            key={track.id}
-            track={track}
+            track={item}
             onPress={() => handleTrackPress(index)}
             divider={index < tracksWithAlbum.length - 1}
           />
-        ))}
-      </List>
-    </ScrollView>
+        </View>
+      )}
+      ListHeaderComponent={headerComponent}
+    />
   );
 }
 
@@ -119,7 +130,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.md,
-    gap: spacing.lg,
   },
   centered: {
     flex: 1,
@@ -155,5 +165,27 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.error,
     textAlign: 'center',
+  },
+  sectionHeader: {
+    ...typography.caption,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginLeft: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  cardItem: {
+    backgroundColor: colors.surface,
+  },
+  cardItemFirst: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: 'hidden',
+  },
+  cardItemLast: {
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: 'hidden',
   },
 });

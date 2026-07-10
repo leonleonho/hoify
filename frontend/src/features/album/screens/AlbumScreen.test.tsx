@@ -299,7 +299,8 @@ it('renders empty track list for album with no tracks', async () => {
     expect(screen.getByText('Empty Album')).toBeInTheDocument();
   });
 
-  expect(screen.getByText('TRACKS')).toBeInTheDocument();
+  // TRACKS header hidden when no tracks
+  expect(screen.queryByText('TRACKS')).not.toBeInTheDocument();
   // Play All button still exists even with no tracks
   expect(screen.getByRole('button', { name: /play all/i })).toBeInTheDocument();
 });
