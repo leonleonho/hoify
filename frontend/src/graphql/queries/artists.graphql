@@ -1,6 +1,7 @@
-query Hello {
+query Artists {
   artists {
     id
     name
+    imageUrl
   }
 }

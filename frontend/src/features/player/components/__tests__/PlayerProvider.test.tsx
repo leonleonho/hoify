@@ -12,25 +12,37 @@ import { mockTrack1, mockTrack2 } from './utils';
 
 // ── expo-av mock ─────────────────────────────────────────────────────────────
 // Overrides the setup.ts mock so tests can inspect calls.
+// Must be a constructor (AudioManager calls `new Audio.Sound()`).
 
-const { mockSound, mockSetAudioMode, mockCreateAsync } = vi.hoisted(() => {
+const { mockSound, mockSetAudioMode } = vi.hoisted(() => {
   const sound = {
+    loadAsync: vi.fn().mockResolvedValue({}),
     playAsync: vi.fn(),
     pauseAsync: vi.fn(),
     setPositionAsync: vi.fn(),
     setVolumeAsync: vi.fn(),
     unloadAsync: vi.fn().mockResolvedValue(undefined),
+    setOnPlaybackStatusUpdate: vi.fn(),
+    getStatusAsync: vi.fn().mockResolvedValue({ isLoaded: false }),
   };
   return {
     mockSound: sound,
     mockSetAudioMode: vi.fn(),
-    mockCreateAsync: vi.fn().mockResolvedValue({ sound }),
   };
 });
 
 vi.mock('expo-av', () => ({
   Audio: {
-    Sound: { createAsync: (...args: any[]) => mockCreateAsync(...args) },
+    Sound: class {
+      loadAsync = mockSound.loadAsync;
+      playAsync = mockSound.playAsync;
+      pauseAsync = mockSound.pauseAsync;
+      setPositionAsync = mockSound.setPositionAsync;
+      setVolumeAsync = mockSound.setVolumeAsync;
+      unloadAsync = mockSound.unloadAsync;
+      setOnPlaybackStatusUpdate = mockSound.setOnPlaybackStatusUpdate;
+      getStatusAsync = mockSound.getStatusAsync;
+    },
     setAudioModeAsync: (...args: any[]) => mockSetAudioMode(...args),
   },
 }));
@@ -133,6 +145,7 @@ describe('reducer', () => {
 describe('PlayerProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('provides initial state', () => {
@@ -148,7 +161,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.load(mockTrack1);
     });
-    expect(mockCreateAsync).toHaveBeenCalled();
+    expect(mockSound.loadAsync).toHaveBeenCalled();
     expect(mockSound.playAsync).not.toHaveBeenCalled();
   });
 
@@ -158,7 +171,7 @@ describe('PlayerProvider', () => {
       await cap.current.play(mockTrack1);
     });
     expect(mockSetAudioMode).toHaveBeenCalled();
-    expect(mockCreateAsync).toHaveBeenCalled();
+    expect(mockSound.loadAsync).toHaveBeenCalled();
   });
 
   it('pause pauses audio', async () => {
@@ -193,16 +206,16 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 1);
     });
-    expect(mockCreateAsync).toHaveBeenCalled();
+    expect(mockSound.loadAsync).toHaveBeenCalled();
   });
 
   it('playPlaylist with empty playlist does nothing', async () => {
     const cap = renderProvider();
-    const before = mockCreateAsync.mock.calls.length;
+    const before = mockSound.loadAsync.mock.calls.length;
     await act(async () => {
       await cap.current.playPlaylist([]);
     });
-    expect(mockCreateAsync).toHaveBeenCalledTimes(before);
+    expect(mockSound.loadAsync).toHaveBeenCalledTimes(before);
   });
 
   it('next advances playlist', async () => {
@@ -210,12 +223,12 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    expect(mockCreateAsync).toHaveBeenCalledTimes(1);
+    expect(mockSound.loadAsync).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await cap.current.next();
     });
-    expect(mockCreateAsync).toHaveBeenCalledTimes(2);
+    expect(mockSound.loadAsync).toHaveBeenCalledTimes(2);
   });
 
   it('previous wraps to last track at index 0', async () => {
@@ -223,12 +236,12 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    expect(mockCreateAsync).toHaveBeenCalledTimes(1);
+    expect(mockSound.loadAsync).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await cap.current.previous();
     });
-    expect(mockCreateAsync).toHaveBeenCalledTimes(2);
+    expect(mockSound.loadAsync).toHaveBeenCalledTimes(2);
   });
 
   it('seek calls setPositionAsync', async () => {
@@ -323,7 +336,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    const callsAfterPlay = mockCreateAsync.mock.calls.length;
+    const callsAfterPlay = mockSound.loadAsync.mock.calls.length;
 
     // Switch to repeat-one
     act(() => cap.current.toggleRepeat());
@@ -333,8 +346,8 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.next();
     });
-    // Should have called createAsync again (reloads same track)
-    expect(mockCreateAsync.mock.calls.length).toBeGreaterThan(callsAfterPlay);
+    // Should have called loadAsync again (reloads same track)
+    expect(mockSound.loadAsync.mock.calls.length).toBeGreaterThan(callsAfterPlay);
   });
 
   it('repeat-off next at end stops playback', async () => {

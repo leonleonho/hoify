@@ -5,11 +5,30 @@ import '@testing-library/jest-dom/vitest';
 
 // Prevent expo-av import from crashing in tests that load PlayerProvider
 // indirectly (MiniPlayer, FullPlayer, FullPlayerOverlay).
-// PlayerProvider tests override this mock with their own hoisted factory.
+// Must be a constructor since AudioManager calls `new Audio.Sound()`.
+const mockSoundInstance = {
+  loadAsync: vi.fn().mockResolvedValue({}),
+  unloadAsync: vi.fn().mockResolvedValue(undefined),
+  playAsync: vi.fn().mockResolvedValue(undefined),
+  pauseAsync: vi.fn().mockResolvedValue(undefined),
+  setPositionAsync: vi.fn().mockResolvedValue(undefined),
+  setVolumeAsync: vi.fn().mockResolvedValue(undefined),
+  setOnPlaybackStatusUpdate: vi.fn(),
+  getStatusAsync: vi.fn().mockResolvedValue({ isLoaded: false }),
+  setStatusAsync: vi.fn().mockResolvedValue({}),
+};
 vi.mock('expo-av', () => ({
   Audio: {
-    Sound: {
-      createAsync: vi.fn().mockResolvedValue({ sound: {} }),
+    Sound: class {
+      loadAsync = vi.fn().mockResolvedValue({});
+      unloadAsync = vi.fn().mockResolvedValue(undefined);
+      playAsync = vi.fn().mockResolvedValue(undefined);
+      pauseAsync = vi.fn().mockResolvedValue(undefined);
+      setPositionAsync = vi.fn().mockResolvedValue(undefined);
+      setVolumeAsync = vi.fn().mockResolvedValue(undefined);
+      setOnPlaybackStatusUpdate = vi.fn();
+      getStatusAsync = vi.fn().mockResolvedValue({ isLoaded: false });
+      setStatusAsync = vi.fn().mockResolvedValue({});
     },
     setAudioModeAsync: vi.fn().mockResolvedValue(undefined),
   },

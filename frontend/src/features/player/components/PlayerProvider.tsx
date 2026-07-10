@@ -6,12 +6,13 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { Audio, type AVPlaybackStatus } from 'expo-av';
+import { type AVPlaybackStatus } from 'expo-av';
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
 import { API_BASE } from '@/constants/api';
 import { useMediaSession } from '../hooks/useMediaSession';
+import * as AudioManager from '../utils/AudioManager';
 
 const STREAM_BASE = `${API_BASE}/stream`;
 const SEEK_THRESHOLD_MS = 3000;
@@ -50,18 +51,16 @@ export function reducer(state: PlayerState, action: any): PlayerState {
     case 'STATUS': {
       const s = action.status;
       const offset = action.seekOffset ?? 0;
-      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis + offset, volume: s.volume ?? state.volume };    }
+      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis + offset, volume: s.volume ?? state.volume };
+    }
     case 'LOAD_TRACK':
-      // track.duration from GraphQL is seconds; convert to ms
       const d = action.track?.duration ?? 0;
       return { ...state, currentTrack: action.track, playlist: action.playlist ?? state.playlist, isPlaying: false, isLoading: false, position: 0, duration: d * 1000 };
     default:
       return state;
   }
 }
-
 // ── context ─────────────────────────────────────────────────────────────────
-
 export interface PlayerActions {
   load: (track: Track) => Promise<void>;
   play: (track: Track) => Promise<void>;
@@ -95,11 +94,26 @@ export function useMusicPlayer(): PlayerContextValue {
 // ── provider ────────────────────────────────────────────────────────────────
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  const [s, dispatch] = useReducer(reducer, initialState());
+  // Restore state from snapshot if PlayerProvider remounted mid-playback
+  const snap = AudioManager.popSnapshot();
+  const initial = snap
+    ? {
+        ...initialState(),
+        currentTrack: snap.currentTrack as Track | null,
+        playlist: snap.playlist as Track[],
+        isPlaying: snap.isPlaying,
+        isLoading: snap.isLoading,
+        position: snap.position,
+        duration: snap.duration,
+        volume: snap.volume,
+        quality: snap.quality as PlayerQuality,
+        repeatMode: snap.repeatMode as RepeatMode,
+        shuffle: snap.shuffle,
+      }
+    : initialState();
+  const [s, dispatch] = useReducer(reducer, initial);
   const [isFullPlayerOpen, setFullPlayerOpen] = React.useState(false);
-  const sound = useRef<Audio.Sound | null>(null);
-  const idx = useRef(-1);
-  const ready = useRef(false);
+  const idx = useRef(snap?.playlistIndex ?? -1);
   const seekOffset = useRef(0);
 
   // Refs that always hold latest value, so callbacks don't go stale
@@ -117,8 +131,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
+  // Wire AudioManager status callback on mount. No cleanup — the singleton
+  // explicitly avoids React cleanup so the Sound survives remount cycles.
   useEffect(() => {
-    return () => { sound.current?.unloadAsync().catch(() => {}); };
+    AudioManager.setOnStatus(handleStatus);
+    AudioManager.ensureAudioMode().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Stable status callback — reads state via refs
@@ -131,28 +149,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const s = stateRef.current;
       const pl = s.playlist;
 
-      // Reset seek offset so the next track's STATUS doesn't apply old seek
       seekOffset.current = 0;
 
       // Repeat-one: replay same track
       if (s.repeatMode === 'one' && s.currentTrack) {
         const track = s.currentTrack;
         dispatchRef.current({ type: 'LOAD_TRACK', track });
-        const url = buildStreamUrl(track.id, s.quality);
-        Audio.Sound.createAsync(
-          { uri: url },
-          { shouldPlay: true, volume: s.volume },
-          handleStatus,
-        ).then(({ sound: snd }) => {
-          sound.current?.unloadAsync().catch(() => {});
-          sound.current = snd;
-        }).catch(() => {
+        AudioManager.load(
+          buildStreamUrl(track.id, s.quality),
+          true,
+          s.volume,
+        ).catch(() => {
           dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
         });
         return;
       }
 
-      // No tracks or single track without repeat-all: stop
       if (pl.length <= 1 && s.repeatMode !== 'all') {
         dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
         return;
@@ -165,7 +177,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         nextIdx = (idx.current + 1) % pl.length;
       }
 
-      // Repeat-off: stop at end of playlist
       if (s.repeatMode === 'off' && nextIdx === 0 && idx.current === pl.length - 1) {
         dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
         return;
@@ -173,15 +184,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       idx.current = nextIdx;
       dispatchRef.current({ type: 'LOAD_TRACK', track: pl[nextIdx] });
-      const url = buildStreamUrl(pl[nextIdx].id, s.quality);
-      Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true, volume: s.volume },
-        handleStatus,
-      ).then(({ sound: snd }) => {
-        sound.current?.unloadAsync().catch(() => {});
-        sound.current = snd;
-      }).catch(() => {
+      AudioManager.load(
+        buildStreamUrl(pl[nextIdx].id, s.quality),
+        true,
+        s.volume,
+      ).catch(() => {
         dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
       });
       return;
@@ -189,19 +196,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     dispatchRef.current({ type: 'STATUS', status, seekOffset: seekOffset.current });
   }, []);
 
-  const ensure = useCallback(async () => {
-    if (ready.current) return;
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false, playsInSilentModeIOS: true,
-      staysActiveInBackground: true, shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
+  // Register the callback each render so it picks up the latest handleStatus
+  useEffect(() => {
+    AudioManager.setOnStatus(handleStatus);
+  }, [handleStatus]);
+
+  // Save snapshot so AudioManager can restore state on remount
+  useEffect(() => {
+    AudioManager.saveSnapshot({
+      currentTrack: s.currentTrack,
+      playlist: s.playlist,
+      isPlaying: s.isPlaying,
+      isLoading: s.isLoading,
+      position: s.position,
+      duration: s.duration,
+      volume: s.volume,
+      quality: s.quality,
+      repeatMode: s.repeatMode,
+      shuffle: s.shuffle,
+      playlistIndex: idx.current,
     });
-    ready.current = true;
-  }, []);
+  });
 
   const loadSound = useCallback(async (track: Track, autoPlay: boolean, seekMs?: number) => {
-    await ensure();
-    try { await sound.current?.unloadAsync(); } catch {}
+    await AudioManager.ensureAudioMode();
     const q = stateRef.current.quality;
     const isTrans = q !== 'original';
     const seek = seekMs && isTrans ? seekMs : undefined;
@@ -211,13 +229,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       seekOffset.current = 0;
     }
     const url = buildStreamUrl(track.id, q, seek);
-    const { sound: snd } = await Audio.Sound.createAsync(
-      { uri: url },
-      { shouldPlay: autoPlay, volume: stateRef.current.volume },
-      handleStatus,
-    );
-    sound.current = snd;
-  }, [ensure, handleStatus]);
+    await AudioManager.load(url, autoPlay, stateRef.current.volume);
+  }, []);
 
   // ---- actions (all read state via stateRef, write via dispatch) -----------
 
@@ -244,12 +257,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [loadSound]);
 
   const pause = useCallback(async () => {
-    await sound.current?.pauseAsync();
+    await AudioManager.pause();
     dispatch({ type: 'PATCH', patch: { isPlaying: false } });
   }, []);
 
   const resume = useCallback(async () => {
-    await sound.current?.playAsync();
+    await AudioManager.play();
     dispatch({ type: 'PATCH', patch: { isPlaying: true } });
   }, []);
 
@@ -270,7 +283,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const pl = s.playlist;
     if (!pl.length) return;
 
-    // Repeat-one: replay same track
     if (s.repeatMode === 'one' && s.currentTrack) {
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
       await loadSound(s.currentTrack, true, 0);
@@ -285,9 +297,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       i = (idx.current + 1) % pl.length;
     }
 
-    // Repeat-off: stop at end
     if (s.repeatMode === 'off' && i === 0 && idx.current === pl.length - 1) {
-      await sound.current?.setPositionAsync(0);
+      await AudioManager.setPositionAsync(0);
       dispatch({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
       idx.current = pl.length - 1;
       return;
@@ -304,15 +315,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const { playlist, position } = s;
     if (!playlist.length) return;
 
-    // Repeat-one: restart current track
     if (s.repeatMode === 'one') {
-      await sound.current?.setPositionAsync(0);
+      await AudioManager.setPositionAsync(0);
       dispatch({ type: 'PATCH', patch: { position: 0 } });
       return;
     }
 
     if (position > SEEK_THRESHOLD_MS) {
-      await sound.current?.setPositionAsync(0);
+      await AudioManager.setPositionAsync(0);
       dispatch({ type: 'PATCH', patch: { position: 0 } });
       return;
     }
@@ -331,7 +341,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const seek = useCallback(async (ms: number) => {
     const q = stateRef.current.quality;
     if (q !== 'original') {
-      // For transcoded streams, seek via URL reload
       const track = stateRef.current.currentTrack;
       if (!track) return;
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
@@ -339,21 +348,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'PATCH', patch: { position: ms } });
       return;
     }
-    // Original quality — use native seek
-    await sound.current?.setPositionAsync(ms);
+    await AudioManager.setPositionAsync(ms);
     dispatch({ type: 'PATCH', patch: { position: ms } });
   }, [loadSound]);
 
   const setVolume = useCallback(async (v: number) => {
     const c = Math.max(0, Math.min(1, v));
-    await sound.current?.setVolumeAsync(c);
+    await AudioManager.setVolumeAsync(c);
     dispatch({ type: 'PATCH', patch: { volume: c } });
   }, []);
 
   const setQuality = useCallback(async (q: PlayerQuality) => {
     dispatch({ type: 'PATCH', patch: { quality: q } });
     await setItem('player_quality', q);
-    // Reload current track with new quality
     const track = stateRef.current.currentTrack;
     if (track) {
       const wasPlaying = stateRef.current.isPlaying;
