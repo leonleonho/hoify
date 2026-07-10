@@ -25,7 +25,7 @@ const config: StorybookConfig = {
           '@': resolve(__dirname, '../src'),
           'expo-router': resolve(__dirname, 'mocks/expo-router.ts'),
           'expo-secure-store': resolve(__dirname, 'mocks/expo-secure-store.ts'),
-          'expo-av': resolve(__dirname, 'mocks/expo-av.ts'),
+          'expo-audio': resolve(__dirname, 'mocks/expo-audio.ts'),
           // lucide-react-native uses react-native-svg fabric modules unavailable on web.
           // lucide-react renders native SVG elements, same API, works in browser.
           'lucide-react-native': 'lucide-react',

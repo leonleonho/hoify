@@ -6,13 +6,13 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { type AVPlaybackStatus } from 'expo-av';
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
 import { API_BASE } from '@/constants/api';
 import { useMediaSession } from '../hooks/useMediaSession';
 import * as AudioManager from '../utils/AudioManager';
+import type { PlaybackStatus } from '../utils/AudioManager';
 
 const STREAM_BASE = `${API_BASE}/stream`;
 const SEEK_THRESHOLD_MS = 3000;
@@ -51,7 +51,7 @@ export function reducer(state: PlayerState, action: any): PlayerState {
     case 'STATUS': {
       const s = action.status;
       const offset = action.seekOffset ?? 0;
-      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis + offset, volume: s.volume ?? state.volume };
+      return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis + offset };
     }
     case 'LOAD_TRACK':
       const d = action.track?.duration ?? 0;
@@ -140,7 +140,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Stable status callback — reads state via refs
-  const handleStatus = useCallback((status: AVPlaybackStatus) => {
+  const handleStatus = useCallback((status: PlaybackStatus) => {
     if (!status.isLoaded) {
       dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
       return;

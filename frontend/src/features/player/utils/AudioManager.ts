@@ -1,9 +1,10 @@
-import { Audio, type AVPlaybackStatus } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import type { AudioStatus, AudioPlayer } from 'expo-audio';
 
 /**
- * Module-level singleton owning a single expo-av Sound instance.
+ * Module-level singleton owning a single expo-audio AudioPlayer instance.
  *
- * The Sound instance survives React remount cycles caused by browser
+ * The AudioPlayer instance survives React remount cycles caused by browser
  * history navigation (popstate → resetRoot). The underlying HTMLAudioElement
  * stays alive in the DOM even when PlayerProvider unmounts/remounts.
  *
@@ -11,10 +12,22 @@ import { Audio, type AVPlaybackStatus } from 'expo-av';
  * as needed. Unload is explicit — never automatic on cleanup.
  */
 
-let _sound: Audio.Sound | null = null;
+let _player: AudioPlayer | null = null;
 let _onStatus: StatusCallback | null = null;
+let _statusSubscription: { remove: () => void } | null = null;
 
-type StatusCallback = (status: AVPlaybackStatus) => void;
+type StatusCallback = (status: PlaybackStatus) => void;
+
+/** Normalised shape that PlayerProvider's reducer already understands. */
+export interface PlaybackStatus {
+  isLoaded: boolean;
+  isPlaying: boolean;
+  isBuffering: boolean;
+  positionMillis: number;
+  durationMillis: number;
+  didJustFinish: boolean;
+  isLooping: boolean;
+}
 
 // ── state persistence (sessionStorage, survives remount, no leaking in tests) ─
 
@@ -47,47 +60,55 @@ export function popSnapshot(): PlayerSnapshot | null {
   return null;
 }
 
-function getSound(): Audio.Sound {
-  if (!_sound) {
-    _sound = new Audio.Sound();
+function getPlayer(): AudioPlayer {
+  if (!_player) {
+    _player = createAudioPlayer();
   }
-  return _sound;
+  return _player;
 }
 
 /** Returns true when the singleton has been loaded at least once. */
 export function hasActiveSound(): boolean {
-  return _sound !== null;
+  return _player !== null;
 }
 
 /** Register a status callback. Set null to clear. */
 export function setOnStatus(cb: StatusCallback | null): void {
   _onStatus = cb;
-  if (_sound && cb) {
-    _sound.setOnPlaybackStatusUpdate(cb);
+  // Tear down old subscription
+  if (_statusSubscription) {
+    _statusSubscription.remove();
+    _statusSubscription = null;
+  }
+  // Wire new subscription if we have both a player and a callback
+  if (_player && cb) {
+    _statusSubscription = _player.addListener('playbackStatusUpdate', handleStatus);
   }
 }
 
-function handleStatus(status: AVPlaybackStatus): void {
-  _onStatus?.(status);
+function handleStatus(status: AudioStatus): void {
+  if (!_onStatus) return;
+  _onStatus({
+    isLoaded: status.isLoaded,
+    isPlaying: status.playing,
+    isBuffering: status.isBuffering,
+    positionMillis: status.currentTime * 1000,
+    durationMillis: status.duration * 1000,
+    didJustFinish: status.didJustFinish,
+    isLooping: status.loop,
+  });
 }
 
 export async function ensureAudioMode(): Promise<void> {
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-    staysActiveInBackground: true,
-    shouldDuckAndroid: true,
-    playThroughEarpieceAndroid: false,
+  await setAudioModeAsync({
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    interruptionMode: 'duckOthers',
   });
 }
 
 async function prepare(): Promise<void> {
   await ensureAudioMode();
-  const s = _sound;
-  if (s) {
-    // Reuse existing sound — unload first so loadAsync can be called again
-    try { await s.unloadAsync(); } catch { /* ignore */ }
-  }
 }
 
 export async function load(
@@ -96,32 +117,48 @@ export async function load(
   volume: number,
 ): Promise<void> {
   await prepare();
-  const s = getSound();
-  // Register status callback first so it fires on load
-  s.setOnPlaybackStatusUpdate(handleStatus);
-  await s.loadAsync({ uri }, { shouldPlay, volume });
+  const p = getPlayer();
+  // Re-register status callback so it fires on the new player
+  if (_onStatus) {
+    if (_statusSubscription) {
+      _statusSubscription.remove();
+      _statusSubscription = null;
+    }
+    _statusSubscription = p.addListener('playbackStatusUpdate', handleStatus);
+  }
+  p.replace(uri);
+  p.volume = volume;
+  if (shouldPlay) {
+    p.play();
+  }
 }
 
 export async function play(): Promise<void> {
-  await _sound?.playAsync();
+  _player?.play();
 }
 
 export async function pause(): Promise<void> {
-  await _sound?.pauseAsync();
+  _player?.pause();
 }
 
 export async function unload(): Promise<void> {
-  if (_sound) {
-    try { await _sound.unloadAsync(); } catch { /* ignore */ }
-    _sound = null;
+  if (_player) {
+    if (_statusSubscription) {
+      _statusSubscription.remove();
+      _statusSubscription = null;
+    }
+    _player.remove();
+    _player = null;
     _onStatus = null;
   }
 }
 
 export async function setPositionAsync(ms: number): Promise<void> {
-  await _sound?.setPositionAsync(ms);
+  await _player?.seekTo(ms / 1000);
 }
 
 export async function setVolumeAsync(v: number): Promise<void> {
-  await _sound?.setVolumeAsync(v);
+  if (_player) {
+    _player.volume = v;
+  }
 }

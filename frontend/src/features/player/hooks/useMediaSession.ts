@@ -16,7 +16,7 @@ export interface MediaSessionActions {
  * with the app's player state, so browser lock-screen / system tray
  * shows correct metadata and transport controls work.
  *
- * No-op on native platforms — expo-av handles those natively.
+ * No-op on native platforms — expo-audio handles those natively.
  */
 export function useMediaSession(
   currentTrack: Track | null,
