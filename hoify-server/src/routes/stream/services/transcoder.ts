@@ -33,11 +33,6 @@ export function spawnTranscoder(
   let killed = false;
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const resetIdleTimer = () => {
-    if (idleTimer) clearTimeout(idleTimer);
-    if (!killed) idleTimer = setTimeout(doKill, IDLE_TIMEOUT_MS).unref();
-  };
-
   const doKill = () => {
     if (killed) return;
     killed = true;
@@ -49,14 +44,24 @@ export function spawnTranscoder(
     }, KILL_GRACE_MS).unref();
   };
 
-  proc.stdout?.on("data", resetIdleTimer);
-  resetIdleTimer();
-
   return {
     pipeTo(res: Response) {
       proc.stdout?.pipe(res);
 
       res.on("close", doKill);
+
+      // Periodic health check polls response state instead of stdout data.
+      // Stdout data pauses under backpressure, making data-event timer unreliable.
+      // This catches silent client drops without false-triggering on normal buffering.
+      const checkHealth = () => {
+        if (killed) return;
+        if (res.errored || res.destroyed || res.writableEnded || res.closed) {
+          doKill();
+        } else {
+          idleTimer = setTimeout(checkHealth, IDLE_TIMEOUT_MS).unref();
+        }
+      };
+      idleTimer = setTimeout(checkHealth, IDLE_TIMEOUT_MS).unref();
     },
     kill: doKill,
   };
