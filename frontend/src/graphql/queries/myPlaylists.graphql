@@ -4,5 +4,6 @@ query MyPlaylists {
     name
     trackCount
     isPublic
+    type
   }
 }

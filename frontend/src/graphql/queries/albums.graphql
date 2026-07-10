@@ -1,0 +1,11 @@
+query Albums {
+  albums {
+    id
+    title
+    coverUrl
+    artist {
+      id
+      name
+    }
+  }
+}

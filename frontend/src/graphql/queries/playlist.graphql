@@ -1,0 +1,32 @@
+query Playlist($id: ID!) {
+  playlist(id: $id) {
+    id
+    name
+    description
+    isPublic
+    type
+    trackCount
+    tracks {
+      id
+      title
+      trackArtist
+      trackNumber
+      duration
+      filePath
+      liked
+      genres {
+        id
+        name
+      }
+      album {
+        id
+        title
+        coverUrl
+        artist {
+          id
+          name
+        }
+      }
+    }
+  }
+}

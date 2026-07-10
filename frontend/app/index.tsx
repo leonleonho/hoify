@@ -1,14 +1,18 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Input } from '@/components/input/Input';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useSearchMusic } from '@/features/search/hooks/useSearchMusic';
 import { useDiscogsSearch } from '@/features/search/hooks/useDiscogsSearch';
 import { SearchResults } from '@/features/search/components/SearchResults';
+import { CategoryTile } from '@/components/home/CategoryTile';
+import { PlaylistRow } from '@/components/playlist/PlaylistRow';
 
 const DEBOUNCE_MS = 300;
 
 export default function IndexScreen() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,38 +64,50 @@ export default function IndexScreen() {
         />
       </View>
 
-      {hasActiveSearch ? (
-        <ScrollView
-          style={styles.scrollArea}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {searchResults ? (
-            <SearchResults
-              data={searchResults}
-              loading={false}
-              error={null}
-              onExtendedSearch={discogsSearch}
-              discogsResults={discogsResults}
-              discogsLoading={discogsLoading}
-              discogsError={discogsError}
-              discogsSearched={discogsSearched}
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {hasActiveSearch ? (
+          <>
+            {searchResults ? (
+              <SearchResults
+                data={searchResults}
+                loading={false}
+                error={null}
+                onExtendedSearch={discogsSearch}
+                discogsResults={discogsResults}
+                discogsLoading={discogsLoading}
+                discogsError={discogsError}
+                discogsSearched={discogsSearched}
+              />
+            ) : (
+              loading && (
+                <View style={styles.centered}>
+                  <Text style={styles.promptText}>Searching…</Text>
+                </View>
+              )
+            )}
+          </>
+        ) : (
+          <View>
+            <PlaylistRow
+              onPlaylistPress={(id) => router.push(`/playlist/${id}` as any)}
             />
-          ) : (
-            loading && (
-              <View style={styles.centered}>
-                <Text style={styles.promptText}>Searching…</Text>
-              </View>
-            )
-          )}
-        </ScrollView>
-      ) : (
-        <View style={styles.centered}>
-          <Text style={styles.promptText}>
-            Search for songs, artists, albums…
-          </Text>
-        </View>
-      )}
+            <View style={styles.categories}>
+              <CategoryTile
+                category="artists"
+                onPress={() => router.push('/artists' as any)}
+              />
+              <CategoryTile
+                category="albums"
+                onPress={() => router.push('/albums' as any)}
+              />
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -110,8 +126,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
   },
   centered: {
@@ -124,5 +138,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  categories: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
 });
