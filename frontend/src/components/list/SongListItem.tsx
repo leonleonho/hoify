@@ -302,7 +302,9 @@ export function SongListItem({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_evt, gs) =>
+        Math.abs(gs.dx) > Math.abs(gs.dy) && Math.abs(gs.dx) > 5,
       onPanResponderGrant: (evt) => {
         translateX.stopAnimation();
         translateX.setValue(0);
