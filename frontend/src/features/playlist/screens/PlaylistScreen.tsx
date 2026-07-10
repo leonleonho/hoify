@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   StyleSheet,
   ActivityIndicator,
   Pressable,
@@ -11,7 +11,6 @@ import { useQuery } from '@apollo/client/react';
 import { PlaylistDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated/types';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
-import { List } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';
 import { Button } from '@/components/button/Button';
 import { ListMusic, Heart } from 'lucide-react-native';
@@ -62,12 +61,8 @@ export function PlaylistScreen({ playlistId }: Props) {
     playPlaylist(tracks, index);
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
-      {/* Playlist header */}
+  const headerComponent = (
+    <View>
       <View style={styles.header}>
         <View style={[styles.iconBg, isLiked && styles.likedBg]}>
           {isLiked ? (
@@ -86,23 +81,37 @@ export function PlaylistScreen({ playlistId }: Props) {
         </Text>
       </View>
 
-      {/* Play All button */}
       {tracks.length > 0 && <Button title="Play All" onPress={handlePlayAll} />}
 
-      {/* Tracks */}
       {tracks.length > 0 && (
-        <List header="TRACKS">
-          {tracks.map((track, index) => (
-            <SongListItem
-              key={track.id}
-              track={track}
-              onPress={() => handleTrackPress(index)}
-              divider={index < tracks.length - 1}
-            />
-          ))}
-        </List>
+        <Text style={styles.sectionHeader}>TRACKS</Text>
       )}
-    </ScrollView>
+    </View>
+  );
+
+  return (
+    <FlatList
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      data={tracks}
+      keyExtractor={(track) => track.id}
+      renderItem={({ item, index }) => (
+        <View
+          style={[
+            styles.cardItem,
+            index === 0 && styles.cardItemFirst,
+            index === tracks.length - 1 && styles.cardItemLast,
+          ]}
+        >
+          <SongListItem
+            track={item}
+            onPress={() => handleTrackPress(index)}
+            divider={index < tracks.length - 1}
+          />
+        </View>
+      )}
+      ListHeaderComponent={headerComponent}
+    />
   );
 }
 
@@ -113,7 +122,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.md,
-    gap: spacing.lg,
   },
   centered: {
     flex: 1,
@@ -154,5 +162,27 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.error,
     textAlign: 'center',
+  },
+  sectionHeader: {
+    ...typography.caption,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginLeft: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  cardItem: {
+    backgroundColor: colors.surface,
+  },
+  cardItemFirst: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: 'hidden',
+  },
+  cardItemLast: {
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: 'hidden',
   },
 });

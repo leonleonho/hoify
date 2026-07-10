@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   Image,
   StyleSheet,
   ActivityIndicator,
@@ -79,11 +79,8 @@ export function ArtistScreen({ artistId }: Props) {
     playPlaylist(allTracks, index);
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
+  const headerComponent = (
+    <View>
       {/* Artist header */}
       <View style={styles.header}>
         {artist.imageUrl && (
@@ -111,20 +108,33 @@ export function ArtistScreen({ artistId }: Props) {
         </List>
       )}
 
-      {/* Songs */}
-      {allTracks.length > 0 && (
-        <List header="SONGS">
-          {allTracks.map((track, index) => (
-            <SongListItem
-              key={track.id}
-              track={track}
-              onPress={() => handleTrackPress(index)}
-              divider={index < allTracks.length - 1}
-            />
-          ))}
-        </List>
+      {allTracks.length > 0 && <List header="SONGS" />}
+    </View>
+  );
+
+  return (
+    <FlatList
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      data={allTracks}
+      keyExtractor={(track) => track.id}
+      renderItem={({ item, index }) => (
+        <View
+          style={[
+            styles.cardItem,
+            index === 0 && styles.cardItemFirst,
+            index === allTracks.length - 1 && styles.cardItemLast,
+          ]}
+        >
+          <SongListItem
+            track={item}
+            onPress={() => handleTrackPress(index)}
+            divider={index < allTracks.length - 1}
+          />
+        </View>
       )}
-    </ScrollView>
+      ListHeaderComponent={headerComponent}
+    />
   );
 }
 
@@ -134,8 +144,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   contentContainer: {
-    padding: spacing.md,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
   },
   centered: {
     flex: 1,
@@ -146,6 +156,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   artistImage: {
     width: 200,
@@ -168,5 +179,18 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.error,
     textAlign: 'center',
+  },
+  cardItem: {
+    backgroundColor: colors.surface,
+  },
+  cardItemFirst: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: 'hidden',
+  },
+  cardItemLast: {
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: 'hidden',
   },
 });
