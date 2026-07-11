@@ -6,15 +6,26 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
+import { AppState } from 'react-native';
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
 import { getApiBase, artUrl } from '@/constants/api';
 import { useMediaSession } from '../hooks/useMediaSession';
+import { setRemoteCallbacks } from '../services/registerRemoteCallbacks';
 import * as AudioManager from '../utils/AudioManager';
-import type { PlaybackStatus } from '../utils/AudioManager';
+import type { PlaybackStatus, QueueTrack } from '../utils/AudioManager';
 
 const SEEK_THRESHOLD_MS = 3000;
+
+function trackMetadata(track: Track): AudioManager.LockScreenMetadata {
+  return {
+    title: track.title,
+    artist: track.trackArtist ?? track.album.artist.name,
+    albumTitle: track.album.title,
+    artworkUrl: track.album.coverUrl ? artUrl(track.album.coverUrl) : undefined,
+  };
+}
 
 function getStreamBase(): string {
   return `${getApiBase()}/stream`;
@@ -26,6 +37,20 @@ function buildStreamUrl(trackId: string, quality: PlayerQuality, seek?: number):
     url += `&seek=${Math.floor(seek / 1000)}`;
   }
   return url;
+}
+
+function buildQueueTracks(
+  playlist: Track[],
+  quality: PlayerQuality,
+  seekMsByIndex?: Record<number, number>,
+): QueueTrack[] {
+  return playlist.map((track, index) => ({
+    mediaId: track.id,
+    url: buildStreamUrl(track.id, quality, seekMsByIndex?.[index]),
+    playlistIndex: index,
+    meta: trackMetadata(track),
+    durationSeconds: track.duration ?? undefined,
+  }));
 }
 
 /** Picks random playlist index different from current. Returns current if only one track. */
@@ -56,9 +81,19 @@ export function reducer(state: PlayerState, action: any): PlayerState {
       const offset = action.seekOffset ?? 0;
       return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis + offset };
     }
-    case 'LOAD_TRACK':
+    case 'LOAD_TRACK': {
       const d = action.track?.duration ?? 0;
-      return { ...state, currentTrack: action.track, playlist: action.playlist ?? state.playlist, isPlaying: false, isLoading: false, position: 0, duration: d * 1000 };
+      const isPlaying = action.isPlaying !== undefined ? action.isPlaying : state.isPlaying;
+      return {
+        ...state,
+        currentTrack: action.track,
+        playlist: action.playlist ?? state.playlist,
+        isPlaying,
+        isLoading: false,
+        position: 0,
+        duration: d * 1000,
+      };
+    }
     default:
       return state;
   }
@@ -118,6 +153,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [isFullPlayerOpen, setFullPlayerOpen] = React.useState(false);
   const idx = useRef(snap?.playlistIndex ?? -1);
   const seekOffset = useRef(0);
+  const ignoreStalePositionUntil = useRef(0);
 
   // Refs that always hold latest value, so callbacks don't go stale
   const stateRef = useRef(s);
@@ -134,13 +170,54 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  // Wire AudioManager status callback on mount. No cleanup — the singleton
-  // explicitly avoids React cleanup so the Sound survives remount cycles.
-  useEffect(() => {
-    AudioManager.setOnStatus(handleStatus);
-    AudioManager.ensureAudioMode().catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const applyPlaylistIndex = useCallback((playlistIndex: number) => {
+    const pl = stateRef.current.playlist;
+    const track = pl[playlistIndex];
+    if (!track) return;
+
+    if (playlistIndex !== idx.current) {
+      seekOffset.current = 0;
+      idx.current = playlistIndex;
+      ignoreStalePositionUntil.current = Date.now() + 1200;
+      dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
+    }
   }, []);
+
+  /** Clear seek-derived state before native queue skip (next/prev may race transition). */
+  const beginTrackChange = useCallback((targetIndex: number) => {
+    seekOffset.current = 0;
+    ignoreStalePositionUntil.current = Date.now() + 1200;
+    const pl = stateRef.current.playlist;
+    const track = pl[targetIndex];
+    if (track) {
+      dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
+    }
+  }, []);
+
+  const syncFromNativePlayer = useCallback(() => {
+    if (!AudioManager.hasActiveSound()) return;
+
+    const playlistIndex = AudioManager.getActivePlaylistIndex();
+    if (playlistIndex != null) {
+      applyPlaylistIndex(playlistIndex);
+    }
+    AudioManager.refreshPlaybackState();
+  }, [applyPlaylistIndex]);
+
+  const handleQueueTransition = useCallback((playlistIndex: number) => {
+    applyPlaylistIndex(playlistIndex);
+  }, [applyPlaylistIndex]);
+
+  // Re-sync React state when returning to the app — native next/prev can advance
+  // the queue in the background without running our JS callbacks.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncFromNativePlayer();
+      }
+    });
+    return () => sub.remove();
+  }, [syncFromNativePlayer]);
 
   // Stable status callback — reads state via refs
   const handleStatus = useCallback((status: PlaybackStatus) => {
@@ -158,13 +235,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (s.repeatMode === 'one' && s.currentTrack) {
         const track = s.currentTrack;
         dispatchRef.current({ type: 'LOAD_TRACK', track });
-        AudioManager.load(
+        AudioManager.reloadActiveItem(
           buildStreamUrl(track.id, s.quality),
           true,
           s.volume,
+          trackMetadata(track),
+          idx.current,
+          track.id,
         ).catch(() => {
           dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
         });
+        return;
+      }
+
+      const atPlaylistEnd = idx.current >= pl.length - 1;
+      if (!atPlaylistEnd) {
+        // RNTP auto-advances in the queue; MediaItemTransition syncs UI.
         return;
       }
 
@@ -177,18 +263,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (s.shuffle) {
         nextIdx = getRandomIndex(idx.current, pl.length);
       } else {
-        nextIdx = (idx.current + 1) % pl.length;
+        nextIdx = 0;
       }
 
-      if (s.repeatMode === 'off' && nextIdx === 0 && idx.current === pl.length - 1) {
+      if (s.repeatMode === 'off') {
         dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
         return;
       }
 
       idx.current = nextIdx;
       dispatchRef.current({ type: 'LOAD_TRACK', track: pl[nextIdx] });
-      AudioManager.load(
-        buildStreamUrl(pl[nextIdx].id, s.quality),
+      AudioManager.setQueue(
+        buildQueueTracks(pl, s.quality),
+        nextIdx,
         true,
         s.volume,
       ).catch(() => {
@@ -196,13 +283,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-    dispatchRef.current({ type: 'STATUS', status, seekOffset: seekOffset.current });
+    const offset = seekOffset.current;
+    const position = status.positionMillis + offset;
+    if (Date.now() < ignoreStalePositionUntil.current && position > 1500) {
+      dispatchRef.current({
+        type: 'PATCH',
+        patch: { isPlaying: status.isPlaying, isLoading: status.isBuffering, position: 0 },
+      });
+      return;
+    }
+    dispatchRef.current({ type: 'STATUS', status, seekOffset: offset });
   }, []);
+
+  // Wire AudioManager status callback on mount. No cleanup — the singleton
+  // explicitly avoids React cleanup so the Sound survives remount cycles.
+  useEffect(() => {
+    AudioManager.setOnStatus(handleStatus);
+    AudioManager.ensureAudioMode()
+      .then(() => syncFromNativePlayer())
+      .catch(() => {});
+  }, [handleStatus, syncFromNativePlayer]);
 
   // Register the callback each render so it picks up the latest handleStatus
   useEffect(() => {
     AudioManager.setOnStatus(handleStatus);
   }, [handleStatus]);
+
+  useEffect(() => {
+    AudioManager.setOnQueueTransition(handleQueueTransition);
+  }, [handleQueueTransition]);
 
   // Save snapshot so AudioManager can restore state on remount
   useEffect(() => {
@@ -221,7 +330,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   });
 
-  const loadSound = useCallback(async (track: Track, autoPlay: boolean, seekMs?: number) => {
+  const syncQueue = useCallback(async (
+    playlist: Track[],
+    playlistIndex: number,
+    autoPlay: boolean,
+    seekMs?: number,
+  ) => {
     await AudioManager.ensureAudioMode();
     const q = stateRef.current.quality;
     const isTrans = q !== 'original';
@@ -231,33 +345,63 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } else {
       seekOffset.current = 0;
     }
-    const url = buildStreamUrl(track.id, q, seek);
-    await AudioManager.load(url, autoPlay, stateRef.current.volume);
+    const seekByIndex = seek != null ? { [playlistIndex]: seek } : undefined;
+    await AudioManager.setQueue(
+      buildQueueTracks(playlist, q, seekByIndex),
+      playlistIndex,
+      autoPlay,
+      stateRef.current.volume,
+    );
+  }, []);
+
+  const reloadCurrent = useCallback(async (autoPlay: boolean, seekMs?: number) => {
+    const s = stateRef.current;
+    const track = s.currentTrack;
+    if (!track) return;
+
+    await AudioManager.ensureAudioMode();
+    const q = s.quality;
+    const isTrans = q !== 'original';
+    const seek = seekMs && isTrans ? seekMs : undefined;
+    if (seek) {
+      seekOffset.current = seek;
+    } else {
+      seekOffset.current = 0;
+    }
+
+    await AudioManager.reloadActiveItem(
+      buildStreamUrl(track.id, q, seek),
+      autoPlay,
+      s.volume,
+      trackMetadata(track),
+      idx.current,
+      track.id,
+    );
   }, []);
 
   // ---- actions (all read state via stateRef, write via dispatch) -----------
 
   const load = useCallback(async (track: Track) => {
-    dispatch({ type: 'LOAD_TRACK', track, playlist: [track] });
+    dispatch({ type: 'LOAD_TRACK', track, playlist: [track], isPlaying: false });
     idx.current = 0;
-    try { await loadSound(track, false); } catch {}
-  }, [loadSound]);
+    try { await syncQueue([track], 0, false); } catch {}
+  }, [syncQueue]);
 
   const play = useCallback(async (track: Track) => {
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
-    await loadSound(track, true);
+    await syncQueue([track], 0, true);
     dispatch({ type: 'LOAD_TRACK', track, playlist: [track] });
     idx.current = 0;
-  }, [loadSound]);
+  }, [syncQueue]);
 
   const playPlaylist = useCallback(async (tracks: Track[], start = 0) => {
     if (!tracks.length) return;
     const i = Math.max(0, Math.min(start, tracks.length - 1));
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
-    await loadSound(tracks[i], true);
+    await syncQueue(tracks, i, true);
     dispatch({ type: 'LOAD_TRACK', track: tracks[i], playlist: tracks });
     idx.current = i;
-  }, [loadSound]);
+  }, [syncQueue]);
 
   const pause = useCallback(async () => {
     await AudioManager.pause();
@@ -288,7 +432,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (s.repeatMode === 'one' && s.currentTrack) {
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
-      await loadSound(s.currentTrack, true, 0);
+      await reloadCurrent(true, 0);
       dispatch({ type: 'LOAD_TRACK', track: s.currentTrack, playlist: pl });
       return;
     }
@@ -297,21 +441,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (s.shuffle) {
       i = getRandomIndex(idx.current, pl.length);
     } else {
-      i = (idx.current + 1) % pl.length;
+      i = idx.current + 1;
     }
 
-    if (s.repeatMode === 'off' && i === 0 && idx.current === pl.length - 1) {
-      await AudioManager.setPositionAsync(0);
-      dispatch({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
-      idx.current = pl.length - 1;
+    if (!s.shuffle && i >= pl.length) {
+      if (s.repeatMode === 'all') {
+        i = 0;
+      } else {
+        await AudioManager.setPositionAsync(0);
+        dispatch({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
+        return;
+      }
+    }
+
+    if (s.shuffle || !AudioManager.canSkipNextInQueue() || i !== idx.current + 1) {
+      dispatch({ type: 'PATCH', patch: { isLoading: true } });
+      await syncQueue(pl, i, true);
+      seekOffset.current = 0;
+      ignoreStalePositionUntil.current = Date.now() + 1200;
+      dispatch({ type: 'LOAD_TRACK', track: pl[i], playlist: pl });
+      idx.current = i;
       return;
     }
 
-    dispatch({ type: 'PATCH', patch: { isLoading: true } });
-    await loadSound(pl[i], true);
-    dispatch({ type: 'LOAD_TRACK', track: pl[i], playlist: pl });
+    beginTrackChange(i);
+    AudioManager.skipToNextInQueue();
     idx.current = i;
-  }, [loadSound]);
+  }, [reloadCurrent, syncQueue, beginTrackChange]);
 
   const previous = useCallback(async () => {
     const s = stateRef.current;
@@ -329,17 +485,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'PATCH', patch: { position: 0 } });
       return;
     }
+
     let i: number;
     if (s.shuffle) {
       i = getRandomIndex(idx.current, playlist.length);
-    } else {
-      i = idx.current <= 0 ? playlist.length - 1 : idx.current - 1;
+      dispatch({ type: 'PATCH', patch: { isLoading: true } });
+      await syncQueue(playlist, i, true);
+      dispatch({ type: 'LOAD_TRACK', track: playlist[i], playlist });
+      idx.current = i;
+      return;
     }
+
+    if (idx.current <= 0) {
+      i = playlist.length - 1;
+      if (s.repeatMode === 'off' && playlist.length <= 1) {
+        await AudioManager.setPositionAsync(0);
+        dispatch({ type: 'PATCH', patch: { position: 0 } });
+        return;
+      }
+      dispatch({ type: 'PATCH', patch: { isLoading: true } });
+      await syncQueue(playlist, i, true);
+      dispatch({ type: 'LOAD_TRACK', track: playlist[i], playlist });
+      idx.current = i;
+      return;
+    }
+
+    if (AudioManager.canSkipPreviousInQueue()) {
+      i = idx.current - 1;
+      beginTrackChange(i);
+      AudioManager.skipToPreviousInQueue();
+      idx.current = i;
+      return;
+    }
+
+    i = idx.current - 1;
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
-    await loadSound(playlist[i], true);
-    dispatch({ type: 'LOAD_TRACK', track: playlist[i] });
+    await syncQueue(playlist, i, true);
+    dispatch({ type: 'LOAD_TRACK', track: playlist[i], playlist });
     idx.current = i;
-  }, [loadSound]);
+  }, [syncQueue]);
 
   const seek = useCallback(async (ms: number) => {
     const q = stateRef.current.quality;
@@ -347,13 +531,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const track = stateRef.current.currentTrack;
       if (!track) return;
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
-      await loadSound(track, stateRef.current.isPlaying, ms);
+      await reloadCurrent(stateRef.current.isPlaying, ms);
       dispatch({ type: 'PATCH', patch: { position: ms } });
       return;
     }
     await AudioManager.setPositionAsync(ms);
     dispatch({ type: 'PATCH', patch: { position: ms } });
-  }, [loadSound]);
+  }, [reloadCurrent]);
 
   const setVolume = useCallback(async (v: number) => {
     const c = Math.max(0, Math.min(1, v));
@@ -369,9 +553,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const wasPlaying = stateRef.current.isPlaying;
       const pos = stateRef.current.position;
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
-      await loadSound(track, wasPlaying, pos);
+      await reloadCurrent(wasPlaying, pos);
     }
-  }, [loadSound]);
+  }, [reloadCurrent]);
 
   const toggleRepeat = useCallback(() => {
     const current = stateRef.current.repeatMode;
@@ -395,20 +579,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     seekto: seek,
   });
 
-  // Sync native lock screen controls (Android/iOS) with current track
+  // Wire native lock-screen / headset remote controls via module-level callbacks
   useEffect(() => {
-    if (s.currentTrack) {
-      const track = s.currentTrack;
-      AudioManager.setLockScreenMetadata({
-        title: track.title,
-        artist: track.trackArtist ?? track.album.artist.name,
-        albumTitle: track.album.title,
-        artworkUrl: track.album.coverUrl ? artUrl(track.album.coverUrl) : undefined,
-      });
-    } else {
-      AudioManager.clearLockScreenControls();
-    }
-  }, [s.currentTrack]);
+    setRemoteCallbacks({ play: resume, pause, next, previous, seek });
+    return () => setRemoteCallbacks({});
+  }, [resume, pause, next, previous, seek]);
 
   const value: PlayerContextValue = {
     ...s,

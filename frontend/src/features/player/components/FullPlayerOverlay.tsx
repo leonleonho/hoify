@@ -3,49 +3,91 @@ import {
   Animated,
   Dimensions,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   View,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { colors } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMusicPlayer } from '../hooks/useMusicPlayer';
 import { FullPlayer } from './FullPlayer';
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const PANEL_HEIGHT = SCREEN_HEIGHT * 0.92;
-const DISMISS_THRESHOLD = PANEL_HEIGHT * 0.25;
+const DISMISS_THRESHOLD_RATIO = 0.25;
+
+const FALLBACK_HEIGHT = 800;
 
 export function FullPlayerOverlay() {
   const { isFullPlayerOpen, closeFullPlayer } = useMusicPlayer();
+  const insets = useSafeAreaInsets();
   const [render, setRender] = useState(false);
+  const [containerHeight, setContainerHeight] = useState(
+    () => Dimensions.get('window').height || FALLBACK_HEIGHT,
+  );
 
-  const slideAnim = useRef(new Animated.Value(PANEL_HEIGHT)).current;
+  const panelHeight = containerHeight * 0.92;
+  const dismissThreshold = panelHeight * DISMISS_THRESHOLD_RATIO;
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const panY = useRef(new Animated.Value(0)).current;
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height;
+    if (h > 0 && h !== containerHeight) {
+      setContainerHeight(h);
+    }
+  };
 
   useEffect(() => {
+    if (containerHeight <= 0) return;
+
+    animRef.current?.stop();
     if (isFullPlayerOpen) {
       setRender(true);
+      slideAnim.setValue(panelHeight);
+      backdropAnim.setValue(0);
       panY.setValue(0);
-      Animated.parallel([
+      animRef.current = Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: 0, duration: 300, useNativeDriver: true,
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
-          toValue: 1, duration: 300, useNativeDriver: true,
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
         }),
-      ]).start();
+      ]);
+      animRef.current.start();
     } else {
-      Animated.parallel([
+      animRef.current = Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: PANEL_HEIGHT, duration: 250, useNativeDriver: true,
+          toValue: panelHeight,
+          duration: 250,
+          useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
-          toValue: 0, duration: 250, useNativeDriver: true,
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
         }),
-      ]).start(() => setRender(false));
+      ]);
+      animRef.current.start((result) => {
+        if (result?.finished !== false) setRender(false);
+      });
     }
-  }, [isFullPlayerOpen, slideAnim, backdropAnim, panY]);
+  }, [isFullPlayerOpen, containerHeight, panelHeight, slideAnim, backdropAnim, panY]);
+
+  // Safety net: never leave an invisible full-screen touch blocker mounted
+  useEffect(() => {
+    if (isFullPlayerOpen) return;
+    const t = setTimeout(() => setRender(false), 400);
+    return () => clearTimeout(t);
+  }, [isFullPlayerOpen]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -55,15 +97,14 @@ export function FullPlayerOverlay() {
         if (gs.dy > 0) panY.setValue(gs.dy);
       },
       onPanResponderRelease: (_, gs) => {
-        if (gs.dy > DISMISS_THRESHOLD || gs.vy > 0.5) {
-          // Transfer drag offset to slideAnim so the close animation
-          // starts from the current visual position, not from 0.
+        if (gs.dy > dismissThreshold || gs.vy > 0.5) {
           slideAnim.setValue(gs.dy);
           panY.setValue(0);
           closeFullPlayer();
         } else {
           Animated.spring(panY, {
-            toValue: 0, useNativeDriver: true,
+            toValue: 0,
+            useNativeDriver: true,
           }).start();
         }
       },
@@ -73,29 +114,52 @@ export function FullPlayerOverlay() {
     }),
   ).current;
 
-  if (!render) return null;
+  const visible = isFullPlayerOpen || render;
+  if (!visible) return null;
+
+  const interceptTouches = isFullPlayerOpen && panelHeight > 0;
 
   return (
-    <View style={styles.root}>
-      <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]}>
+    <View
+      style={styles.root}
+      onLayout={onLayout}
+      pointerEvents={interceptTouches ? 'auto' : 'box-none'}
+    >
+      <Animated.View
+        pointerEvents={interceptTouches ? 'auto' : 'none'}
+        style={[styles.backdrop, { opacity: backdropAnim }]}
+      >
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={closeFullPlayer}
           accessibilityLabel="Close player"
+          accessibilityRole="button"
         />
       </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.panel,
-          { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
-        ]}
-      >
-        <View style={styles.handleRow} {...panResponder.panHandlers}>
-          <View style={styles.handle} />
-        </View>
-        <FullPlayer />
-      </Animated.View>
+      {panelHeight > 0 ? (
+        <Animated.View
+          pointerEvents={interceptTouches ? 'auto' : 'none'}
+          style={[
+            styles.panel,
+            { height: panelHeight, paddingBottom: insets.bottom },
+            { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
+          ]}
+        >
+          <View
+            style={styles.handleZone}
+            testID="full-player-drag-handle"
+            accessibilityLabel="Drag down to close"
+            accessibilityRole="adjustable"
+            {...panResponder.panHandlers}
+          >
+            <View style={styles.handle} />
+          </View>
+          <View style={styles.content} pointerEvents="box-none">
+            <FullPlayer />
+          </View>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -104,6 +168,7 @@ const styles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFill,
     zIndex: 100,
+    ...(Platform.OS === 'android' ? { elevation: 100 } : null),
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
@@ -114,22 +179,25 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: PANEL_HEIGHT,
     backgroundColor: colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
   },
-  handleRow: {
+  handleZone: {
+    width: '100%',
+    minHeight: 56,
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
+    justifyContent: 'center',
   },
   handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: 48,
+    height: 5,
+    borderRadius: 3,
     backgroundColor: colors.textMuted,
     opacity: 0.4,
+  },
+  content: {
+    flex: 1,
   },
 });

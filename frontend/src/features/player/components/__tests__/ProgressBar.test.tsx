@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import React from 'react';
+import { PanResponder } from 'react-native';
 import { ProgressBar } from '../ProgressBar';
 import { formatTime } from '../../utils/formatTime';
 
 // Mock PanResponder so we control when seek fires
 let onGrant: ((e: any) => void) | null = null;
-let onMove: ((e: any) => void) | null = null;
-let onRelease: ((e: any) => void) | null = null;
+let onMove: ((e: any, g?: any) => void) | null = null;
+let onRelease: ((e: any, g?: any) => void) | null = null;
 let onTerminate: (() => void) | null = null;
 
 vi.mock('react-native', async () => {
@@ -17,16 +18,16 @@ vi.mock('react-native', async () => {
     PanResponder: {
       create: vi.fn((config: Record<string, any>) => {
         onGrant = (e: any) => config.onPanResponderGrant(e);
-        onMove = (e: any) => config.onPanResponderMove(e);
-        onRelease = (e: any) => config.onPanResponderRelease(e);
+        onMove = (e: any, g?: any) => config.onPanResponderMove(e, g);
+        onRelease = (e: any, g?: any) => config.onPanResponderRelease(e, g);
         onTerminate = () => config.onPanResponderTerminate?.();
         return {
           panHandlers: {
             onStartShouldSetResponder: () => true,
             onMoveShouldSetResponder: () => true,
             onResponderGrant: (e: any) => onGrant?.(e),
-            onResponderMove: (e: any) => onMove?.(e),
-            onResponderRelease: (e: any) => onRelease?.(e),
+            onResponderMove: (e: any, g: any) => onMove?.(e, g),
+            onResponderRelease: (e: any, g: any) => onRelease?.(e, g),
             onResponderTerminate: () => onTerminate?.(),
           },
         };
@@ -118,10 +119,10 @@ describe('ProgressBar', () => {
     onGrant!({ nativeEvent: { locationX: 50 } });
     expect(onSeek).not.toHaveBeenCalled();
 
-    onMove!({ nativeEvent: { locationX: 75 } });
+    onMove!({ nativeEvent: { locationX: 75 } }, { dx: 25 });
     expect(onSeek).not.toHaveBeenCalled();
 
-    onRelease!({ nativeEvent: { locationX: 75 } });
+    onRelease!({ nativeEvent: { locationX: 75 } }, { dx: 25 });
     expect(onSeek).toHaveBeenCalledTimes(1);
   });
 
@@ -130,12 +131,12 @@ describe('ProgressBar', () => {
     render(<ProgressBar position={0} duration={100000} onSeek={onSeek} />);
 
     onGrant!({ nativeEvent: { locationX: 20 } });
-    onMove!({ nativeEvent: { locationX: 40 } });
-    onMove!({ nativeEvent: { locationX: 60 } });
-    onMove!({ nativeEvent: { locationX: 80 } });
+    onMove!({ nativeEvent: { locationX: 40 } }, { dx: 20 });
+    onMove!({ nativeEvent: { locationX: 60 } }, { dx: 40 });
+    onMove!({ nativeEvent: { locationX: 80 } }, { dx: 60 });
     expect(onSeek).not.toHaveBeenCalled();
 
-    onRelease!({ nativeEvent: { locationX: 80 } });
+    onRelease!({ nativeEvent: { locationX: 80 } }, { dx: 60 });
     expect(onSeek).toHaveBeenCalledTimes(1);
   });
 
@@ -146,5 +147,25 @@ describe('ProgressBar', () => {
     onGrant!({ nativeEvent: { locationX: 50 } });
     onTerminate!();
     expect(onSeek).not.toHaveBeenCalled();
+  });
+
+  it('refuses pan responder termination during drag', () => {
+    render(<ProgressBar position={0} duration={100000} onSeek={() => {}} />);
+    const config = vi.mocked(PanResponder.create).mock.calls.at(-1)?.[0];
+    expect(config?.onPanResponderTerminationRequest?.({} as never, {} as never)).toBe(false);
+  });
+
+  it('uses grant position plus dx on release', () => {
+    const onSeek = vi.fn();
+    render(<ProgressBar position={0} duration={100000} onSeek={onSeek} />);
+
+    act(() => {
+      onGrant!({ nativeEvent: { locationX: 20 } });
+      onRelease!({ nativeEvent: { locationX: 200 } }, { dx: 30 });
+    });
+
+    // dx-based release ignores misleading release locationX; without measured
+    // width the seek resolves to 0 until layout fires in the real UI.
+    expect(onSeek).toHaveBeenCalledWith(0);
   });
 });

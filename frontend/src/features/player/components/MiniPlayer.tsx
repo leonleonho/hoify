@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Heart } from 'lucide-react-native';
 import { useMutation, useFragment } from '@apollo/client/react';
 import { gql } from '@apollo/client';
@@ -29,6 +30,7 @@ const TRACK_LIKED_FRAGMENT = gql`
  */
 export function MiniPlayer() {
   const { currentTrack, isPlaying, togglePlayPause, next, openFullPlayer, quality } = useMusicPlayer();
+  const insets = useSafeAreaInsets();
   const [likeTrack] = useMutation(LikeTrackDocument);
   const [unlikeTrack] = useMutation(UnlikeTrackDocument);
 
@@ -47,16 +49,19 @@ export function MiniPlayer() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: spacing.sm + insets.bottom }]}>
       <Pressable
         onPress={openFullPlayer}
         style={styles.trackPressable}
         accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
+        accessibilityRole="button"
       >
-        <TrackInfo track={currentTrack} variant="mini" />
-        {quality !== 'original' && (
-          <Text style={styles.qualityBadge}>{QUALITY_LABELS[quality]}</Text>
-        )}
+        <View style={styles.trackPressableInner}>
+          <TrackInfo track={currentTrack} variant="mini" />
+          {quality !== 'original' && (
+            <Text style={styles.qualityBadge}>{QUALITY_LABELS[quality]}</Text>
+          )}
+        </View>
       </Pressable>
       <Pressable
         onPress={toggleLike}
@@ -113,6 +118,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: spacing.sm,
+    ...(Platform.OS === 'android' ? { elevation: 8 } : null),
   },
   controls: {
     flexDirection: 'row',
@@ -121,9 +127,13 @@ const styles = StyleSheet.create({
   },
   trackPressable: {
     flex: 1,
+  },
+  trackPressableInner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    pointerEvents: 'none',
   },
   qualityBadge: {
     ...typography.caption,

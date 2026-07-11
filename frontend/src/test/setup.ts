@@ -1,97 +1,177 @@
 import '@testing-library/jest-dom/vitest';
+import { _resetForTests } from '@/features/player/utils/AudioManager';
+import { _resetPlaybackServiceForTests } from '@/features/player/services/PlaybackService';
 
 // expo-modules-core reads __DEV__ at import time
 (globalThis as any).__DEV__ = true;
 
-// Prevent expo-audio import from crashing in tests that load PlayerProvider
-// indirectly (MiniPlayer, FullPlayer, FullPlayerOverlay).
-let mockPlayers: any[] = [];
-beforeEach(() => { mockPlayers = []; });
-
-function makeMockPlayer() {
+const hoisted = vi.hoisted(() => {
+  let _playing = false;
+  let _volume = 0.8;
+  let _position = 0;
+  let _duration = 200;
+  let _buffering = false;
+  let _loaded = false;
+  let _queue: { mediaId?: string; extras?: { playlistIndex?: number } }[] = [];
+  let _activeIndex: number | null = null;
   const listeners: Record<string, Function[]> = {};
-  const player = {
-    id: 'mock-player',
-    playing: false,
-    muted: false,
-    loop: false,
-    paused: false,
-    isLoaded: true,
-    isBuffering: false,
-    currentTime: 0,
-    duration: 200,
-    volume: 0.8,
-    playbackRate: 1,
-    shouldCorrectPitch: false,
-    isAudioSamplingSupported: false,
-    play: vi.fn(function () {
-      player.playing = true;
-      player.paused = false;
-      fire('playbackStatusUpdate', buildStatus());
-    }),
-    pause: vi.fn(function () {
-      player.playing = false;
-      player.paused = true;
-      fire('playbackStatusUpdate', buildStatus());
-    }),
-    replace: vi.fn(function (_source: any) {
-      player.currentTime = 0;
-      player.isLoaded = true;
-      fire('playbackStatusUpdate', buildStatus());
-    }),
-    seekTo: vi.fn(function (seconds: number) {
-      player.currentTime = seconds;
-      fire('playbackStatusUpdate', buildStatus());
-      return Promise.resolve();
-    }),
-    remove: vi.fn(function () {
-      Object.keys(listeners).forEach((e) => { listeners[e] = []; });
-    }),
-    addListener: vi.fn(function (event: string, cb: Function) {
+
+  function fire(event: string, data?: unknown) {
+    (listeners[event] || []).forEach((cb) => cb(data));
+  }
+
+  const Event = {
+    PlaybackProgressUpdated: 'event.playback-progress-updated',
+    IsPlayingChanged: 'event.is-playing-changed',
+    PlaybackStateChanged: 'event.playback-state-changed',
+    MediaItemTransition: 'event.media-item-transition',
+    RemotePlay: 'event.remote-play',
+    RemotePause: 'event.remote-pause',
+    RemoteNext: 'event.remote-next',
+    RemotePrevious: 'event.remote-previous',
+    RemoteSeek: 'event.remote-seek',
+  };
+
+  const PlaybackState = {
+    Idle: 'idle',
+    Ready: 'ready',
+    Buffering: 'buffering',
+    Ended: 'ended',
+    Error: 'error',
+  };
+
+  const PlayerCommand = {
+    Seek: 'seek',
+    PlayPause: 'playPause',
+    Next: 'next',
+    Previous: 'previous',
+    Stop: 'stop',
+    SkipForward: 'skipForward',
+    SkipBackward: 'skipBackward',
+  };
+
+  function activeMediaId(): string {
+    const item = _activeIndex != null ? _queue[_activeIndex] : null;
+    return item?.mediaId ?? 'unknown';
+  }
+
+  function emitStatus() {
+    fire(Event.PlaybackProgressUpdated, {
+      position: _position,
+      duration: _duration,
+      mediaId: activeMediaId(),
+    });
+    fire(Event.IsPlayingChanged, { playing: _playing });
+  }
+
+  function resetState() {
+    _playing = false;
+    _volume = 0.8;
+    _position = 0;
+    _duration = 200;
+    _buffering = false;
+    _loaded = false;
+    _queue = [];
+    _activeIndex = null;
+    Object.keys(listeners).forEach((k) => { listeners[k] = []; });
+  }
+
+  function transitionTo(index: number) {
+    _activeIndex = index;
+    fire(Event.MediaItemTransition, { item: _queue[index] ?? null, index });
+    emitStatus();
+  }
+
+  const mockTrackPlayer = {
+    setupPlayer: vi.fn(),
+    registerBackgroundEventHandler: vi.fn(),
+    setCommands: vi.fn(),
+    addEventListener: vi.fn((event: string, cb: Function) => {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(cb);
-      return { remove: () => { listeners[event] = listeners[event].filter((l: Function) => l !== cb); } };
+      return { remove: () => { listeners[event] = listeners[event].filter((l) => l !== cb); } };
     }),
-    removeListener: vi.fn(),
-    setAudioSamplingEnabled: vi.fn(),
-    setActiveForLockScreen: vi.fn(),
-    updateLockScreenMetadata: vi.fn(),
-    clearLockScreenControls: vi.fn(),
-    setPlaybackRate: vi.fn(),
+    play: vi.fn(() => { _playing = true; _buffering = false; emitStatus(); }),
+    pause: vi.fn(() => { _playing = false; emitStatus(); }),
+    stop: vi.fn(),
+    seekTo: vi.fn((seconds: number) => { _position = seconds; emitStatus(); }),
+    setVolume: vi.fn((v: number) => { _volume = v; }),
+    setMediaItems: vi.fn((items: typeof _queue, startIndex = 0) => {
+      _queue = items;
+      _loaded = items.length > 0;
+      _activeIndex = _loaded ? startIndex : null;
+      _position = 0;
+      emitStatus();
+    }),
+    setMediaItem: vi.fn((item: (typeof _queue)[number]) => {
+      _queue = [item];
+      _loaded = true;
+      _activeIndex = 0;
+      _position = 0;
+      emitStatus();
+    }),
+    addMediaItems: vi.fn((items: typeof _queue) => {
+      _queue = [..._queue, ...items];
+      _loaded = _queue.length > 0;
+      emitStatus();
+    }),
+    replaceMediaItem: vi.fn((index: number, item: (typeof _queue)[number]) => {
+      _queue[index] = item;
+      _loaded = true;
+      _position = 0;
+      fire(Event.MediaItemTransition, { item, index });
+      emitStatus();
+    }),
+    skipToNext: vi.fn(() => {
+      if (_activeIndex == null || _activeIndex >= _queue.length - 1) return;
+      transitionTo(_activeIndex + 1);
+    }),
+    skipToPrevious: vi.fn(() => {
+      if (_activeIndex == null || _activeIndex <= 0) return;
+      transitionTo(_activeIndex - 1);
+    }),
+    clear: vi.fn(() => {
+      _loaded = false;
+      _playing = false;
+      _position = 0;
+      _queue = [];
+      _activeIndex = null;
+    }),
+    destroy: vi.fn(),
+    getProgress: vi.fn(() => ({ position: _position, duration: _duration, buffered: _position, cached: 0 })),
+    getPlaybackState: vi.fn(() => (_buffering ? PlaybackState.Buffering : _loaded ? PlaybackState.Ready : PlaybackState.Idle)),
+    isPlaying: vi.fn(() => _playing),
+    getVolume: vi.fn(() => _volume),
+    getActiveMediaItem: vi.fn(() => (_activeIndex == null ? null : _queue[_activeIndex] ?? null)),
+    getActiveMediaItemIndex: vi.fn(() => _activeIndex),
+    getQueue: vi.fn(() => _queue),
+    _reset: resetState,
   };
-  mockPlayers.push(player);
 
-  function fire(event: string, data?: any) {
-    (listeners[event] || []).forEach((cb: Function) => cb(data));
-  }
+  return { mockTrackPlayer, Event, PlaybackState, PlayerCommand, fireTrackPlayerEvent: fire };
+});
 
-  function buildStatus() {
-    return {
-      id: player.id,
-      currentTime: player.currentTime,
-      duration: player.duration,
-      playing: player.playing,
-      paused: player.paused,
-      isLoaded: player.isLoaded,
-      isBuffering: player.isBuffering,
-      loop: player.loop,
-      didJustFinish: false,
-      mute: false,
-      playbackState: player.playing ? 'playing' : 'paused',
-      timeControlStatus: player.playing ? 'playing' : 'paused',
-      reasonForWaitingToPlay: '',
-      playbackRate: 1,
-      shouldCorrectPitch: false,
-    };
-  }
+const { mockTrackPlayer, Event, PlaybackState, PlayerCommand, fireTrackPlayerEvent } = hoisted;
 
-  return player;
-}
+beforeEach(() => {
+  mockTrackPlayer._reset();
+  _resetForTests();
+  _resetPlaybackServiceForTests();
+  vi.clearAllMocks();
+});
 
-vi.mock('expo-audio', () => ({
-  createAudioPlayer: vi.fn(() => makeMockPlayer()),
-  setAudioModeAsync: vi.fn().mockResolvedValue(undefined),
-  setIsAudioActiveAsync: vi.fn().mockResolvedValue(undefined),
+vi.mock('react-native-safe-area-context', () => ({
+  SafeAreaView: ({ children }: { children: unknown }) => children,
+  SafeAreaProvider: ({ children }: { children: unknown }) => children,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 34, left: 0 }),
+}));
+
+vi.mock('@rntp/player', () => ({
+  __esModule: true,
+  default: hoisted.mockTrackPlayer,
+  Event: hoisted.Event,
+  PlaybackState: hoisted.PlaybackState,
+  PlayerCommand: hoisted.PlayerCommand,
 }));
 
 // expo-secure-store uses native modules unavailable in test env
@@ -110,3 +190,5 @@ vi.mock('lucide-react-native', () => ({
   Repeat: 'Repeat',
   Repeat1: 'Repeat1',
 }));
+
+export { mockTrackPlayer, fireTrackPlayerEvent, Event as TrackPlayerEvent };

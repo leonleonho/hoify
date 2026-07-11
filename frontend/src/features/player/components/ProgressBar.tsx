@@ -22,6 +22,7 @@ type ProgressBarProps = {
  */
 export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
   const barWidth = useRef(0);
+  const grantX = useRef(0);
   const durationRef = useRef(duration);
   durationRef.current = duration;
   const onSeekRef = useRef(onSeek);
@@ -34,12 +35,12 @@ export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
     duration > 0 ? Math.max(0, Math.min(1, displayPosition / duration)) : 0;
 
   const posToMs = useCallback(
-    (pageX: number) => {
+    (x: number) => {
       const dur = durationRef.current;
       const w = barWidth.current;
       if (dur <= 0 || w <= 0) return 0;
-      const x = Math.max(0, Math.min(pageX, w));
-      return Math.round((x / w) * dur);
+      const clamped = Math.max(0, Math.min(x, w));
+      return Math.round((clamped / w) * dur);
     },
     [], // reads refs, never stale
   );
@@ -48,14 +49,16 @@ export function ProgressBar({ position, duration, onSeek }: ProgressBarProps) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (evt) => {
-        setDragTarget(posToMs(evt.nativeEvent.locationX));
+        grantX.current = evt.nativeEvent.locationX;
+        setDragTarget(posToMs(grantX.current));
       },
-      onPanResponderMove: (evt) => {
-        setDragTarget(posToMs(evt.nativeEvent.locationX));
+      onPanResponderMove: (_evt, gestureState) => {
+        setDragTarget(posToMs(grantX.current + gestureState.dx));
       },
-      onPanResponderRelease: (evt) => {
-        const ms = posToMs(evt.nativeEvent.locationX);
+      onPanResponderRelease: (_evt, gestureState) => {
+        const ms = posToMs(grantX.current + gestureState.dx);
         setDragTarget(null);
         onSeekRef.current(ms);
       },

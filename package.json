@@ -25,8 +25,5 @@
       "eslint"
     ]
   },
-  "version": "0.0.1",
-  "dependencies": {
-    "expo-audio": "^56.0.12-canary-20260701-9100865"
-  }
+  "version": "0.0.1"
 }

@@ -9,54 +9,7 @@ import {
   type PlayerContextValue,
 } from '../PlayerProvider';
 import { mockTrack1, mockTrack2 } from './utils';
-
-// ── expo-audio mock ──────────────────────────────────────────────────────────
-// Overrides the setup.ts mock so tests can inspect calls.
-
-const { mockPlayer, mockCreateAudioPlayer, mockSetAudioMode } = vi.hoisted(() => {
-  const listeners: Record<string, Function[]> = {};
-  const player: any = {
-    id: 'mock-player',
-    playing: false,
-    muted: false,
-    loop: false,
-    paused: false,
-    isLoaded: true,
-    isBuffering: false,
-    currentTime: 0,
-    duration: 200,
-    volume: 0.8,
-    playbackRate: 1,
-    shouldCorrectPitch: false,
-    isAudioSamplingSupported: false,
-    play: vi.fn(function () { player.playing = true; player.paused = false; }),
-    pause: vi.fn(function () { player.playing = false; player.paused = true; }),
-    replace: vi.fn(),
-    seekTo: vi.fn().mockResolvedValue(undefined),
-    remove: vi.fn(),
-    addListener: vi.fn(function (event: string, cb: Function) {
-      if (!listeners[event]) listeners[event] = [];
-      listeners[event].push(cb);
-      return { remove: () => { listeners[event] = listeners[event].filter((l: Function) => l !== cb); } };
-    }),
-    removeListener: vi.fn(),
-    setAudioSamplingEnabled: vi.fn(),
-    setActiveForLockScreen: vi.fn(),
-    updateLockScreenMetadata: vi.fn(),
-    clearLockScreenControls: vi.fn(),
-    setPlaybackRate: vi.fn(),
-  };
-  return {
-    mockPlayer: player,
-    mockCreateAudioPlayer: vi.fn(() => player),
-    mockSetAudioMode: vi.fn(),
-  };
-});
-
-vi.mock('expo-audio', () => ({
-  createAudioPlayer: mockCreateAudioPlayer,
-  setAudioModeAsync: mockSetAudioMode,
-}));
+import { mockTrackPlayer, fireTrackPlayerEvent, TrackPlayerEvent } from '@/test/setup';
 
 // ── test helpers ─────────────────────────────────────────────────────────────
 
@@ -111,6 +64,20 @@ describe('reducer', () => {
     expect(s.volume).toBe(0.8); // STATUS no longer carries volume
   });
 
+  it('STATUS applies seekOffset for transcoded streams', () => {
+    const s = reducer(initialState(), {
+      type: 'STATUS',
+      status: {
+        isPlaying: true,
+        isBuffering: false,
+        positionMillis: 1500,
+        durationMillis: 200000,
+      },
+      seekOffset: 60000,
+    });
+    expect(s.position).toBe(61500);
+  });
+
   it('STATUS marks isBuffering as isLoading', () => {
     const s = reducer(initialState(), {
       type: 'STATUS',
@@ -125,15 +92,21 @@ describe('reducer', () => {
     expect(s.isLoading).toBe(true);
   });
 
-  it('LOAD_TRACK sets track, resets position, clears playing', () => {
+  it('LOAD_TRACK sets track, resets position, preserves isPlaying by default', () => {
     const base = { ...initialState(), isPlaying: true, position: 50000, duration: 200000 };
     const s = reducer(base, { type: 'LOAD_TRACK', track: mockTrack1 });
     expect(s.currentTrack?.id).toBe('track-1');
     expect(s.position).toBe(0);
     // track.duration from GraphQL is seconds; converted to ms
     expect(s.duration).toBe((mockTrack1.duration ?? 0) * 1000);
-    expect(s.isPlaying).toBe(false);
+    expect(s.isPlaying).toBe(true);
     expect(s.isLoading).toBe(false);
+  });
+
+  it('LOAD_TRACK can explicitly clear isPlaying', () => {
+    const base = { ...initialState(), isPlaying: true };
+    const s = reducer(base, { type: 'LOAD_TRACK', track: mockTrack1, isPlaying: false });
+    expect(s.isPlaying).toBe(false);
   });
 
   it('LOAD_TRACK stores playlist when provided', () => {
@@ -172,17 +145,18 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.load(mockTrack1);
     });
-    expect(mockPlayer.replace).toHaveBeenCalled();
-    expect(mockPlayer.play).not.toHaveBeenCalled();
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalled();
+    expect(mockTrackPlayer.play).not.toHaveBeenCalled();
   });
 
-  it('play loads sound', async () => {
+  it('play loads sound and sets isPlaying', async () => {
     const cap = renderProvider();
     await act(async () => {
       await cap.current.play(mockTrack1);
     });
-    expect(mockSetAudioMode).toHaveBeenCalled();
-    expect(mockPlayer.replace).toHaveBeenCalled();
+    expect(mockTrackPlayer.setupPlayer).toHaveBeenCalled();
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalled();
+    expect(cap.current.isPlaying).toBe(true);
   });
 
   it('pause pauses audio', async () => {
@@ -191,7 +165,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.pause();
     });
-    expect(mockPlayer.pause).toHaveBeenCalled();
+    expect(mockTrackPlayer.pause).toHaveBeenCalled();
   });
 
   it('resume resumes audio', async () => {
@@ -200,7 +174,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.resume();
     });
-    expect(mockPlayer.play).toHaveBeenCalled();
+    expect(mockTrackPlayer.play).toHaveBeenCalled();
   });
 
   it('togglePlayPause resumes when paused', async () => {
@@ -209,7 +183,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.togglePlayPause();
     });
-    expect(mockPlayer.play).toHaveBeenCalled();
+    expect(mockTrackPlayer.play).toHaveBeenCalled();
   });
 
   it('playPlaylist fetches sound at given index', async () => {
@@ -217,29 +191,30 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 1);
     });
-    expect(mockPlayer.replace).toHaveBeenCalled();
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalled();
   });
 
   it('playPlaylist with empty playlist does nothing', async () => {
     const cap = renderProvider();
-    const before = mockPlayer.replace.mock.calls.length;
+    const before = mockTrackPlayer.setMediaItems.mock.calls.length;
     await act(async () => {
       await cap.current.playPlaylist([]);
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(before);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(before);
   });
 
-  it('next advances playlist', async () => {
+  it('next advances playlist via native queue skip', async () => {
     const cap = renderProvider();
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(1);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await cap.current.next();
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(2);
+    expect(mockTrackPlayer.skipToNext).toHaveBeenCalledTimes(1);
+    expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 
   it('previous wraps to last track at index 0', async () => {
@@ -247,12 +222,13 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(1);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await cap.current.previous();
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(2);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(2);
+    expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 
   it('seek calls seekTo', async () => {
@@ -261,7 +237,227 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.seek(30000);
     });
-    expect(mockPlayer.seekTo).toHaveBeenCalledWith(30);
+    expect(mockTrackPlayer.seekTo).toHaveBeenCalledWith(30);
+  });
+
+  it('setQuality keeps position when switching to transcoded stream', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.load(mockTrack1);
+      await cap.current.seek(60000);
+      await cap.current.setQuality('high');
+    });
+    expect(cap.current.position).toBe(60000);
+  });
+
+  it('transcoded seek reloads stream with seek param instead of native seekTo', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.load(mockTrack1);
+    });
+    await act(async () => {
+      await cap.current.setQuality('high');
+    });
+    await act(async () => {
+      await cap.current.seek(45000);
+    });
+    expect(mockTrackPlayer.seekTo).not.toHaveBeenCalled();
+    const replaced = mockTrackPlayer.replaceMediaItem.mock.calls.at(-1)?.[1] as { url?: string } | undefined;
+    expect(replaced?.url).toContain('seek=45');
+    expect(cap.current.position).toBe(45000);
+  });
+
+  it('transcoded reload on same track does not reset position to zero', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.load(mockTrack1);
+      await cap.current.setQuality('medium');
+      await cap.current.seek(80000);
+    });
+    expect(cap.current.position).toBe(80000);
+  });
+
+  it('status progress updates advance the seek bar position', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.play(mockTrack1);
+    });
+    act(() => {
+      fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+        mediaId: 'track-1',
+        position: 12,
+        duration: 200,
+      });
+    });
+    expect(cap.current.position).toBe(12000);
+  });
+
+  it('playPlaylist loads entire playlist into native queue', async () => {
+    const playlist = Array.from({ length: 10 }, (_, i) => ({
+      ...mockTrack1,
+      id: `track-${i}`,
+      title: `Track ${i}`,
+    }));
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist(playlist, 5);
+    });
+    const [queueItems] = mockTrackPlayer.setMediaItems.mock.calls.at(-1) ?? [];
+    expect(queueItems!.length).toBe(10);
+    expect(queueItems![0].extras?.playlistIndex).toBe(0);
+    expect(queueItems!.at(-1)?.extras?.playlistIndex).toBe(9);
+  });
+
+  it('syncs track index from native player on MediaItemTransition', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+    });
+    expect(cap.current.currentTrack?.id).toBe('track-1');
+
+    act(() => {
+      fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+        item: { extras: { playlistIndex: 1 }, mediaId: 'track-2' },
+        index: 1,
+      });
+    });
+    expect(cap.current.currentTrack?.id).toBe('track-2');
+  });
+
+  describe('track transition / seek races', () => {
+    it('resets position after manual transcoded seek when skipping next', async () => {
+      const cap = renderProvider();
+      await act(async () => {
+        await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+      });
+      await act(async () => {
+        await cap.current.setQuality('high');
+      });
+      await act(async () => {
+        await cap.current.seek(60000);
+      });
+      expect(cap.current.position).toBe(60000);
+
+      await act(async () => {
+        await cap.current.next();
+      });
+      expect(cap.current.currentTrack?.id).toBe('track-2');
+      expect(cap.current.position).toBe(0);
+    });
+
+    it('resets position after manual original seek when skipping next', async () => {
+      const cap = renderProvider();
+      await act(async () => {
+        await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+        await cap.current.seek(45000);
+      });
+      expect(cap.current.position).toBe(45000);
+
+      await act(async () => {
+        await cap.current.next();
+      });
+      expect(cap.current.currentTrack?.id).toBe('track-2');
+      expect(cap.current.position).toBe(0);
+    });
+
+    it('resets position after manual seek when skipping previous', async () => {
+      const cap = renderProvider();
+      await act(async () => {
+        await cap.current.playPlaylist([mockTrack1, mockTrack2], 1);
+        await cap.current.seek(2000);
+      });
+      expect(cap.current.position).toBe(2000);
+
+      await act(async () => {
+        await cap.current.previous();
+      });
+      expect(cap.current.currentTrack?.id).toBe('track-1');
+      expect(cap.current.position).toBe(0);
+    });
+
+    it('ignores stale progress from previous track after transition', async () => {
+      const cap = renderProvider();
+      await act(async () => {
+        await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+        await cap.current.seek(60000);
+      });
+      expect(cap.current.position).toBe(60000);
+
+      act(() => {
+        fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+          item: { mediaId: 'track-2', extras: { playlistIndex: 1 } },
+          index: 1,
+        });
+      });
+      expect(cap.current.currentTrack?.id).toBe('track-2');
+      expect(cap.current.position).toBe(0);
+
+      act(() => {
+        fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+          mediaId: 'track-1',
+          position: 90,
+          duration: 200,
+        });
+      });
+      expect(cap.current.position).toBe(0);
+    });
+
+    it('ignores stale high position on new track after seek then next', async () => {
+      const cap = renderProvider();
+      await act(async () => {
+        await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+        await cap.current.setQuality('high');
+        await cap.current.seek(60000);
+      });
+      await act(async () => {
+        await cap.current.next();
+      });
+      expect(cap.current.position).toBe(0);
+
+      act(() => {
+        fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+          mediaId: 'track-2',
+          position: 60,
+          duration: 200,
+        });
+      });
+      expect(cap.current.position).toBe(0);
+    });
+
+    it('ignores stale IsPlayingChanged progress after seek then next', async () => {
+      const cap = renderProvider();
+      await act(async () => {
+        await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+        await cap.current.seek(80000);
+      });
+      await act(async () => {
+        await cap.current.next();
+      });
+      expect(cap.current.position).toBe(0);
+
+      act(() => {
+        fireTrackPlayerEvent(TrackPlayerEvent.IsPlayingChanged, { playing: true });
+      });
+      expect(cap.current.position).toBe(0);
+    });
+
+    it('native skip uses skipToNext without seekTo after manual seek', async () => {
+      const cap = renderProvider();
+      await act(async () => {
+        await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+        await cap.current.seek(30000);
+      });
+      mockTrackPlayer.seekTo.mockClear();
+      mockTrackPlayer.skipToNext.mockClear();
+
+      await act(async () => {
+        await cap.current.next();
+      });
+
+      expect(mockTrackPlayer.skipToNext).toHaveBeenCalledTimes(1);
+      expect(mockTrackPlayer.seekTo).not.toHaveBeenCalled();
+      expect(cap.current.position).toBe(0);
+    });
   });
 
   it('setVolume clamps above 1', async () => {
@@ -270,7 +466,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.setVolume(1.5);
     });
-    expect(mockPlayer.volume).toBe(1);
+    expect(mockTrackPlayer.setVolume).toHaveBeenCalledWith(1);
   });
 
   it('setVolume clamps below 0', async () => {
@@ -279,7 +475,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.setVolume(-0.5);
     });
-    expect(mockPlayer.volume).toBe(0);
+    expect(mockTrackPlayer.setVolume).toHaveBeenCalledWith(0);
   });
 
   it('openFullPlayer sets isFullPlayerOpen to true', () => {
@@ -347,9 +543,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    const callsAfterPlay = mockPlayer.replace.mock.calls.length;
 
-    // Switch to repeat-one
     act(() => cap.current.toggleRepeat());
     act(() => cap.current.toggleRepeat()); // off → all → one
     expect(cap.current.repeatMode).toBe('one');
@@ -357,8 +551,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.next();
     });
-    // Should have called loadAsync again (reloads same track)
-    expect(mockPlayer.replace.mock.calls.length).toBeGreaterThan(callsAfterPlay);
+    expect(mockTrackPlayer.replaceMediaItem).toHaveBeenCalled();
   });
 
   it('repeat-off next at end stops playback', async () => {
@@ -366,7 +559,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 1);
     });
-    expect(cap.current.isPlaying).toBe(false); // LOAD_TRACK sets isPlaying false
+    expect(cap.current.isPlaying).toBe(true);
 
     // next at last track with repeat off should stop
     await act(async () => {
@@ -388,6 +581,6 @@ describe('PlayerProvider', () => {
       await cap.current.previous();
     });
     // With repeat-one, previous should call seekTo(0)
-    expect(mockPlayer.seekTo).toHaveBeenCalledWith(0);
+    expect(mockTrackPlayer.seekTo).toHaveBeenCalledWith(0);
   });
 });
