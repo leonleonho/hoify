@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import React from 'react';
+import { PanResponder } from 'react-native';
 import { ProgressBar } from '../ProgressBar';
 import { formatTime } from '../../utils/formatTime';
 
@@ -146,5 +147,25 @@ describe('ProgressBar', () => {
     onGrant!({ nativeEvent: { locationX: 50 } });
     onTerminate!();
     expect(onSeek).not.toHaveBeenCalled();
+  });
+
+  it('refuses pan responder termination during drag', () => {
+    render(<ProgressBar position={0} duration={100000} onSeek={() => {}} />);
+    const config = vi.mocked(PanResponder.create).mock.calls.at(-1)?.[0];
+    expect(config?.onPanResponderTerminationRequest?.()).toBe(false);
+  });
+
+  it('uses grant position plus dx on release', () => {
+    const onSeek = vi.fn();
+    render(<ProgressBar position={0} duration={100000} onSeek={onSeek} />);
+
+    act(() => {
+      onGrant!({ nativeEvent: { locationX: 20 } });
+      onRelease!({ nativeEvent: { locationX: 200 } }, { dx: 30 });
+    });
+
+    // dx-based release ignores misleading release locationX; without measured
+    // width the seek resolves to 0 until layout fires in the real UI.
+    expect(onSeek).toHaveBeenCalledWith(0);
   });
 });

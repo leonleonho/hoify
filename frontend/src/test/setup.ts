@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 import { _resetForTests } from '@/features/player/utils/AudioManager';
+import { _resetPlaybackServiceForTests } from '@/features/player/services/PlaybackService';
 
 // expo-modules-core reads __DEV__ at import time
 (globalThis as any).__DEV__ = true;
 
-const { mockTrackPlayer, Event, PlaybackState, PlayerCommand } = vi.hoisted(() => {
+const hoisted = vi.hoisted(() => {
   let _playing = false;
   let _volume = 0.8;
   let _position = 0;
@@ -142,12 +143,15 @@ const { mockTrackPlayer, Event, PlaybackState, PlayerCommand } = vi.hoisted(() =
     _reset: resetState,
   };
 
-  return { mockTrackPlayer, Event, PlaybackState, PlayerCommand };
+  return { mockTrackPlayer, Event, PlaybackState, PlayerCommand, fireTrackPlayerEvent: fire };
 });
+
+const { mockTrackPlayer, Event, PlaybackState, PlayerCommand, fireTrackPlayerEvent } = hoisted;
 
 beforeEach(() => {
   mockTrackPlayer._reset();
   _resetForTests();
+  _resetPlaybackServiceForTests();
   vi.clearAllMocks();
 });
 
@@ -159,10 +163,10 @@ vi.mock('react-native-safe-area-context', () => ({
 
 vi.mock('@rntp/player', () => ({
   __esModule: true,
-  default: mockTrackPlayer,
-  Event,
-  PlaybackState,
-  PlayerCommand,
+  default: hoisted.mockTrackPlayer,
+  Event: hoisted.Event,
+  PlaybackState: hoisted.PlaybackState,
+  PlayerCommand: hoisted.PlayerCommand,
 }));
 
 // expo-secure-store uses native modules unavailable in test env
@@ -182,4 +186,4 @@ vi.mock('lucide-react-native', () => ({
   Repeat1: 'Repeat1',
 }));
 
-export { mockTrackPlayer };
+export { mockTrackPlayer, fireTrackPlayerEvent, Event as TrackPlayerEvent };

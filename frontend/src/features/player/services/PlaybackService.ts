@@ -3,6 +3,11 @@ import { getRemoteCallbacks } from './registerRemoteCallbacks';
 
 let _foregroundListenersRegistered = false;
 
+/** @internal Test-only reset of module singleton state. */
+export function _resetPlaybackServiceForTests(): void {
+  _foregroundListenersRegistered = false;
+}
+
 function invoke(cb?: () => void | Promise<void>): void {
   cb?.();
 }

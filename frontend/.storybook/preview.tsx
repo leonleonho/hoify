@@ -1,5 +1,6 @@
 import { MockedProvider } from '@apollo/client/testing/react';
 import type { Preview } from '@storybook/react-vite';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const preview: Preview = {
   parameters: {
@@ -20,9 +21,11 @@ const preview: Preview = {
 
   decorators: [
     (Story, { parameters }) => (
-      <MockedProvider mocks={parameters.apolloMocks ?? []}>
-        <Story />
-      </MockedProvider>
+      <SafeAreaProvider>
+        <MockedProvider mocks={parameters.apolloMocks ?? []}>
+          <Story />
+        </MockedProvider>
+      </SafeAreaProvider>
     ),
   ],
 };

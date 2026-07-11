@@ -10,10 +10,16 @@ import { playwright } from '@vitest/browser-playwright';
 const dirname =
   typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
+const codegenNativeComponent = path.resolve(
+  dirname,
+  '.storybook/mocks/codegenNativeComponent.ts',
+);
+
 // Alias shared between storybook & unit test projects
 const rnAliases = {
   '@': path.resolve(dirname, 'src'),
   'expo-router': path.resolve(dirname, '.storybook/mocks/expo-router.ts'),
+  'react-native/Libraries/Utilities/codegenNativeComponent': codegenNativeComponent,
   'react-native': 'react-native-web',
   'react-native/Libraries/Animated/src/animations/SpringAnimation':
     'react-native-web/dist/cjs/exports/Animated/SpringAnimation',
@@ -31,6 +37,9 @@ export default defineConfig({
     projects: [
       {
         extends: true,
+        resolve: {
+          alias: rnAliases,
+        },
         plugins: [
           // The plugin will run tests for the stories defined in your Storybook config
           // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest

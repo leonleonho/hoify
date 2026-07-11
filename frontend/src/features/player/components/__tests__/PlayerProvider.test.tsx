@@ -9,7 +9,7 @@ import {
   type PlayerContextValue,
 } from '../PlayerProvider';
 import { mockTrack1, mockTrack2 } from './utils';
-import { mockTrackPlayer } from '@/test/setup';
+import { mockTrackPlayer, fireTrackPlayerEvent, TrackPlayerEvent } from '@/test/setup';
 
 // ── test helpers ─────────────────────────────────────────────────────────────
 
@@ -62,6 +62,20 @@ describe('reducer', () => {
     // STATUS no longer sets duration — LOAD_TRACK sets it from track.duration
     expect(s.duration).toBe(0);
     expect(s.volume).toBe(0.8); // STATUS no longer carries volume
+  });
+
+  it('STATUS applies seekOffset for transcoded streams', () => {
+    const s = reducer(initialState(), {
+      type: 'STATUS',
+      status: {
+        isPlaying: true,
+        isBuffering: false,
+        positionMillis: 1500,
+        durationMillis: 200000,
+      },
+      seekOffset: 60000,
+    });
+    expect(s.position).toBe(61500);
   });
 
   it('STATUS marks isBuffering as isLoading', () => {
@@ -227,6 +241,63 @@ describe('PlayerProvider', () => {
       await cap.current.setQuality('high');
     });
     expect(cap.current.position).toBe(60000);
+  });
+
+  it('transcoded seek reloads stream with seek param instead of native seekTo', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.load(mockTrack1);
+    });
+    await act(async () => {
+      await cap.current.setQuality('high');
+    });
+    await act(async () => {
+      await cap.current.seek(45000);
+    });
+    expect(mockTrackPlayer.seekTo).not.toHaveBeenCalled();
+    const replaced = mockTrackPlayer.replaceMediaItem.mock.calls.at(-1)?.[1];
+    expect(replaced?.url).toContain('seek=45');
+    expect(cap.current.position).toBe(45000);
+  });
+
+  it('transcoded reload on same track does not reset position to zero', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.load(mockTrack1);
+      await cap.current.setQuality('medium');
+      await cap.current.seek(80000);
+    });
+    expect(cap.current.position).toBe(80000);
+  });
+
+  it('status progress updates advance the seek bar position', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.play(mockTrack1);
+    });
+    act(() => {
+      fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+        position: 12,
+        duration: 200,
+      });
+    });
+    expect(cap.current.position).toBe(12000);
+  });
+
+  it('playPlaylist loads sliding window queue for long playlists', async () => {
+    const playlist = Array.from({ length: 10 }, (_, i) => ({
+      ...mockTrack1,
+      id: `track-${i}`,
+      title: `Track ${i}`,
+    }));
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist(playlist, 5);
+    });
+    const [windowItems] = mockTrackPlayer.setMediaItems.mock.calls.at(-1) ?? [];
+    expect(windowItems).toHaveLength(6);
+    expect(windowItems[0].extras?.playlistIndex).toBe(4);
+    expect(windowItems.at(-1)?.extras?.playlistIndex).toBe(9);
   });
 
   it('setVolume clamps above 1', async () => {
