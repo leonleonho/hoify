@@ -81,9 +81,19 @@ export function reducer(state: PlayerState, action: any): PlayerState {
       const offset = action.seekOffset ?? 0;
       return { ...state, isPlaying: s.isPlaying, isLoading: s.isBuffering, position: s.positionMillis + offset };
     }
-    case 'LOAD_TRACK':
+    case 'LOAD_TRACK': {
       const d = action.track?.duration ?? 0;
-      return { ...state, currentTrack: action.track, playlist: action.playlist ?? state.playlist, isPlaying: false, isLoading: false, position: 0, duration: d * 1000 };
+      const isPlaying = action.isPlaying !== undefined ? action.isPlaying : state.isPlaying;
+      return {
+        ...state,
+        currentTrack: action.track,
+        playlist: action.playlist ?? state.playlist,
+        isPlaying,
+        isLoading: false,
+        position: 0,
+        duration: d * 1000,
+      };
+    }
     default:
       return state;
   }
@@ -231,6 +241,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           s.volume,
           trackMetadata(track),
           idx.current,
+          track.id,
         ).catch(() => {
           dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
         });
@@ -364,13 +375,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       s.volume,
       trackMetadata(track),
       idx.current,
+      track.id,
     );
   }, []);
 
   // ---- actions (all read state via stateRef, write via dispatch) -----------
 
   const load = useCallback(async (track: Track) => {
-    dispatch({ type: 'LOAD_TRACK', track, playlist: [track] });
+    dispatch({ type: 'LOAD_TRACK', track, playlist: [track], isPlaying: false });
     idx.current = 0;
     try { await syncQueue([track], 0, false); } catch {}
   }, [syncQueue]);

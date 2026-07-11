@@ -26,7 +26,7 @@ export function FullPlayerOverlay() {
     () => Dimensions.get('window').height || FALLBACK_HEIGHT,
   );
 
-  const panelHeight = Math.max(containerHeight, FALLBACK_HEIGHT) * 0.92;
+  const panelHeight = containerHeight * 0.92;
   const dismissThreshold = panelHeight * DISMISS_THRESHOLD_RATIO;
 
   const slideAnim = useRef(new Animated.Value(0)).current;

@@ -92,15 +92,21 @@ describe('reducer', () => {
     expect(s.isLoading).toBe(true);
   });
 
-  it('LOAD_TRACK sets track, resets position, clears playing', () => {
+  it('LOAD_TRACK sets track, resets position, preserves isPlaying by default', () => {
     const base = { ...initialState(), isPlaying: true, position: 50000, duration: 200000 };
     const s = reducer(base, { type: 'LOAD_TRACK', track: mockTrack1 });
     expect(s.currentTrack?.id).toBe('track-1');
     expect(s.position).toBe(0);
     // track.duration from GraphQL is seconds; converted to ms
     expect(s.duration).toBe((mockTrack1.duration ?? 0) * 1000);
-    expect(s.isPlaying).toBe(false);
+    expect(s.isPlaying).toBe(true);
     expect(s.isLoading).toBe(false);
+  });
+
+  it('LOAD_TRACK can explicitly clear isPlaying', () => {
+    const base = { ...initialState(), isPlaying: true };
+    const s = reducer(base, { type: 'LOAD_TRACK', track: mockTrack1, isPlaying: false });
+    expect(s.isPlaying).toBe(false);
   });
 
   it('LOAD_TRACK stores playlist when provided', () => {
@@ -143,13 +149,14 @@ describe('PlayerProvider', () => {
     expect(mockTrackPlayer.play).not.toHaveBeenCalled();
   });
 
-  it('play loads sound', async () => {
+  it('play loads sound and sets isPlaying', async () => {
     const cap = renderProvider();
     await act(async () => {
       await cap.current.play(mockTrack1);
     });
     expect(mockTrackPlayer.setupPlayer).toHaveBeenCalled();
     expect(mockTrackPlayer.setMediaItems).toHaveBeenCalled();
+    expect(cap.current.isPlaying).toBe(true);
   });
 
   it('pause pauses audio', async () => {
@@ -552,7 +559,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 1);
     });
-    expect(cap.current.isPlaying).toBe(false); // LOAD_TRACK sets isPlaying false
+    expect(cap.current.isPlaying).toBe(true);
 
     // next at last track with repeat off should stop
     await act(async () => {

@@ -320,11 +320,14 @@ export async function reloadActiveItem(
   volume: number,
   meta?: LockScreenMetadata,
   playlistIndex?: number,
+  mediaId?: string,
 ): Promise<void> {
   await setupPlayer();
   const activeIndex = TrackPlayer.getActiveMediaItemIndex();
+  const activeItem = TrackPlayer.getActiveMediaItem();
+  const resolvedMediaId = mediaId ?? activeItem?.mediaId ?? uri;
   const item: QueueTrack = {
-    mediaId: uri,
+    mediaId: resolvedMediaId,
     url: uri,
     playlistIndex: playlistIndex ?? getActivePlaylistIndex() ?? 0,
     meta,
@@ -337,6 +340,7 @@ export async function reloadActiveItem(
     TrackPlayer.setMediaItems([toMediaItem(item)], 0);
   }
   _hasLoaded = true;
+  _activeMediaId = resolvedMediaId;
   if (shouldPlay) {
     TrackPlayer.play();
   }

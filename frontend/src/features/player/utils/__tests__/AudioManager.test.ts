@@ -195,14 +195,35 @@ describe('AudioManager', () => {
     expect(getActivePlaylistIndex()).toBe(2);
   });
 
-  it('reloadActiveItem replaces the active queue item', async () => {
+  it('reloadActiveItem replaces the active queue item and keeps track mediaId', async () => {
     await setQueue(tracks(1), 0, false, 0.8);
-    await reloadActiveItem('http://example.com/reloaded', true, 0.5, undefined, 0);
+    await reloadActiveItem('http://example.com/reloaded', true, 0.5, undefined, 0, 't0');
     expect(mockTrackPlayer.replaceMediaItem).toHaveBeenCalledWith(
       0,
-      expect.objectContaining({ url: 'http://example.com/reloaded' }),
+      expect.objectContaining({
+        url: 'http://example.com/reloaded',
+        mediaId: 't0',
+      }),
     );
     expect(mockTrackPlayer.play).toHaveBeenCalled();
+  });
+
+  it('reloadActiveItem progress updates use the preserved mediaId', async () => {
+    const onStatus = vi.fn();
+    setOnStatus(onStatus);
+    await setQueue(tracks(1), 0, false, 0.8);
+    await reloadActiveItem('http://example.com/reloaded', false, 0.8, undefined, 0, 't0');
+    onStatus.mockClear();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+      mediaId: 't0',
+      position: 12,
+      duration: 200,
+    });
+
+    expect(onStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ positionMillis: 12000 }),
+    );
   });
 
   it('saveSnapshot and popSnapshot round-trip player state', () => {

@@ -58,6 +58,7 @@
     "postinstall": "node scripts/patch-gradle-foojay.mjs",
     "dev": "expo start",
     "android": "expo run:android",
+    "android:release": "expo run:android --variant release",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "codegen": "graphql-codegen",

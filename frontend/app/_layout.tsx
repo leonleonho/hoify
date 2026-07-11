@@ -4,7 +4,7 @@ import { ApolloProvider } from '@apollo/client/react';
 import { Redirect, Slot, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { client } from '@/apollo/client';
 import { MeDocument } from '@/hooks/generated';
 import { colors } from '@/constants/theme';
@@ -68,27 +68,29 @@ export default function RootLayout() {
   }
 
   return (
-    <ApolloProvider client={client}>
-      <StatusBar style="auto" />
-      <AuthGate>
-        <PlayerProvider>
-          <View style={styles.appRoot}>
-            <SafeAreaView style={styles.shell} edges={['top', 'left', 'right']}>
-              <View style={styles.content}>
-                <Slot />
+    <SafeAreaProvider>
+      <ApolloProvider client={client}>
+        <StatusBar style="auto" />
+        <AuthGate>
+          <PlayerProvider>
+            <View style={styles.appRoot}>
+              <SafeAreaView style={styles.shell} edges={['top', 'left', 'right']}>
+                <View style={styles.content}>
+                  <Slot />
+                </View>
+              </SafeAreaView>
+              {/* Float above native stack screens — otherwise Android eats touches */}
+              <View style={styles.playerChrome} pointerEvents="box-none">
+                <View style={styles.playerChromeSafe}>
+                  <MiniPlayer />
+                </View>
+                <FullPlayerOverlay />
               </View>
-            </SafeAreaView>
-            {/* Float above native stack screens — otherwise Android eats touches */}
-            <View style={styles.playerChrome} pointerEvents="box-none">
-              <View style={styles.playerChromeSafe}>
-                <MiniPlayer />
-              </View>
-              <FullPlayerOverlay />
             </View>
-          </View>
-        </PlayerProvider>
-      </AuthGate>
-    </ApolloProvider>
+          </PlayerProvider>
+        </AuthGate>
+      </ApolloProvider>
+    </SafeAreaProvider>
   );
 }
 
