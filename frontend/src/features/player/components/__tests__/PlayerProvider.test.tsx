@@ -182,7 +182,7 @@ describe('PlayerProvider', () => {
     expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(before);
   });
 
-  it('next advances playlist', async () => {
+  it('next advances playlist via native queue skip', async () => {
     const cap = renderProvider();
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
@@ -192,7 +192,8 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.next();
     });
-    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(2);
+    expect(mockTrackPlayer.skipToNext).toHaveBeenCalledTimes(1);
+    expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 
   it('previous wraps to last track at index 0', async () => {
@@ -206,6 +207,7 @@ describe('PlayerProvider', () => {
       await cap.current.previous();
     });
     expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(2);
+    expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 
   it('seek calls seekTo', async () => {
@@ -300,9 +302,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    const callsAfterPlay = mockTrackPlayer.setMediaItems.mock.calls.length;
 
-    // Switch to repeat-one
     act(() => cap.current.toggleRepeat());
     act(() => cap.current.toggleRepeat()); // off → all → one
     expect(cap.current.repeatMode).toBe('one');
@@ -310,8 +310,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.next();
     });
-    // Should have called setMediaItems again (reloads same track)
-    expect(mockTrackPlayer.setMediaItems.mock.calls.length).toBeGreaterThan(callsAfterPlay);
+    expect(mockTrackPlayer.replaceMediaItem).toHaveBeenCalled();
   });
 
   it('repeat-off next at end stops playback', async () => {

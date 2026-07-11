@@ -52,11 +52,14 @@ export function MiniPlayer() {
         onPress={openFullPlayer}
         style={styles.trackPressable}
         accessibilityLabel={`Now playing: ${currentTrack.title}. Tap to open full player.`}
+        accessibilityRole="button"
       >
-        <TrackInfo track={currentTrack} variant="mini" />
-        {quality !== 'original' && (
-          <Text style={styles.qualityBadge}>{QUALITY_LABELS[quality]}</Text>
-        )}
+        <View pointerEvents="none" style={styles.trackPressableInner}>
+          <TrackInfo track={currentTrack} variant="mini" />
+          {quality !== 'original' && (
+            <Text style={styles.qualityBadge}>{QUALITY_LABELS[quality]}</Text>
+          )}
+        </View>
       </Pressable>
       <Pressable
         onPress={toggleLike}
@@ -120,6 +123,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   trackPressable: {
+    flex: 1,
+  },
+  trackPressableInner: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
