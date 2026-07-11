@@ -11,10 +11,20 @@ import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
 import { getApiBase, artUrl } from '@/constants/api';
 import { useMediaSession } from '../hooks/useMediaSession';
+import { setRemoteCallbacks } from '../services/registerRemoteCallbacks';
 import * as AudioManager from '../utils/AudioManager';
 import type { PlaybackStatus } from '../utils/AudioManager';
 
 const SEEK_THRESHOLD_MS = 3000;
+
+function trackMetadata(track: Track): AudioManager.LockScreenMetadata {
+  return {
+    title: track.title,
+    artist: track.trackArtist ?? track.album.artist.name,
+    albumTitle: track.album.title,
+    artworkUrl: track.album.coverUrl ? artUrl(track.album.coverUrl) : undefined,
+  };
+}
 
 function getStreamBase(): string {
   return `${getApiBase()}/stream`;
@@ -162,6 +172,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           buildStreamUrl(track.id, s.quality),
           true,
           s.volume,
+          trackMetadata(track),
         ).catch(() => {
           dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
         });
@@ -191,6 +202,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         buildStreamUrl(pl[nextIdx].id, s.quality),
         true,
         s.volume,
+        trackMetadata(pl[nextIdx]),
       ).catch(() => {
         dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
       });
@@ -232,7 +244,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       seekOffset.current = 0;
     }
     const url = buildStreamUrl(track.id, q, seek);
-    await AudioManager.load(url, autoPlay, stateRef.current.volume);
+    await AudioManager.load(url, autoPlay, stateRef.current.volume, trackMetadata(track));
   }, []);
 
   // ---- actions (all read state via stateRef, write via dispatch) -----------
@@ -395,20 +407,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     seekto: seek,
   });
 
-  // Sync native lock screen controls (Android/iOS) with current track
+  // Wire native lock-screen / headset remote controls via module-level callbacks
   useEffect(() => {
-    if (s.currentTrack) {
-      const track = s.currentTrack;
-      AudioManager.setLockScreenMetadata({
-        title: track.title,
-        artist: track.trackArtist ?? track.album.artist.name,
-        albumTitle: track.album.title,
-        artworkUrl: track.album.coverUrl ? artUrl(track.album.coverUrl) : undefined,
-      });
-    } else {
-      AudioManager.clearLockScreenControls();
-    }
-  }, [s.currentTrack]);
+    setRemoteCallbacks({ play: resume, pause, next, previous, seek });
+    return () => setRemoteCallbacks({});
+  }, [resume, pause, next, previous, seek]);
 
   const value: PlayerContextValue = {
     ...s,

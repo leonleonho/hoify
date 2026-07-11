@@ -1,13 +1,15 @@
 {
   "name": "frontend",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "./index.ts",
   "type": "module",
   "dependencies": {
     "@apollo/client": "^4.2.3",
+    "@expo/metro-runtime": "~6.1.2",
+    "@rntp/player": "^5.6.0",
     "babel-preset-expo": "~56.0.0",
     "expo": "~56.0.11",
-    "expo-audio": "^56.0.12",
+    "expo-build-properties": "~1.0.10",
     "expo-constants": "~56.0.18",
     "expo-linking": "~56.0.14",
     "expo-router": "~56.2.10",
@@ -19,7 +21,8 @@
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-svg": "^15.15.5",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "shaka-player": "^4.12.0"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^5.2.1",
@@ -52,6 +55,7 @@
     "vitest": "^4.1.8"
   },
   "scripts": {
+    "postinstall": "node scripts/patch-gradle-foojay.mjs",
     "dev": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",

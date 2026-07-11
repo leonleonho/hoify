@@ -9,54 +9,7 @@ import {
   type PlayerContextValue,
 } from '../PlayerProvider';
 import { mockTrack1, mockTrack2 } from './utils';
-
-// ── expo-audio mock ──────────────────────────────────────────────────────────
-// Overrides the setup.ts mock so tests can inspect calls.
-
-const { mockPlayer, mockCreateAudioPlayer, mockSetAudioMode } = vi.hoisted(() => {
-  const listeners: Record<string, Function[]> = {};
-  const player: any = {
-    id: 'mock-player',
-    playing: false,
-    muted: false,
-    loop: false,
-    paused: false,
-    isLoaded: true,
-    isBuffering: false,
-    currentTime: 0,
-    duration: 200,
-    volume: 0.8,
-    playbackRate: 1,
-    shouldCorrectPitch: false,
-    isAudioSamplingSupported: false,
-    play: vi.fn(function () { player.playing = true; player.paused = false; }),
-    pause: vi.fn(function () { player.playing = false; player.paused = true; }),
-    replace: vi.fn(),
-    seekTo: vi.fn().mockResolvedValue(undefined),
-    remove: vi.fn(),
-    addListener: vi.fn(function (event: string, cb: Function) {
-      if (!listeners[event]) listeners[event] = [];
-      listeners[event].push(cb);
-      return { remove: () => { listeners[event] = listeners[event].filter((l: Function) => l !== cb); } };
-    }),
-    removeListener: vi.fn(),
-    setAudioSamplingEnabled: vi.fn(),
-    setActiveForLockScreen: vi.fn(),
-    updateLockScreenMetadata: vi.fn(),
-    clearLockScreenControls: vi.fn(),
-    setPlaybackRate: vi.fn(),
-  };
-  return {
-    mockPlayer: player,
-    mockCreateAudioPlayer: vi.fn(() => player),
-    mockSetAudioMode: vi.fn(),
-  };
-});
-
-vi.mock('expo-audio', () => ({
-  createAudioPlayer: mockCreateAudioPlayer,
-  setAudioModeAsync: mockSetAudioMode,
-}));
+import { mockTrackPlayer } from '@/test/setup';
 
 // ── test helpers ─────────────────────────────────────────────────────────────
 
@@ -172,8 +125,8 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.load(mockTrack1);
     });
-    expect(mockPlayer.replace).toHaveBeenCalled();
-    expect(mockPlayer.play).not.toHaveBeenCalled();
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalled();
+    expect(mockTrackPlayer.play).not.toHaveBeenCalled();
   });
 
   it('play loads sound', async () => {
@@ -181,8 +134,8 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.play(mockTrack1);
     });
-    expect(mockSetAudioMode).toHaveBeenCalled();
-    expect(mockPlayer.replace).toHaveBeenCalled();
+    expect(mockTrackPlayer.setupPlayer).toHaveBeenCalled();
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalled();
   });
 
   it('pause pauses audio', async () => {
@@ -191,7 +144,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.pause();
     });
-    expect(mockPlayer.pause).toHaveBeenCalled();
+    expect(mockTrackPlayer.pause).toHaveBeenCalled();
   });
 
   it('resume resumes audio', async () => {
@@ -200,7 +153,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.resume();
     });
-    expect(mockPlayer.play).toHaveBeenCalled();
+    expect(mockTrackPlayer.play).toHaveBeenCalled();
   });
 
   it('togglePlayPause resumes when paused', async () => {
@@ -209,7 +162,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.togglePlayPause();
     });
-    expect(mockPlayer.play).toHaveBeenCalled();
+    expect(mockTrackPlayer.play).toHaveBeenCalled();
   });
 
   it('playPlaylist fetches sound at given index', async () => {
@@ -217,16 +170,16 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 1);
     });
-    expect(mockPlayer.replace).toHaveBeenCalled();
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalled();
   });
 
   it('playPlaylist with empty playlist does nothing', async () => {
     const cap = renderProvider();
-    const before = mockPlayer.replace.mock.calls.length;
+    const before = mockTrackPlayer.setMediaItems.mock.calls.length;
     await act(async () => {
       await cap.current.playPlaylist([]);
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(before);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(before);
   });
 
   it('next advances playlist', async () => {
@@ -234,12 +187,12 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(1);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await cap.current.next();
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(2);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(2);
   });
 
   it('previous wraps to last track at index 0', async () => {
@@ -247,12 +200,12 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(1);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await cap.current.previous();
     });
-    expect(mockPlayer.replace).toHaveBeenCalledTimes(2);
+    expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(2);
   });
 
   it('seek calls seekTo', async () => {
@@ -261,7 +214,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.seek(30000);
     });
-    expect(mockPlayer.seekTo).toHaveBeenCalledWith(30);
+    expect(mockTrackPlayer.seekTo).toHaveBeenCalledWith(30);
   });
 
   it('setVolume clamps above 1', async () => {
@@ -270,7 +223,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.setVolume(1.5);
     });
-    expect(mockPlayer.volume).toBe(1);
+    expect(mockTrackPlayer.setVolume).toHaveBeenCalledWith(1);
   });
 
   it('setVolume clamps below 0', async () => {
@@ -279,7 +232,7 @@ describe('PlayerProvider', () => {
       await cap.current.load(mockTrack1);
       await cap.current.setVolume(-0.5);
     });
-    expect(mockPlayer.volume).toBe(0);
+    expect(mockTrackPlayer.setVolume).toHaveBeenCalledWith(0);
   });
 
   it('openFullPlayer sets isFullPlayerOpen to true', () => {
@@ -347,7 +300,7 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
     });
-    const callsAfterPlay = mockPlayer.replace.mock.calls.length;
+    const callsAfterPlay = mockTrackPlayer.setMediaItems.mock.calls.length;
 
     // Switch to repeat-one
     act(() => cap.current.toggleRepeat());
@@ -357,8 +310,8 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.next();
     });
-    // Should have called loadAsync again (reloads same track)
-    expect(mockPlayer.replace.mock.calls.length).toBeGreaterThan(callsAfterPlay);
+    // Should have called setMediaItems again (reloads same track)
+    expect(mockTrackPlayer.setMediaItems.mock.calls.length).toBeGreaterThan(callsAfterPlay);
   });
 
   it('repeat-off next at end stops playback', async () => {
@@ -388,6 +341,6 @@ describe('PlayerProvider', () => {
       await cap.current.previous();
     });
     // With repeat-one, previous should call seekTo(0)
-    expect(mockPlayer.seekTo).toHaveBeenCalledWith(0);
+    expect(mockTrackPlayer.seekTo).toHaveBeenCalledWith(0);
   });
 });

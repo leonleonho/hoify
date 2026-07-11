@@ -1,3 +1,4 @@
+import '@expo/metro-runtime';
 import { useQuery } from '@apollo/client/react';
 import { ApolloProvider } from '@apollo/client/react';
 import { Redirect, Slot, useSegments } from 'expo-router';
