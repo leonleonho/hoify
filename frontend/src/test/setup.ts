@@ -113,6 +113,7 @@ const { mockTrackPlayer, Event, PlaybackState, PlayerCommand } = vi.hoisted(() =
       _queue[index] = item;
       _loaded = true;
       _position = 0;
+      fire(Event.MediaItemTransition, { item, index });
       emitStatus();
     }),
     skipToNext: vi.fn(() => {

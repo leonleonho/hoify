@@ -219,6 +219,16 @@ describe('PlayerProvider', () => {
     expect(mockTrackPlayer.seekTo).toHaveBeenCalledWith(30);
   });
 
+  it('setQuality keeps position when switching to transcoded stream', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.load(mockTrack1);
+      await cap.current.seek(60000);
+      await cap.current.setQuality('high');
+    });
+    expect(cap.current.position).toBe(60000);
+  });
+
   it('setVolume clamps above 1', async () => {
     const cap = renderProvider();
     await act(async () => {

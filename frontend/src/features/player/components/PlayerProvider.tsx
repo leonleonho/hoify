@@ -173,9 +173,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const track = pl[playlistIndex];
     if (!track) return;
 
-    seekOffset.current = 0;
-    idx.current = playlistIndex;
-    dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
+    // replaceMediaItem (seek/quality reload) also fires MediaItemTransition for
+    // the same index — only reset position/offset when the track actually changes.
+    const trackChanged = playlistIndex !== idx.current;
+    if (trackChanged) {
+      seekOffset.current = 0;
+      idx.current = playlistIndex;
+      dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
+    }
 
     const activeQueueIndex = AudioManager.getActiveQueueIndex();
     const queueLength = AudioManager.getQueueLength();

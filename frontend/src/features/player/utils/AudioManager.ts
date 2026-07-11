@@ -120,7 +120,12 @@ function wireStatusListeners(): void {
   _statusSubscriptions = [];
 
   _statusSubscriptions.push(
-    TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, () => emitStatus()),
+    TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (e) => {
+      emitStatus({
+        positionMillis: e.position * 1000,
+        durationMillis: e.duration * 1000,
+      });
+    }),
     TrackPlayer.addEventListener(Event.IsPlayingChanged, () => emitStatus()),
     TrackPlayer.addEventListener(Event.PlaybackStateChanged, (e) => {
       if (e.state === PlaybackState.Ended) {
@@ -145,6 +150,8 @@ export async function setupPlayer(): Promise<void> {
   TrackPlayer.setupPlayer({
     contentType: 'music',
     handleAudioBecomingNoisy: true,
+    // RNTP v5 only emits PlaybackProgressUpdated when intervalSeconds > 0.
+    progressSync: { intervalSeconds: 0.25 },
     android: { wakeMode: 'network' },
   });
 
