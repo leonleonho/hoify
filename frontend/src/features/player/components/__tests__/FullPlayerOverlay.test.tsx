@@ -64,11 +64,10 @@ describe('FullPlayerOverlay', () => {
     expect(closeFullPlayer).toHaveBeenCalledOnce();
   });
 
-  it('shows panel handle when open', () => {
+  it('shows a full-width drag handle zone when open', () => {
     const ctx = makeMockContext({ isFullPlayerOpen: true });
     renderOverlay(ctx);
-    // The handle is a decorative View, verify by role
-    // FullPlayer renders "No track selected" when no track
+    expect(screen.getByTestId('full-player-drag-handle')).toBeInTheDocument();
     expect(screen.getByText('No track selected')).toBeInTheDocument();
   });
 });

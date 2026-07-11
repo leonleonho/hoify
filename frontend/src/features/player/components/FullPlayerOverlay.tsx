@@ -146,10 +146,18 @@ export function FullPlayerOverlay() {
             { transform: [{ translateY: Animated.add(slideAnim, panY) }] },
           ]}
         >
-          <View style={styles.handleRow} {...panResponder.panHandlers}>
+          <View
+            style={styles.handleZone}
+            testID="full-player-drag-handle"
+            accessibilityLabel="Drag down to close"
+            accessibilityRole="adjustable"
+            {...panResponder.panHandlers}
+          >
             <View style={styles.handle} />
           </View>
-          <FullPlayer />
+          <View style={styles.content} pointerEvents="box-none">
+            <FullPlayer />
+          </View>
         </Animated.View>
       ) : null}
     </View>
@@ -176,16 +184,20 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     overflow: 'hidden',
   },
-  handleRow: {
+  handleZone: {
+    width: '100%',
+    minHeight: 56,
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
+    justifyContent: 'center',
   },
   handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: 48,
+    height: 5,
+    borderRadius: 3,
     backgroundColor: colors.textMuted,
     opacity: 0.4,
+  },
+  content: {
+    flex: 1,
   },
 });
