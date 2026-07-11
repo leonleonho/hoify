@@ -6,6 +6,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
+import { AppState } from 'react-native';
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
@@ -14,7 +15,6 @@ import { useMediaSession } from '../hooks/useMediaSession';
 import { setRemoteCallbacks } from '../services/registerRemoteCallbacks';
 import * as AudioManager from '../utils/AudioManager';
 import type { PlaybackStatus, QueueTrack } from '../utils/AudioManager';
-import { shouldExtendQueueForward } from '../utils/queueWindow';
 
 const SEEK_THRESHOLD_MS = 3000;
 
@@ -143,6 +143,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [isFullPlayerOpen, setFullPlayerOpen] = React.useState(false);
   const idx = useRef(snap?.playlistIndex ?? -1);
   const seekOffset = useRef(0);
+  const ignoreStalePositionUntil = useRef(0);
 
   // Refs that always hold latest value, so callbacks don't go stale
   const stateRef = useRef(s);
@@ -159,44 +160,54 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  // Wire AudioManager status callback on mount. No cleanup — the singleton
-  // explicitly avoids React cleanup so the Sound survives remount cycles.
-  useEffect(() => {
-    AudioManager.setOnStatus(handleStatus);
-    AudioManager.ensureAudioMode().catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleQueueTransition = useCallback((playlistIndex: number) => {
-    const s = stateRef.current;
-    const pl = s.playlist;
+  const applyPlaylistIndex = useCallback((playlistIndex: number) => {
+    const pl = stateRef.current.playlist;
     const track = pl[playlistIndex];
     if (!track) return;
 
-    // replaceMediaItem (seek/quality reload) also fires MediaItemTransition for
-    // the same index — only reset position/offset when the track actually changes.
-    const trackChanged = playlistIndex !== idx.current;
-    if (trackChanged) {
+    if (playlistIndex !== idx.current) {
       seekOffset.current = 0;
       idx.current = playlistIndex;
+      ignoreStalePositionUntil.current = Date.now() + 1200;
       dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
     }
+  }, []);
 
-    const activeQueueIndex = AudioManager.getActiveQueueIndex();
-    const queueLength = AudioManager.getQueueLength();
-    if (
-      activeQueueIndex != null &&
-      shouldExtendQueueForward(activeQueueIndex, queueLength, playlistIndex, pl.length)
-    ) {
-      const lastQueuedIndex = AudioManager.getLastQueuedPlaylistIndex();
-      if (lastQueuedIndex != null && lastQueuedIndex < pl.length - 1) {
-        const nextTracks = buildQueueTracks(pl.slice(lastQueuedIndex + 1), s.quality).slice(0, 3);
-        if (nextTracks.length) {
-          AudioManager.appendQueueTracks(nextTracks);
-        }
-      }
+  /** Clear seek-derived state before native queue skip (next/prev may race transition). */
+  const beginTrackChange = useCallback((targetIndex: number) => {
+    seekOffset.current = 0;
+    ignoreStalePositionUntil.current = Date.now() + 1200;
+    const pl = stateRef.current.playlist;
+    const track = pl[targetIndex];
+    if (track) {
+      dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
     }
   }, []);
+
+  const syncFromNativePlayer = useCallback(() => {
+    if (!AudioManager.hasActiveSound()) return;
+
+    const playlistIndex = AudioManager.getActivePlaylistIndex();
+    if (playlistIndex != null) {
+      applyPlaylistIndex(playlistIndex);
+    }
+    AudioManager.refreshPlaybackState();
+  }, [applyPlaylistIndex]);
+
+  const handleQueueTransition = useCallback((playlistIndex: number) => {
+    applyPlaylistIndex(playlistIndex);
+  }, [applyPlaylistIndex]);
+
+  // Re-sync React state when returning to the app — native next/prev can advance
+  // the queue in the background without running our JS callbacks.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncFromNativePlayer();
+      }
+    });
+    return () => sub.remove();
+  }, [syncFromNativePlayer]);
 
   // Stable status callback — reads state via refs
   const handleStatus = useCallback((status: PlaybackStatus) => {
@@ -228,7 +239,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       const atPlaylistEnd = idx.current >= pl.length - 1;
       if (!atPlaylistEnd) {
-        // RNTP auto-advances within the sliding window; MediaItemTransition syncs UI.
+        // RNTP auto-advances in the queue; MediaItemTransition syncs UI.
         return;
       }
 
@@ -261,8 +272,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-    dispatchRef.current({ type: 'STATUS', status, seekOffset: seekOffset.current });
+    const offset = seekOffset.current;
+    const position = status.positionMillis + offset;
+    if (Date.now() < ignoreStalePositionUntil.current && position > 1500) {
+      dispatchRef.current({
+        type: 'PATCH',
+        patch: { isPlaying: status.isPlaying, isLoading: status.isBuffering, position: 0 },
+      });
+      return;
+    }
+    dispatchRef.current({ type: 'STATUS', status, seekOffset: offset });
   }, []);
+
+  // Wire AudioManager status callback on mount. No cleanup — the singleton
+  // explicitly avoids React cleanup so the Sound survives remount cycles.
+  useEffect(() => {
+    AudioManager.setOnStatus(handleStatus);
+    AudioManager.ensureAudioMode()
+      .then(() => syncFromNativePlayer())
+      .catch(() => {});
+  }, [handleStatus, syncFromNativePlayer]);
 
   // Register the callback each render so it picks up the latest handleStatus
   useEffect(() => {
@@ -416,15 +445,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (s.shuffle || !AudioManager.canSkipNextInQueue() || i !== idx.current + 1) {
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
       await syncQueue(pl, i, true);
+      seekOffset.current = 0;
+      ignoreStalePositionUntil.current = Date.now() + 1200;
       dispatch({ type: 'LOAD_TRACK', track: pl[i], playlist: pl });
       idx.current = i;
       return;
     }
 
+    beginTrackChange(i);
     AudioManager.skipToNextInQueue();
     idx.current = i;
-    dispatch({ type: 'LOAD_TRACK', track: pl[i], playlist: pl });
-  }, [reloadCurrent, syncQueue]);
+  }, [reloadCurrent, syncQueue, beginTrackChange]);
 
   const previous = useCallback(async () => {
     const s = stateRef.current;
@@ -469,9 +500,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (AudioManager.canSkipPreviousInQueue()) {
       i = idx.current - 1;
+      beginTrackChange(i);
       AudioManager.skipToPreviousInQueue();
       idx.current = i;
-      dispatch({ type: 'LOAD_TRACK', track: playlist[i], playlist });
       return;
     }
 

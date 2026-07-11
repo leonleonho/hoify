@@ -11,6 +11,7 @@ import {
   getActivePlaylistIndex,
   canSkipNextInQueue,
   skipToNextInQueue,
+  refreshPlaybackState,
 } from '../AudioManager';
 import { mockTrackPlayer, fireTrackPlayerEvent, TrackPlayerEvent } from '@/test/setup';
 
@@ -42,13 +43,13 @@ describe('AudioManager', () => {
     );
   });
 
-  it('setQueue loads a sliding window around the active track', async () => {
+  it('setQueue loads the entire playlist into the native queue', async () => {
     await setQueue(tracks(10), 5, false, 0.8);
-    const [windowItems, queueIndex] = mockTrackPlayer.setMediaItems.mock.calls[0];
-    expect(windowItems).toHaveLength(6); // 1 before + active + 4 after
-    expect(windowItems[0].extras?.playlistIndex).toBe(4);
-    expect(windowItems.at(-1)?.extras?.playlistIndex).toBe(9);
-    expect(queueIndex).toBe(1);
+    const [queueItems, queueIndex] = mockTrackPlayer.setMediaItems.mock.calls[0];
+    expect(queueItems).toHaveLength(10);
+    expect(queueItems[0].extras?.playlistIndex).toBe(0);
+    expect(queueItems.at(-1)?.extras?.playlistIndex).toBe(9);
+    expect(queueIndex).toBe(5);
     expect(getActivePlaylistIndex()).toBe(5);
   });
 
@@ -81,6 +82,109 @@ describe('AudioManager', () => {
     });
 
     expect(onTransition).toHaveBeenCalledWith(3);
+  });
+
+  it('MediaItemTransition emits position zero despite stale native progress', async () => {
+    const onStatus = vi.fn();
+    setOnStatus(onStatus);
+    await setupPlayer();
+    mockTrackPlayer.seekTo(90);
+    onStatus.mockClear();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { mediaId: 't1', extras: { playlistIndex: 1 } },
+      index: 1,
+    });
+
+    expect(onStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ positionMillis: 0 }),
+    );
+  });
+
+  it('ignores stale PlaybackProgressUpdated from the previous track', async () => {
+    const onStatus = vi.fn();
+    setOnStatus(onStatus);
+    await setupPlayer();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { mediaId: 't1', extras: { playlistIndex: 1 } },
+      index: 1,
+    });
+    onStatus.mockClear();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+      mediaId: 't0',
+      position: 90,
+      duration: 200,
+    });
+    expect(onStatus).not.toHaveBeenCalled();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+      mediaId: 't1',
+      position: 0.5,
+      duration: 200,
+    });
+    expect(onStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ positionMillis: 500 }),
+    );
+  });
+
+  it('ignores high position on new track shortly after transition', async () => {
+    const onStatus = vi.fn();
+    setOnStatus(onStatus);
+    await setQueue(tracks(2), 0, false, 0.8);
+    mockTrackPlayer.seekTo(90);
+    onStatus.mockClear();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { mediaId: 't1', extras: { playlistIndex: 1 } },
+      index: 1,
+    });
+    onStatus.mockClear();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.PlaybackProgressUpdated, {
+      mediaId: 't1',
+      position: 90,
+      duration: 200,
+    });
+    expect(onStatus).not.toHaveBeenCalled();
+  });
+
+  it('IsPlayingChanged reports zero after transition when native progress is stale', async () => {
+    const onStatus = vi.fn();
+    setOnStatus(onStatus);
+    await setQueue(tracks(2), 0, false, 0.8);
+    mockTrackPlayer.seekTo(75);
+    onStatus.mockClear();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { mediaId: 't1', extras: { playlistIndex: 1 } },
+      index: 1,
+    });
+    onStatus.mockClear();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.IsPlayingChanged, { playing: true });
+    expect(onStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ positionMillis: 0 }),
+    );
+  });
+
+  it('refreshPlaybackState zeroes stale progress after track change', async () => {
+    const onStatus = vi.fn();
+    setOnStatus(onStatus);
+    await setQueue(tracks(2), 0, false, 0.8);
+    mockTrackPlayer.seekTo(60);
+
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { mediaId: 't1', extras: { playlistIndex: 1 } },
+      index: 1,
+    });
+    onStatus.mockClear();
+
+    refreshPlaybackState();
+    expect(onStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ positionMillis: 0 }),
+    );
   });
 
   it('skipToNextInQueue advances within the loaded window', async () => {
@@ -118,5 +222,18 @@ describe('AudioManager', () => {
     saveSnapshot(snap);
     expect(popSnapshot()).toEqual(snap);
     expect(popSnapshot()).toBeNull();
+  });
+
+  it('refreshPlaybackState notifies the status callback', async () => {
+    const onStatus = vi.fn();
+    setOnStatus(onStatus);
+    await setupPlayer();
+    onStatus.mockClear();
+
+    refreshPlaybackState();
+
+    expect(onStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ positionMillis: 0 }),
+    );
   });
 });

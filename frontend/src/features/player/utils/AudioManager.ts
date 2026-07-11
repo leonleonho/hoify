@@ -5,7 +5,6 @@ import TrackPlayer, {
   type MediaItem,
 } from '@rntp/player';
 import { registerForegroundRemoteListeners } from '../services/PlaybackService';
-import { getWindowRange } from './queueWindow';
 
 /** Metadata displayed on the device lock screen / system notification. */
 export interface LockScreenMetadata {
@@ -35,7 +34,41 @@ let _onStatus: StatusCallback | null = null;
 let _onQueueTransition: QueueTransitionCallback | null = null;
 let _statusSubscriptions: { remove: () => void }[] = [];
 let _hasLoaded = false;
-let _queueWindowStart = 0;
+let _activeMediaId: string | null = null;
+let _lastTransitionAt = 0;
+
+/** Drop progress from the previous item or the pre-buffer window after a skip. */
+const TRANSITION_STALE_MS = 1200;
+const TRANSITION_STALE_POSITION_S = 1.5;
+
+function markMediaTransition(item?: MediaItem | null): void {
+  const nextId = item?.mediaId ?? null;
+  const trackChanged =
+    _activeMediaId != null && nextId != null && nextId !== _activeMediaId;
+  _activeMediaId = nextId;
+  if (trackChanged) {
+    _lastTransitionAt = Date.now();
+  }
+}
+
+function isStaleProgress(mediaId: string | undefined, positionSeconds: number): boolean {
+  if (mediaId && _activeMediaId && mediaId !== _activeMediaId) return true;
+  if (
+    _lastTransitionAt > 0 &&
+    Date.now() - _lastTransitionAt < TRANSITION_STALE_MS &&
+    positionSeconds > TRANSITION_STALE_POSITION_S
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function stalePositionOverride(positionSeconds: number): Partial<PlaybackStatus> | undefined {
+  if (isStaleProgress(_activeMediaId ?? undefined, positionSeconds)) {
+    return { positionMillis: 0 };
+  }
+  return undefined;
+}
 
 type StatusCallback = (status: PlaybackStatus) => void;
 type QueueTransitionCallback = (playlistIndex: number) => void;
@@ -85,11 +118,18 @@ export function popSnapshot(): PlayerSnapshot | null {
 function buildPlaybackStatus(overrides?: Partial<PlaybackStatus>): PlaybackStatus {
   const progress = TrackPlayer.getProgress();
   const state = TrackPlayer.getPlaybackState();
+  let positionMillis = progress.position * 1000;
+  if (
+    overrides?.positionMillis === undefined &&
+    isStaleProgress(_activeMediaId ?? undefined, progress.position)
+  ) {
+    positionMillis = 0;
+  }
   return {
     isLoaded: state !== PlaybackState.Idle && state !== PlaybackState.Error,
     isPlaying: TrackPlayer.isPlaying(),
     isBuffering: state === PlaybackState.Buffering,
-    positionMillis: progress.position * 1000,
+    positionMillis,
     durationMillis: progress.duration * 1000,
     didJustFinish: false,
     isLooping: false,
@@ -121,25 +161,29 @@ function wireStatusListeners(): void {
 
   _statusSubscriptions.push(
     TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (e) => {
+      if (isStaleProgress(e.mediaId, e.position)) return;
       emitStatus({
         positionMillis: e.position * 1000,
         durationMillis: e.duration * 1000,
       });
     }),
-    TrackPlayer.addEventListener(Event.IsPlayingChanged, () => emitStatus()),
+    TrackPlayer.addEventListener(Event.IsPlayingChanged, () => {
+      emitStatus(stalePositionOverride(TrackPlayer.getProgress().position));
+    }),
     TrackPlayer.addEventListener(Event.PlaybackStateChanged, (e) => {
       if (e.state === PlaybackState.Ended) {
         emitStatus({ didJustFinish: true, isPlaying: false });
       } else {
-        emitStatus();
+        emitStatus(stalePositionOverride(TrackPlayer.getProgress().position));
       }
     }),
     TrackPlayer.addEventListener(Event.MediaItemTransition, (e) => {
+      markMediaTransition(e.item);
       const playlistIndex = e.item?.extras?.playlistIndex;
       if (typeof playlistIndex === 'number') {
         _onQueueTransition?.(playlistIndex);
       }
-      emitStatus();
+      emitStatus({ positionMillis: 0 });
     }),
   );
 }
@@ -191,7 +235,7 @@ export function setOnStatus(cb: StatusCallback | null): void {
   }
 }
 
-/** Fires when RNTP advances to another item in the sliding window queue. */
+/** Fires when RNTP advances to another item in the queue. */
 export function setOnQueueTransition(cb: QueueTransitionCallback | null): void {
   _onQueueTransition = cb;
 }
@@ -200,10 +244,7 @@ export function getActivePlaylistIndex(): number | null {
   const item = TrackPlayer.getActiveMediaItem();
   const fromExtras = item?.extras?.playlistIndex;
   if (typeof fromExtras === 'number') return fromExtras;
-
-  const queueIndex = TrackPlayer.getActiveMediaItemIndex();
-  if (queueIndex == null) return null;
-  return _queueWindowStart + queueIndex;
+  return TrackPlayer.getActiveMediaItemIndex();
 }
 
 export function getActiveQueueIndex(): number | null {
@@ -212,13 +253,6 @@ export function getActiveQueueIndex(): number | null {
 
 export function getQueueLength(): number {
   return TrackPlayer.getQueue().length;
-}
-
-export function getLastQueuedPlaylistIndex(): number | null {
-  const queue = TrackPlayer.getQueue();
-  const last = queue.at(-1);
-  const index = last?.extras?.playlistIndex;
-  return typeof index === 'number' ? index : null;
 }
 
 export function canSkipNextInQueue(): boolean {
@@ -241,22 +275,16 @@ export async function setQueue(
   if (!tracks.length) return;
 
   await setupPlayer();
-  const { start, end, queueIndex } = getWindowRange(tracks.length, playlistIndex);
-  _queueWindowStart = start;
-  const windowTracks = tracks.slice(start, end + 1).map(toMediaItem);
+  const queueIndex = Math.max(0, Math.min(playlistIndex, tracks.length - 1));
 
   TrackPlayer.setVolume(volume);
-  TrackPlayer.setMediaItems(windowTracks, queueIndex);
+  TrackPlayer.setMediaItems(tracks.map(toMediaItem), queueIndex);
+  _activeMediaId = tracks[queueIndex]?.mediaId ?? null;
   _hasLoaded = true;
   if (shouldPlay) {
     TrackPlayer.play();
   }
   emitStatus();
-}
-
-export function appendQueueTracks(tracks: QueueTrack[]): void {
-  if (!tracks.length) return;
-  TrackPlayer.addMediaItems(tracks.map(toMediaItem));
 }
 
 export function skipToNextInQueue(): boolean {
@@ -307,7 +335,6 @@ export async function reloadActiveItem(
     TrackPlayer.replaceMediaItem(activeIndex, toMediaItem(item));
   } else {
     TrackPlayer.setMediaItems([toMediaItem(item)], 0);
-    _queueWindowStart = item.playlistIndex;
   }
   _hasLoaded = true;
   if (shouldPlay) {
@@ -332,7 +359,8 @@ export async function unload(): Promise<void> {
     _hasLoaded = false;
     _onStatus = null;
     _onQueueTransition = null;
-    _queueWindowStart = 0;
+    _activeMediaId = null;
+    _lastTransitionAt = 0;
   }
 }
 
@@ -344,6 +372,11 @@ export async function setVolumeAsync(v: number): Promise<void> {
   TrackPlayer.setVolume(v);
 }
 
+/** Re-read native playback state and notify the status callback. */
+export function refreshPlaybackState(): void {
+  emitStatus(stalePositionOverride(TrackPlayer.getProgress().position));
+}
+
 /** @internal Test-only reset of module singleton state. */
 export function _resetForTests(): void {
   for (const sub of _statusSubscriptions) sub.remove();
@@ -352,7 +385,8 @@ export function _resetForTests(): void {
   _hasLoaded = false;
   _onStatus = null;
   _onQueueTransition = null;
-  _queueWindowStart = 0;
+  _activeMediaId = null;
+  _lastTransitionAt = 0;
 }
 
 /** No-op — metadata travels with media items in load(). */

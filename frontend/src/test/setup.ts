@@ -50,10 +50,16 @@ const hoisted = vi.hoisted(() => {
     SkipBackward: 'skipBackward',
   };
 
+  function activeMediaId(): string {
+    const item = _activeIndex != null ? _queue[_activeIndex] : null;
+    return item?.mediaId ?? 'unknown';
+  }
+
   function emitStatus() {
     fire(Event.PlaybackProgressUpdated, {
       position: _position,
       duration: _duration,
+      mediaId: activeMediaId(),
     });
     fire(Event.IsPlayingChanged, { playing: _playing });
   }
@@ -72,7 +78,6 @@ const hoisted = vi.hoisted(() => {
 
   function transitionTo(index: number) {
     _activeIndex = index;
-    _position = 0;
     fire(Event.MediaItemTransition, { item: _queue[index] ?? null, index });
     emitStatus();
   }

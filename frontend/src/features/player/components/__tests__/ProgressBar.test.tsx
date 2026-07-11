@@ -152,7 +152,7 @@ describe('ProgressBar', () => {
   it('refuses pan responder termination during drag', () => {
     render(<ProgressBar position={0} duration={100000} onSeek={() => {}} />);
     const config = vi.mocked(PanResponder.create).mock.calls.at(-1)?.[0];
-    expect(config?.onPanResponderTerminationRequest?.()).toBe(false);
+    expect(config?.onPanResponderTerminationRequest?.({} as never, {} as never)).toBe(false);
   });
 
   it('uses grant position plus dx on release', () => {
