@@ -204,6 +204,7 @@ export async function setupPlayer(): Promise<void> {
   TrackPlayer.setupPlayer({
     contentType: 'music',
     handleAudioBecomingNoisy: true,
+    cache: { maxSizeBytes: 1000 * 1024 * 1024 }, // 1000 MB
     // RNTP v5 only emits PlaybackProgressUpdated when intervalSeconds > 0.
     progressSync: { intervalSeconds: 0.25 },
     android: { wakeMode: 'network' },
