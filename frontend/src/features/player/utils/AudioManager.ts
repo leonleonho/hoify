@@ -71,7 +71,12 @@ function stalePositionOverride(positionSeconds: number): Partial<PlaybackStatus>
 }
 
 type StatusCallback = (status: PlaybackStatus) => void;
-type QueueTransitionCallback = (playlistIndex: number) => void;
+/** playlistIndex plus optional Auto/browse extras (playlistId, trackId, …). */
+export type QueueTransitionExtras = Record<string, unknown>;
+type QueueTransitionCallback = (
+  playlistIndex: number,
+  extras?: QueueTransitionExtras,
+) => void;
 
 /** Normalised shape that PlayerProvider's reducer already understands. */
 export interface PlaybackStatus {
@@ -179,9 +184,14 @@ function wireStatusListeners(): void {
     }),
     TrackPlayer.addEventListener(Event.MediaItemTransition, (e) => {
       markMediaTransition(e.item);
-      const playlistIndex = e.item?.extras?.playlistIndex;
+      // Auto / native browse can start playback without setQueue — treat as loaded.
+      if (e.item) {
+        _hasLoaded = true;
+      }
+      const extras = e.item?.extras as QueueTransitionExtras | undefined;
+      const playlistIndex = extras?.playlistIndex;
       if (typeof playlistIndex === 'number') {
-        _onQueueTransition?.(playlistIndex);
+        _onQueueTransition?.(playlistIndex, extras);
       }
       emitStatus({ positionMillis: 0 });
     }),

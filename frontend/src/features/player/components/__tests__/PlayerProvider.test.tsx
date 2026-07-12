@@ -10,6 +10,10 @@ import {
 } from '../PlayerProvider';
 import { mockTrack1, mockTrack2 } from './utils';
 import { mockTrackPlayer, fireTrackPlayerEvent, TrackPlayerEvent } from '@/test/setup';
+import {
+  setCachedPlaylistTracks,
+  _resetBrowseCacheForTests,
+} from '../../services/androidAutoBrowse';
 
 // ── test helpers ─────────────────────────────────────────────────────────────
 
@@ -321,6 +325,31 @@ describe('PlayerProvider', () => {
         index: 1,
       });
     });
+    expect(cap.current.currentTrack?.id).toBe('track-2');
+  });
+
+  it('adopts playlist from Android Auto browse extras on MediaItemTransition', async () => {
+    _resetBrowseCacheForTests();
+    setCachedPlaylistTracks('pl-auto', [mockTrack1, mockTrack2]);
+
+    const cap = renderProvider();
+    expect(cap.current.currentTrack).toBeNull();
+
+    await act(async () => {
+      fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+        item: {
+          mediaId: 'pl-auto:track-2',
+          extras: {
+            playlistIndex: 1,
+            playlistId: 'pl-auto',
+            trackId: 'track-2',
+          },
+        },
+        index: 1,
+      });
+    });
+
+    expect(cap.current.playlist).toHaveLength(2);
     expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 

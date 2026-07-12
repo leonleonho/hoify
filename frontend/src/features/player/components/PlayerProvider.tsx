@@ -6,15 +6,27 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
 import { getApiBase, artUrl } from '@/constants/api';
 import { useMediaSession } from '../hooks/useMediaSession';
+import { useAndroidAutoBrowse } from '../hooks/useAndroidAutoBrowse';
+import { getCachedPlaylistTracks } from '../services/androidAutoBrowse';
 import { setRemoteCallbacks } from '../services/registerRemoteCallbacks';
 import * as AudioManager from '../utils/AudioManager';
-import type { PlaybackStatus, QueueTrack } from '../utils/AudioManager';
+import type {
+  PlaybackStatus,
+  QueueTrack,
+  QueueTransitionExtras,
+} from '../utils/AudioManager';
+
+/** Mounts Android Auto browse sync only on Android (needs ApolloProvider). */
+function AndroidAutoBrowseSync() {
+  useAndroidAutoBrowse();
+  return null;
+}
 
 const SEEK_THRESHOLD_MS = 3000;
 
@@ -154,6 +166,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const idx = useRef(snap?.playlistIndex ?? -1);
   const seekOffset = useRef(0);
   const ignoreStalePositionUntil = useRef(0);
+  /** Playlist last adopted from Android Auto browse extras (null = phone-driven). */
+  const adoptedBrowsePlaylistId = useRef<string | null>(null);
 
   // Refs that always hold latest value, so callbacks don't go stale
   const stateRef = useRef(s);
@@ -204,7 +218,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     AudioManager.refreshPlaybackState();
   }, [applyPlaylistIndex]);
 
-  const handleQueueTransition = useCallback((playlistIndex: number) => {
+  const handleQueueTransition = useCallback((
+    playlistIndex: number,
+    extras?: QueueTransitionExtras,
+  ) => {
+    const playlistId = extras?.playlistId;
+    if (typeof playlistId === 'string') {
+      if (playlistId !== adoptedBrowsePlaylistId.current) {
+        const tracks = getCachedPlaylistTracks(playlistId);
+        if (tracks?.length) {
+          const i = Math.max(0, Math.min(playlistIndex, tracks.length - 1));
+          const track = tracks[i];
+          adoptedBrowsePlaylistId.current = playlistId;
+          seekOffset.current = 0;
+          idx.current = i;
+          ignoreStalePositionUntil.current = Date.now() + 1200;
+          dispatchRef.current({
+            type: 'LOAD_TRACK',
+            track,
+            playlist: tracks,
+            isPlaying: true,
+          });
+          return;
+        }
+      }
+    }
     applyPlaylistIndex(playlistIndex);
   }, [applyPlaylistIndex]);
 
@@ -382,12 +420,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // ---- actions (all read state via stateRef, write via dispatch) -----------
 
   const load = useCallback(async (track: Track) => {
+    adoptedBrowsePlaylistId.current = null;
     dispatch({ type: 'LOAD_TRACK', track, playlist: [track], isPlaying: false });
     idx.current = 0;
     try { await syncQueue([track], 0, false); } catch {}
   }, [syncQueue]);
 
   const play = useCallback(async (track: Track) => {
+    adoptedBrowsePlaylistId.current = null;
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
     await syncQueue([track], 0, true);
     dispatch({ type: 'LOAD_TRACK', track, playlist: [track] });
@@ -396,6 +436,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const playPlaylist = useCallback(async (tracks: Track[], start = 0) => {
     if (!tracks.length) return;
+    adoptedBrowsePlaylistId.current = null;
     const i = Math.max(0, Math.min(start, tracks.length - 1));
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
     await syncQueue(tracks, i, true);
@@ -592,5 +633,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     openFullPlayer, closeFullPlayer, toggleRepeat, toggleShuffle, isFullPlayerOpen,
   };
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>
+      {Platform.OS === 'android' ? <AndroidAutoBrowseSync /> : null}
+      {children}
+    </PlayerContext.Provider>
+  );
 }

@@ -12,6 +12,7 @@ import {
   canSkipNextInQueue,
   skipToNextInQueue,
   refreshPlaybackState,
+  hasActiveSound,
 } from '../AudioManager';
 import { mockTrackPlayer, fireTrackPlayerEvent, TrackPlayerEvent } from '@/test/setup';
 
@@ -81,7 +82,28 @@ describe('AudioManager', () => {
       index: 1,
     });
 
-    expect(onTransition).toHaveBeenCalledWith(3);
+    expect(onTransition).toHaveBeenCalledWith(3, { playlistIndex: 3 });
+  });
+
+  it('MediaItemTransition passes browse extras and marks active sound loaded', async () => {
+    const onTransition = vi.fn();
+    setOnQueueTransition(onTransition);
+    await setupPlayer();
+
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: {
+        mediaId: 'pl-1:track-1',
+        extras: { playlistIndex: 0, playlistId: 'pl-1', trackId: 'track-1' },
+      },
+      index: 0,
+    });
+
+    expect(onTransition).toHaveBeenCalledWith(0, {
+      playlistIndex: 0,
+      playlistId: 'pl-1',
+      trackId: 'track-1',
+    });
+    expect(hasActiveSound()).toBe(true);
   });
 
   it('MediaItemTransition emits position zero despite stale native progress', async () => {

@@ -59,6 +59,7 @@
     "dev": "expo start",
     "android": "expo run:android",
     "android:release": "expo run:android --variant release",
+    "android:auto": "bash scripts/android-auto-dhu.sh",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "codegen": "graphql-codegen",

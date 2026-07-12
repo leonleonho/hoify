@@ -40,7 +40,8 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "./plugins/withAndroidAuto.js"
     ],
     "scheme": "hoify",
     "experiments": {
