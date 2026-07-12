@@ -86,6 +86,7 @@ const hoisted = vi.hoisted(() => {
     setupPlayer: vi.fn(),
     registerBackgroundEventHandler: vi.fn(),
     setCommands: vi.fn(),
+    setBrowseTree: vi.fn(),
     addEventListener: vi.fn((event: string, cb: Function) => {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(cb);

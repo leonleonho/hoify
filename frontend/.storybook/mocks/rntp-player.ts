@@ -56,6 +56,7 @@ const TrackPlayer = {
   setupPlayer: noop,
   registerBackgroundEventHandler: noop,
   setCommands: noop,
+  setBrowseTree: noop,
   addEventListener: (event: string, cb: Function) => {
     if (!listeners[event]) listeners[event] = [];
     listeners[event].push(cb);
