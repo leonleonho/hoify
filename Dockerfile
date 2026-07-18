@@ -11,6 +11,8 @@ FROM node:22-alpine AS build-frontend
 
 WORKDIR /build/frontend
 COPY frontend/package*.json ./
+# postinstall needs this script; copy it before npm ci so layer caching still works
+COPY frontend/scripts/patch-gradle-foojay.mjs ./scripts/patch-gradle-foojay.mjs
 RUN npm ci
 COPY frontend/ ./
 
