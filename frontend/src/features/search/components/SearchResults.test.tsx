@@ -1,14 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MockedProvider } from '@apollo/client/testing/react';
 import React from 'react';
 import { SearchResults } from './SearchResults';
 import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 import type { SearchMusicQuery } from '@/hooks/generated';
-import type { DiscogsResult } from '../discogs/types';
-
-// ── mocks ───────────────────────────────────────────────────────────────
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -41,21 +38,10 @@ const populatedData: SearchData = {
   playlists: [],
 };
 
-const discogsResult: DiscogsResult = {
-  id: 100, type: 'master', title: 'Discogs Find', year: 2020, thumb: '',
-  format: [], genre: [], style: [], uri: '',
-};
-
-// ── helpers ─────────────────────────────────────────────────────────────
-
 function renderSearchResults(
   data: SearchData,
   props: {
-    onExtendedSearch?: () => void;
-    discogsResults?: DiscogsResult[];
-    discogsLoading?: boolean;
-    discogsError?: string | null;
-    discogsSearched?: boolean;
+    onFindMusic?: () => void;
   } = {},
 ) {
   return render(
@@ -76,69 +62,35 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('SearchResults — discogs prompt', () => {
-  it('shows extended search prompt when discogs not searched and results exist', () => {
+describe('SearchResults — find music CTA', () => {
+  it('shows find music prompt when results exist', () => {
+    renderSearchResults(populatedData, { onFindMusic: vi.fn() });
+
+    expect(screen.getByText("Not what you're looking for?")).toBeInTheDocument();
+    expect(screen.getByText('Find music')).toBeInTheDocument();
+  });
+
+  it('shows find music prompt when backend results are empty', () => {
+    renderSearchResults(emptyData, { onFindMusic: vi.fn() });
+
+    expect(screen.getByText("Not what you're looking for?")).toBeInTheDocument();
+    expect(screen.getByText('Find music')).toBeInTheDocument();
+  });
+
+  it('hides CTA when onFindMusic is not provided', () => {
     renderSearchResults(populatedData);
 
-    expect(screen.getByText('Not what you\'re looking for?')).toBeInTheDocument();
-    expect(screen.getByText('Search on Discogs')).toBeInTheDocument();
+    expect(screen.queryByText('Find music')).not.toBeInTheDocument();
   });
 
-  it('shows extended search prompt when backend results are empty', () => {
-    renderSearchResults(emptyData);
-
-    expect(screen.getByText('Not what you\'re looking for?')).toBeInTheDocument();
-    expect(screen.getByText('Search on Discogs')).toBeInTheDocument();
-  });
-
-  it('hides prompt and shows discogs results when searched', () => {
-    renderSearchResults(populatedData, {
-      discogsSearched: true,
-      discogsResults: [discogsResult],
-    });
-
-    expect(screen.queryByText('Not what you\'re looking for?')).not.toBeInTheDocument();
-    expect(screen.queryByText('Search on Discogs')).not.toBeInTheDocument();
-    expect(screen.getByText('Discogs Find')).toBeInTheDocument();
-  });
-
-  it('shows discogs empty state when searched but no results', () => {
-    renderSearchResults(populatedData, {
-      discogsSearched: true,
-      discogsResults: [],
-    });
-
-    expect(screen.getByText('No Discogs results found')).toBeInTheDocument();
-  });
-
-  it('shows discogs loading spinner', () => {
-    renderSearchResults(populatedData, {
-      discogsSearched: true,
-      discogsLoading: true,
-    });
-
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
-  });
-
-  it('shows discogs error', () => {
-    renderSearchResults(populatedData, {
-      discogsSearched: true,
-      discogsError: 'Discogs API error: 429',
-    });
-
-    expect(screen.getByText('Discogs API error: 429')).toBeInTheDocument();
-  });
-});
-
-describe('SearchResults — extended search button', () => {
-  it('calls onExtendedSearch when button pressed', async () => {
+  it('calls onFindMusic when button pressed', async () => {
     const user = userEvent.setup();
-    const onExtended = vi.fn();
+    const onFindMusic = vi.fn();
 
-    renderSearchResults(populatedData, { onExtendedSearch: onExtended });
+    renderSearchResults(populatedData, { onFindMusic });
 
-    await user.click(screen.getByText('Search on Discogs'));
+    await user.click(screen.getByText('Find music'));
 
-    expect(onExtended).toHaveBeenCalledTimes(1);
+    expect(onFindMusic).toHaveBeenCalledTimes(1);
   });
 });

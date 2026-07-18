@@ -1,0 +1,13 @@
+mutation StartDownload($peer: String!, $files: [DownloadFileInput!]!) {
+  startDownload(peer: $peer, files: $files) {
+    id
+    peer
+    filename
+    size
+    status
+    percentComplete
+    bytesTransferred
+    averageSpeed
+    createdAt
+  }
+}

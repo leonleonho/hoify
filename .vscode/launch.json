@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node-terminal",
+      "name": "Debug hoify-server (dev)",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/hoify-server",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    }
+  ]
+}

@@ -20,10 +20,6 @@ export interface E2eFixture {
  */
 async function resetQueues(): Promise<void> {
   try {
-    const { replaceRedisClient } = await import("../../jobs/music-request/queue.js");
-    await replaceRedisClient();
-  } catch { /* not cached */ }
-  try {
     const { replaceRedisClient } = await import("../../jobs/enrichment/queue.js");
     await replaceRedisClient();
   } catch { /* not cached */ }

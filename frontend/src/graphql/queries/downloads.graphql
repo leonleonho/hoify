@@ -1,0 +1,13 @@
+query Downloads {
+  downloads {
+    id
+    peer
+    filename
+    size
+    status
+    percentComplete
+    bytesTransferred
+    averageSpeed
+    createdAt
+  }
+}

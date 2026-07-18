@@ -87,6 +87,47 @@ export type CreateUserInput = {
   password: Scalars['String']['input'];
 };
 
+export type DownloadFileInput = {
+  filename: Scalars['String']['input'];
+  size: Scalars['Int']['input'];
+};
+
+export type DownloadSearch = {
+  __typename?: 'DownloadSearch';
+  fileCount: Scalars['Int']['output'];
+  id: Scalars['ID']['output'];
+  isComplete: Scalars['Boolean']['output'];
+  peers: Array<DownloadSearchPeer>;
+  query: Scalars['String']['output'];
+  responseCount: Scalars['Int']['output'];
+};
+
+export type DownloadSearchFile = {
+  __typename?: 'DownloadSearchFile';
+  bitDepth?: Maybe<Scalars['Int']['output']>;
+  bitRate?: Maybe<Scalars['Int']['output']>;
+  extension?: Maybe<Scalars['String']['output']>;
+  filename: Scalars['String']['output'];
+  isLocked?: Maybe<Scalars['Boolean']['output']>;
+  sampleRate?: Maybe<Scalars['Int']['output']>;
+  size: Scalars['Int']['output'];
+};
+
+export type DownloadSearchFolder = {
+  __typename?: 'DownloadSearchFolder';
+  files: Array<DownloadSearchFile>;
+  name: Scalars['String']['output'];
+};
+
+export type DownloadSearchPeer = {
+  __typename?: 'DownloadSearchPeer';
+  folders: Array<DownloadSearchFolder>;
+  hasFreeUploadSlot?: Maybe<Scalars['Boolean']['output']>;
+  peer: Scalars['String']['output'];
+  queueLength?: Maybe<Scalars['Int']['output']>;
+  uploadSpeed?: Maybe<Scalars['Int']['output']>;
+};
+
 export type Genre = {
   __typename?: 'Genre';
   id: Scalars['ID']['output'];
@@ -94,13 +135,16 @@ export type Genre = {
   tracks: Array<Track>;
 };
 
-export type MusicRequest = {
-  __typename?: 'MusicRequest';
-  albumName: Scalars['String']['output'];
-  artistName: Scalars['String']['output'];
+export type MusicDownload = {
+  __typename?: 'MusicDownload';
+  averageSpeed?: Maybe<Scalars['Float']['output']>;
+  bytesTransferred?: Maybe<Scalars['Int']['output']>;
   createdAt: Scalars['String']['output'];
+  filename: Scalars['String']['output'];
   id: Scalars['ID']['output'];
-  songName?: Maybe<Scalars['String']['output']>;
+  peer: Scalars['String']['output'];
+  percentComplete?: Maybe<Scalars['Float']['output']>;
+  size: Scalars['Int']['output'];
   status: Scalars['String']['output'];
 };
 
@@ -123,7 +167,7 @@ export type Mutation = {
   login: AuthPayload;
   removeTracksFromPlaylist: Playlist;
   reorderPlaylistTracks: Playlist;
-  requestMusicDownload: MusicRequest;
+  startDownload: Array<MusicDownload>;
   unlikeTrack: Track;
   updateAlbum?: Maybe<Album>;
   updateArtist?: Maybe<Artist>;
@@ -220,10 +264,9 @@ export type MutationReorderPlaylistTracksArgs = {
 };
 
 
-export type MutationRequestMusicDownloadArgs = {
-  albumName?: InputMaybe<Scalars['String']['input']>;
-  artistName: Scalars['String']['input'];
-  songName?: InputMaybe<Scalars['String']['input']>;
+export type MutationStartDownloadArgs = {
+  files: Array<DownloadFileInput>;
+  peer: Scalars['String']['input'];
 };
 
 
@@ -291,13 +334,16 @@ export type Query = {
   albums: Array<Album>;
   artist?: Maybe<Artist>;
   artists: Array<Artist>;
+  download?: Maybe<MusicDownload>;
+  downloadSearch?: Maybe<DownloadSearch>;
+  downloads: Array<MusicDownload>;
   genre?: Maybe<Genre>;
   genres: Array<Genre>;
   me: User;
-  musicRequests: Array<MusicRequest>;
   myPlaylists: Array<Playlist>;
   playlist?: Maybe<Playlist>;
   searchMusic: SearchResults;
+  startDownloadSearch: DownloadSearch;
   track?: Maybe<Track>;
   tracks: Array<Track>;
 };
@@ -318,6 +364,16 @@ export type QueryArtistArgs = {
 };
 
 
+export type QueryDownloadArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryDownloadSearchArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type QueryGenreArgs = {
   id: Scalars['ID']['input'];
 };
@@ -334,6 +390,11 @@ export type QueryPlaylistArgs = {
 
 
 export type QuerySearchMusicArgs = {
+  query: Scalars['String']['input'];
+};
+
+
+export type QueryStartDownloadSearchArgs = {
   query: Scalars['String']['input'];
 };
 
