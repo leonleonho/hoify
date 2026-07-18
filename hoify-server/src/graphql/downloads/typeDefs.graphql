@@ -1,0 +1,59 @@
+type DownloadSearchFile {
+  filename: String!
+  size: Int!
+  extension: String
+  bitRate: Int
+  bitDepth: Int
+  sampleRate: Int
+  isLocked: Boolean
+}
+
+type DownloadSearchFolder {
+  name: String!
+  files: [DownloadSearchFile!]!
+}
+
+type DownloadSearchPeer {
+  peer: String!
+  hasFreeUploadSlot: Boolean
+  uploadSpeed: Int
+  queueLength: Int
+  folders: [DownloadSearchFolder!]!
+}
+
+type DownloadSearch {
+  id: ID!
+  query: String!
+  isComplete: Boolean!
+  fileCount: Int!
+  responseCount: Int!
+  peers: [DownloadSearchPeer!]!
+}
+
+type MusicDownload {
+  id: ID!
+  peer: String!
+  filename: String!
+  size: Int!
+  status: String!
+  percentComplete: Float
+  bytesTransferred: Int
+  averageSpeed: Float
+  createdAt: String!
+}
+
+input DownloadFileInput {
+  filename: String!
+  size: Int!
+}
+
+type Query {
+  startDownloadSearch(query: String!): DownloadSearch!
+  downloadSearch(id: ID!): DownloadSearch
+  downloads: [MusicDownload!]!
+  download(id: ID!): MusicDownload
+}
+
+type Mutation {
+  startDownload(peer: String!, files: [DownloadFileInput!]!): [MusicDownload!]!
+}

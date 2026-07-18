@@ -3,7 +3,6 @@ import {
   bigint,
   index,
   integer,
-  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -221,28 +220,27 @@ export type TrackGenre = typeof trackGenres.$inferSelect;
 export type NewTrackGenre = typeof trackGenres.$inferInsert;
 
 // ---------------------------------------------------------------------------
-// Music Requests
+// Music Downloads
 // ---------------------------------------------------------------------------
 
-export const musicRequestStatusEnum = pgEnum("music_request_status", [
-  "pending",
+export const musicDownloadStatusEnum = pgEnum("music_download_status", [
+  "queued",
   "downloading",
   "completed",
   "failed",
+  "cancelled",
 ]);
 
-export const musicRequests = pgTable("music_requests", {
+export const musicDownloads = pgTable("music_downloads", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
-  artistName: text("artist_name").notNull(),
-  albumName: text("album_name"),
-  songName: text("song_name"),
-  downloadPath: text("download_path"),
-  pluginUsed: text("plugin_used"),
-  downloadMeta: jsonb("download_meta"),
-  status: musicRequestStatusEnum("status").notNull().default("pending"),
+  peer: text("peer").notNull(),
+  externalId: text("external_id").notNull(),
+  filename: text("filename").notNull(),
+  size: bigint("size", { mode: "number" }).notNull(),
+  status: musicDownloadStatusEnum("status").notNull().default("queued"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),
@@ -252,12 +250,12 @@ export const musicRequests = pgTable("music_requests", {
     .$onUpdate(() => new Date()),
 });
 
-export type MusicRequest = typeof musicRequests.$inferSelect;
-export type NewMusicRequest = typeof musicRequests.$inferInsert;
+export type MusicDownload = typeof musicDownloads.$inferSelect;
+export type NewMusicDownload = typeof musicDownloads.$inferInsert;
 
-export const musicRequestsRelations = relations(musicRequests, ({ one }) => ({
+export const musicDownloadsRelations = relations(musicDownloads, ({ one }) => ({
   user: one(users, {
-    fields: [musicRequests.userId],
+    fields: [musicDownloads.userId],
     references: [users.id],
   }),
 }));

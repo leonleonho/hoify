@@ -15,13 +15,13 @@ import {
   resolvers as playlistResolvers,
 } from "./playlist/index.js";
 import {
-  typeDefs as requestsTypeDefs,
-  resolvers as requestsResolvers,
-} from "./requests/index.js";
+  typeDefs as downloadsTypeDefs,
+  resolvers as downloadsResolvers,
+} from "./downloads/index.js";
 
 // ── Combine all module typeDefs ──────────────────────────────────────────────
 // As more resolver modules are added, import them above and include them here.
-export const typeDefs = [usersTypeDefs, authTypeDefs, musicTypeDefs, playlistTypeDefs, requestsTypeDefs];
+export const typeDefs = [usersTypeDefs, authTypeDefs, musicTypeDefs, playlistTypeDefs, downloadsTypeDefs];
 
 // ── Combine all module resolvers ─────────────────────────────────────────────
 // Each module exports its own resolver map; they are merged together here.
@@ -33,19 +33,19 @@ export const resolvers = {
   ...authResolvers,
   ...musicResolvers,
   ...playlistResolvers,
-  ...requestsResolvers,
+  ...downloadsResolvers,
   Query: {
     ...(usersResolvers.Query ?? {}),
     ...(authResolvers.Query ?? {}),
     ...(musicResolvers.Query ?? {}),
     ...(playlistResolvers.Query ?? {}),
-    ...(requestsResolvers.Query ?? {}),
+    ...(downloadsResolvers.Query ?? {}),
   },
   Mutation: {
     ...(usersResolvers.Mutation ?? {}),
     ...(authResolvers.Mutation ?? {}),
     ...(musicResolvers.Mutation ?? {}),
     ...(playlistResolvers.Mutation ?? {}),
-    ...(requestsResolvers.Mutation ?? {}),
+    ...(downloadsResolvers.Mutation ?? {}),
   },
 };
