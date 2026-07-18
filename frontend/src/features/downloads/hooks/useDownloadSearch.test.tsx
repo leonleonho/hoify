@@ -122,4 +122,87 @@ describe('useDownloadSearch', () => {
     expect(result.current.searchId).toBeNull();
     expect(result.current.searching).toBe(false);
   });
+
+  it('clears prior results when starting a new search', async () => {
+    const mocks = [
+      {
+        request: {
+          query: StartDownloadSearchDocument,
+          variables: { query: 'radiohead' },
+        },
+        result: {
+          data: { startDownloadSearch: emptyPeers },
+        },
+      },
+      {
+        request: {
+          query: DownloadSearchDocument,
+          variables: { id: 'search-1' },
+        },
+        result: {
+          data: { downloadSearch: completeResult },
+        },
+        maxUsageCount: Number.POSITIVE_INFINITY,
+      },
+      {
+        request: {
+          query: StartDownloadSearchDocument,
+          variables: { query: 'bjork' },
+        },
+        delay: 50,
+        result: {
+          data: {
+            startDownloadSearch: {
+              ...emptyPeers,
+              id: 'search-2',
+              query: 'bjork',
+            },
+          },
+        },
+      },
+      {
+        request: {
+          query: DownloadSearchDocument,
+          variables: { id: 'search-2' },
+        },
+        result: {
+          data: {
+            downloadSearch: {
+              ...emptyPeers,
+              id: 'search-2',
+              query: 'bjork',
+              isComplete: false,
+            },
+          },
+        },
+        maxUsageCount: Number.POSITIVE_INFINITY,
+      },
+    ];
+
+    const { result } = renderHook(() => useDownloadSearch(), {
+      wrapper: wrapper(mocks),
+    });
+
+    await act(async () => {
+      await result.current.search('radiohead');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isComplete).toBe(true);
+    });
+    expect(result.current.searchResult?.peers).toHaveLength(1);
+
+    let searchPromise: Promise<void>;
+    act(() => {
+      searchPromise = result.current.search('bjork');
+    });
+
+    await waitFor(() => {
+      expect(result.current.searchResult).toBeNull();
+    });
+
+    await act(async () => {
+      await searchPromise!;
+    });
+  });
 });

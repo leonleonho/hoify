@@ -21,6 +21,19 @@ import type {
 /** Local start times so we can enforce the search cap without relying on slskd. */
 const searchStartedAt = new Map<string, number>();
 
+/** Cached finalize payloads so repeated polls don't cancel/wait/group again. */
+const finalizedSearches = new Map<
+  string,
+  {
+    id: string;
+    query: string;
+    isComplete: true;
+    fileCount: number;
+    responseCount: number;
+    peers: DownloadSearchPeer[];
+  }
+>();
+
 const RESPONSE_FLUSH_WAIT_MS = 3_000;
 const RESPONSE_FLUSH_POLL_MS = 150;
 
@@ -205,4 +218,22 @@ export function shouldFinalizeSearch(
 
 export function clearSearchStart(searchId: string): void {
   searchStartedAt.delete(searchId);
+}
+
+export function getFinalizedSearch(searchId: string) {
+  return finalizedSearches.get(searchId);
+}
+
+export function setFinalizedSearch(
+  result: {
+    id: string;
+    query: string;
+    isComplete: true;
+    fileCount: number;
+    responseCount: number;
+    peers: DownloadSearchPeer[];
+  },
+): void {
+  finalizedSearches.set(result.id, result);
+  searchStartedAt.delete(result.id);
 }

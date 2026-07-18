@@ -38,7 +38,12 @@ export function useDownloadSearch() {
     },
   );
 
-  const searchResult = data?.downloadSearch ?? null;
+  // Ignore Apollo's previous result when searchId is cleared or swapped —
+  // otherwise a new search briefly shows the prior peers/Add actions.
+  const searchResult =
+    searchId && data?.downloadSearch?.id === searchId
+      ? data.downloadSearch
+      : null;
   const isComplete = searchResult?.isComplete ?? false;
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useApolloClient, useMutation } from '@apollo/client/react';
 import { DownloadsDocument, StartDownloadDocument } from '@/hooks/generated';
 import type {
   StartDownloadMutation,
@@ -8,6 +8,7 @@ import type {
 import type { DownloadFileInput } from '@/hooks/generated/types';
 
 export function useStartDownload() {
+  const client = useApolloClient();
   const [error, setError] = useState<Error | null>(null);
   const [mutate, { loading }] = useMutation<
     StartDownloadMutation,
@@ -27,13 +28,15 @@ export function useStartDownload() {
       try {
         return await mutate({ variables: { peer, files } });
       } catch (err) {
+        // Partial enqueue may still have persisted rows before the error.
+        await client.refetchQueries({ include: [DownloadsDocument] });
         const next =
           err instanceof Error ? err : new Error('Failed to add');
         setError(next);
         return null;
       }
     },
-    [mutate],
+    [client, mutate],
   );
 
   return {

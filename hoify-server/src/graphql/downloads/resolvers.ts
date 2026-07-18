@@ -7,14 +7,15 @@ import {
 } from "../../db/schema.js";
 import {
   cancelSearch,
-  clearSearchStart,
   enqueueDownloads,
+  getFinalizedSearch,
   getSearchStatus,
   getTransfer,
   groupByPeerAndFolder,
   isSlskdEnabled,
   isTerminalStatus,
   mapTransferStatus,
+  setFinalizedSearch,
   shouldFinalizeSearch,
   startSearch,
   waitForSearchResponses,
@@ -119,6 +120,9 @@ export const resolvers = {
     downloadSearch: async (_: unknown, args: { id: string }) => {
       requireProviderEnabled();
 
+      const cached = getFinalizedSearch(args.id);
+      if (cached) return cached;
+
       const status = await getSearchStatus(args.id);
       // Own the cutoff: ignore early slskd completion. Finalize after 10s or
       // once >15 peers have responded, then cancel to flush responses to DB.
@@ -149,7 +153,6 @@ export const resolvers = {
 
       const responses = await waitForSearchResponses(args.id);
       const peers = groupByPeerAndFolder(responses);
-      clearSearchStart(args.id);
 
       const fileCount = peers.reduce(
         (sum, peer) =>
@@ -157,14 +160,16 @@ export const resolvers = {
         0,
       );
 
-      return {
+      const result = {
         id: status.id,
         query: status.searchText ?? "",
-        isComplete: true,
+        isComplete: true as const,
         fileCount,
         responseCount: peers.length,
         peers,
       };
+      setFinalizedSearch(result);
+      return result;
     },
 
     downloads: async (_: unknown, __: unknown, context: Context) => {
@@ -223,8 +228,9 @@ export const resolvers = {
       }
 
       let enqueued;
+      let failed;
       try {
-        ({ enqueued } = await enqueueDownloads(args.peer, args.files));
+        ({ enqueued, failed } = await enqueueDownloads(args.peer, args.files));
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new GraphQLError(`Failed to enqueue download: ${msg}`, {
@@ -251,6 +257,19 @@ export const resolvers = {
           })),
         )
         .returning();
+
+      if (failed?.length) {
+        throw new GraphQLError(
+          `Enqueued ${enqueued.length} file(s), but ${failed.length} failed`,
+          {
+            extensions: {
+              code: "PARTIAL_ENQUEUE_FAILURE",
+              enqueuedCount: enqueued.length,
+              failedCount: failed.length,
+            },
+          },
+        );
+      }
 
       return inserted.map((row) => ({
         id: row.id,

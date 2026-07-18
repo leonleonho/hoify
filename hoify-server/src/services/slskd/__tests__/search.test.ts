@@ -169,4 +169,22 @@ describe("slskd search API", () => {
 
     clearSearchStart("ready");
   });
+
+  it("caches finalized search results", async () => {
+    const {
+      setFinalizedSearch,
+      getFinalizedSearch,
+    } = await import("../search.js");
+
+    const result = {
+      id: "fin-1",
+      query: "q",
+      isComplete: true as const,
+      fileCount: 2,
+      responseCount: 1,
+      peers: [],
+    };
+    setFinalizedSearch(result);
+    expect(getFinalizedSearch("fin-1")).toEqual(result);
+  });
 });

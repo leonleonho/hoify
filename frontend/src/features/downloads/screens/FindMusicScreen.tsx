@@ -16,7 +16,7 @@ type Props = {
 
 export function FindMusicScreen({ initialQuery = '' }: Props) {
   const [query, setQuery] = useState(initialQuery);
-  const autoStarted = useRef(false);
+  const lastAutoQuery = useRef<string | null>(null);
 
   const {
     search,
@@ -42,10 +42,9 @@ export function FindMusicScreen({ initialQuery = '' }: Props) {
   }, [search, query, clearDownloadError]);
 
   useEffect(() => {
-    if (autoStarted.current) return;
     const q = initialQuery.trim();
-    if (!q) return;
-    autoStarted.current = true;
+    if (!q || q === lastAutoQuery.current) return;
+    lastAutoQuery.current = q;
     setQuery(q);
     clearDownloadError();
     void search(q);

@@ -22,6 +22,8 @@ export {
   hasEnoughSearchPeers,
   shouldFinalizeSearch,
   clearSearchStart,
+  getFinalizedSearch,
+  setFinalizedSearch,
 } from "./search.js";
 export { enqueueDownloads, getTransfer } from "./transfers.js";
 export type {

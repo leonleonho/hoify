@@ -10,6 +10,8 @@ const mockWaitForSearchResponses = jest.fn(async () => []);
 const mockGroupByPeerAndFolder = jest.fn(() => []);
 const mockShouldFinalizeSearch = jest.fn(() => false);
 const mockClearSearchStart = jest.fn();
+const mockGetFinalizedSearch = jest.fn(() => undefined);
+const mockSetFinalizedSearch = jest.fn();
 const mockEnqueueDownloads = jest.fn();
 const mockGetTransfer = jest.fn();
 const mockMapTransferStatus = jest.fn((state: string) => {
@@ -36,6 +38,8 @@ jest.unstable_mockModule("../../../services/slskd/index.js", () => ({
   groupByPeerAndFolder: mockGroupByPeerAndFolder,
   shouldFinalizeSearch: mockShouldFinalizeSearch,
   clearSearchStart: mockClearSearchStart,
+  getFinalizedSearch: mockGetFinalizedSearch,
+  setFinalizedSearch: mockSetFinalizedSearch,
   enqueueDownloads: mockEnqueueDownloads,
   getTransfer: mockGetTransfer,
   mapTransferStatus: mockMapTransferStatus,
@@ -60,6 +64,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockIsSlskdEnabled.mockReturnValue(true);
   mockShouldFinalizeSearch.mockReturnValue(false);
+  mockGetFinalizedSearch.mockReturnValue(undefined);
   mockGroupByPeerAndFolder.mockReturnValue([]);
   mockGetSearchResponses.mockResolvedValue([]);
   mockIsTerminalStatus.mockImplementation(
@@ -125,7 +130,7 @@ describe("downloads resolvers — search", () => {
     expect(result.responseCount).toBe(7);
     expect(mockGetSearchResponses).not.toHaveBeenCalled();
     expect(mockCancelSearch).not.toHaveBeenCalled();
-    expect(mockClearSearchStart).not.toHaveBeenCalled();
+    expect(mockSetFinalizedSearch).not.toHaveBeenCalled();
   });
 
   it("downloadSearch ignores early slskd completion until finalize conditions", async () => {
@@ -195,7 +200,28 @@ describe("downloads resolvers — search", () => {
     expect(mockGetSearchResponses).not.toHaveBeenCalled();
     expect(result.peers).toHaveLength(1);
     expect(result.fileCount).toBe(1);
-    expect(mockClearSearchStart).toHaveBeenCalledWith("s1");
+    expect(mockSetFinalizedSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "s1", isComplete: true, fileCount: 1 }),
+    );
+  });
+
+  it("downloadSearch returns cached finalize without re-running cancel/wait", async () => {
+    const cached = {
+      id: "s1",
+      query: "q",
+      isComplete: true as const,
+      fileCount: 1,
+      responseCount: 1,
+      peers: [],
+    };
+    mockGetFinalizedSearch.mockReturnValue(cached);
+
+    const result = await resolvers.Query.downloadSearch(null, { id: "s1" });
+
+    expect(result).toBe(cached);
+    expect(mockGetSearchStatus).not.toHaveBeenCalled();
+    expect(mockCancelSearch).not.toHaveBeenCalled();
+    expect(mockWaitForSearchResponses).not.toHaveBeenCalled();
   });
 
   it("downloadSearch skips cancel when slskd already complete at finalize", async () => {
@@ -297,6 +323,53 @@ describe("downloads resolvers — startDownload", () => {
         context,
       ),
     ).rejects.toMatchObject({ extensions: { code: "INTERNAL_ERROR" } });
+  });
+
+  it("persists successes then throws when some files fail to enqueue", async () => {
+    mockEnqueueDownloads.mockResolvedValue({
+      enqueued: [
+        {
+          id: 9,
+          username: "peer",
+          filename: "a.flac",
+          size: 100,
+          state: "Queued",
+        },
+      ],
+      failed: [{ filename: "b.flac" }],
+    });
+
+    const returning = jest.fn(async () => [
+      {
+        id: "dl-1",
+        peer: "peer",
+        filename: "a.flac",
+        size: 100,
+        status: "queued",
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+      },
+    ]);
+    const values = jest.fn(() => ({ returning }));
+    mockInsert.mockReturnValue({ values });
+
+    await expect(
+      resolvers.Mutation.startDownload(
+        null,
+        {
+          peer: "peer",
+          files: [
+            { filename: "a.flac", size: 100 },
+            { filename: "b.flac", size: 50 },
+          ],
+        },
+        context,
+      ),
+    ).rejects.toMatchObject({
+      message: "Enqueued 1 file(s), but 1 failed",
+      extensions: { code: "PARTIAL_ENQUEUE_FAILURE" },
+    });
+
+    expect(values).toHaveBeenCalled();
   });
 });
 
