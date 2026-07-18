@@ -38,7 +38,7 @@ function downloadSubtitle(download: Download): string {
 export function DownloadsList({ downloads, loading, error }: Props) {
   if (loading && downloads.length === 0) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, styles.panel]}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -46,7 +46,7 @@ export function DownloadsList({ downloads, loading, error }: Props) {
 
   if (error && downloads.length === 0) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, styles.panel]}>
         <Text style={styles.errorText}>
           Failed to load transfers: {error.message}
         </Text>
@@ -56,14 +56,14 @@ export function DownloadsList({ downloads, loading, error }: Props) {
 
   if (downloads.length === 0) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, styles.panel]}>
         <Text style={styles.emptyText}>Nothing in progress</Text>
       </View>
     );
   }
 
   return (
-    <List header="Add Requests">
+    <List header="Add Requests" style={styles.panel}>
       {downloads.map((download, index) => (
         <ListItem
           key={download.id}
@@ -97,11 +97,13 @@ export function DownloadsList({ downloads, loading, error }: Props) {
 }
 
 const styles = StyleSheet.create({
+  panel: {
+    marginHorizontal: spacing.md,
+  },
   centered: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
   },
   emptyText: {
     ...typography.body,
