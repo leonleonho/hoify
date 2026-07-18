@@ -1,8 +1,10 @@
 import { Worker } from "bullmq";
+import { stat } from "node:fs/promises";
 import { connection } from "./queue.js";
 import { parseFile } from "./parser.js";
 import { identify } from "./identification/identify.js";
 import { upsertOne, saveAlbumArt } from "./storage/storageUtils.js";
+import { recordScanState } from "./storage/scanState.js";
 import { logger } from "../../util/logger.js";
 import type { EnqueuePayload } from "./types/types.js";
 
@@ -24,6 +26,14 @@ export const enrichmentWorker = new Worker<EnqueuePayload>(
     const parsed = await parseFile(filePath);
     if (!parsed) {
       errorCount++;
+      let mtime = 0;
+      try {
+        const st = await stat(filePath);
+        mtime = Math.floor(st.mtimeMs);
+      } catch {
+        /* file may be gone */
+      }
+      await recordScanState(filePath, mtime, "failed");
       return { success: false, error: "Parse failed" };
     }
 
@@ -48,7 +58,7 @@ enrichmentWorker.on("completed", (job) => {
   logger.debug({ filePath: job.data.filePath }, "Enriched track");
 });
 
-enrichmentWorker.on("failed", (job, err) => {
+enrichmentWorker.on("failed", async (job, err) => {
   logger.warn(
     {
       filePath: job?.data.filePath,
@@ -57,6 +67,25 @@ enrichmentWorker.on("failed", (job, err) => {
     },
     "Enrichment job failed",
   );
+
+  const maxAttempts = job?.opts.attempts ?? 1;
+  if (job && job.attemptsMade >= maxAttempts) {
+    let mtime = 0;
+    try {
+      const st = await stat(job.data.filePath);
+      mtime = Math.floor(st.mtimeMs);
+    } catch {
+      /* file may be gone */
+    }
+    try {
+      await recordScanState(job.data.filePath, mtime, "failed");
+    } catch (recordErr) {
+      logger.warn(
+        { filePath: job.data.filePath, err: recordErr },
+        "Failed to record scan state after enrichment failure",
+      );
+    }
+  }
 });
 
 enrichmentWorker.on("drained", () => {

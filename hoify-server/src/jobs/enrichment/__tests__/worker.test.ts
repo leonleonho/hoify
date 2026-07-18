@@ -5,6 +5,8 @@ const mockParseFile = jest.fn();
 const mockIdentify = jest.fn();
 const mockUpsertOne = jest.fn();
 const mockSaveAlbumArt = jest.fn();
+const mockRecordScanState = jest.fn();
+const mockStat = jest.fn();
 
 let capturedHandler: ((job: { data: { filePath: string }; attemptsMade: number }) => Promise<unknown>) | null = null;
 
@@ -16,11 +18,17 @@ jest.unstable_mockModule("bullmq", () => ({
   Queue: jest.fn(() => ({ add: jest.fn() })),
 }));
 
+jest.unstable_mockModule("node:fs/promises", () => ({
+  stat: mockStat,
+}));
 jest.unstable_mockModule("../parser.js", () => ({ parseFile: mockParseFile }));
 jest.unstable_mockModule("../identification/identify.js", () => ({ identify: mockIdentify }));
 jest.unstable_mockModule("../storage/storageUtils.js", () => ({
   upsertOne: mockUpsertOne,
   saveAlbumArt: mockSaveAlbumArt,
+}));
+jest.unstable_mockModule("../storage/scanState.js", () => ({
+  recordScanState: mockRecordScanState,
 }));
 jest.unstable_mockModule("../../../util/logger", () => ({ logger: mockLogger }));
 jest.unstable_mockModule("../../../db/redis", () => ({ connection: {} }));
@@ -33,6 +41,8 @@ await import("../worker.js");
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockRecordScanState.mockResolvedValue(undefined);
+  mockStat.mockResolvedValue({ mtimeMs: 1234 });
 });
 
 describe("worker handler", () => {
@@ -63,6 +73,7 @@ describe("worker handler", () => {
 
     expect(mockIdentify).not.toHaveBeenCalled();
     expect(mockUpsertOne).not.toHaveBeenCalled();
+    expect(mockRecordScanState).toHaveBeenCalledWith("/music/bad.mp3", 1234, "failed");
     expect(result).toEqual({ success: false, error: "Parse failed" });
   });
 
