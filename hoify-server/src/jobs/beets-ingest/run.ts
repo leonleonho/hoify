@@ -30,8 +30,8 @@ directory: ${MUSIC_LIBRARY_PATH}
 library: ${resolve(BEETS_DIR, "library.db")}
 
 import:
-  copy: yes
-  move: no
+  copy: no
+  move: yes
   link: no
   autotag: yes
   quiet: yes
