@@ -106,7 +106,7 @@ function FolderSection({
           {folder.name || 'Untitled folder'}
         </Text>
         <Button
-          title="Download folder"
+          title="Add folder"
           variant="secondary"
           size="sm"
           onPress={handleFolderDownload}
@@ -121,7 +121,7 @@ function FolderSection({
             subtitle={fileSubtitle(file)}
             trailing={
               <Button
-                title="Get"
+                title="Add"
                 variant="ghost"
                 size="sm"
                 onPress={() =>
@@ -188,7 +188,7 @@ export function DownloadSearchResults({
 
       {peers.length === 0 && isComplete ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyText}>No downloadable files found</Text>
+          <Text style={styles.emptyText}>No files found</Text>
         </View>
       ) : (
         peers.map((peer) => (

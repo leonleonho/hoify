@@ -28,7 +28,7 @@ export function useStartDownload() {
         return await mutate({ variables: { peer, files } });
       } catch (err) {
         const next =
-          err instanceof Error ? err : new Error('Download failed');
+          err instanceof Error ? err : new Error('Failed to add');
         setError(next);
         return null;
       }

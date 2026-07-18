@@ -31,11 +31,11 @@ export default function IndexScreen() {
   const { searchResults, loading } = useSearchMusic(debouncedQuery);
   const hasActiveSearch = debouncedQuery.trim().length >= 2;
 
-  const handleFindDownload = useCallback(() => {
+  const handleFindMusic = useCallback(() => {
     const q = debouncedQuery.trim();
     const path = q
-      ? `/downloads?q=${encodeURIComponent(q)}`
-      : '/downloads';
+      ? `/find?q=${encodeURIComponent(q)}`
+      : '/find';
     router.push(path as any);
   }, [debouncedQuery, router]);
 
@@ -62,7 +62,7 @@ export default function IndexScreen() {
                 data={searchResults}
                 loading={false}
                 error={null}
-                onFindDownload={handleFindDownload}
+                onFindMusic={handleFindMusic}
               />
             ) : (
               loading && (
@@ -87,10 +87,10 @@ export default function IndexScreen() {
                 onPress={() => router.push('/albums' as any)}
               />
             </View>
-            <View style={styles.downloadsRow}>
+            <View style={styles.findRow}>
               <CategoryTile
-                category="downloads"
-                onPress={() => router.push('/downloads' as any)}
+                category="find"
+                onPress={() => router.push('/find' as any)}
               />
             </View>
           </View>
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  downloadsRow: {
+  findRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,

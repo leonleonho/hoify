@@ -14,7 +14,7 @@ type Props = {
   initialQuery?: string;
 };
 
-export function DownloadsScreen({ initialQuery = '' }: Props) {
+export function FindMusicScreen({ initialQuery = '' }: Props) {
   const [query, setQuery] = useState(initialQuery);
   const autoStarted = useRef(false);
 
@@ -61,9 +61,9 @@ export function DownloadsScreen({ initialQuery = '' }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Downloads</Text>
+        <Text style={styles.title}>Find music</Text>
         <Text style={styles.subtitle}>
-          Search Soulseek and track your downloads
+          Search Soulseek and add music to your library
         </Text>
       </View>
 
@@ -88,7 +88,7 @@ export function DownloadsScreen({ initialQuery = '' }: Props) {
 
       {downloadError ? (
         <Text style={styles.errorText}>
-          Download failed: {downloadError.message}
+          Failed to add: {downloadError.message}
         </Text>
       ) : null}
 
@@ -106,7 +106,7 @@ export function DownloadsScreen({ initialQuery = '' }: Props) {
           downloading={downloading}
         />
 
-        <View style={styles.downloadsSection}>
+        <View style={styles.transfersSection}>
           <DownloadsList
             downloads={downloads}
             loading={downloadsLoading}
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
-  downloadsSection: {
+  transfersSection: {
     marginTop: spacing.sm,
   },
   errorText: {

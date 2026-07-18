@@ -48,7 +48,7 @@ export function DownloadsList({ downloads, loading, error }: Props) {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>
-          Failed to load downloads: {error.message}
+          Failed to load transfers: {error.message}
         </Text>
       </View>
     );
@@ -57,13 +57,13 @@ export function DownloadsList({ downloads, loading, error }: Props) {
   if (downloads.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.emptyText}>No downloads yet</Text>
+        <Text style={styles.emptyText}>Nothing in progress</Text>
       </View>
     );
   }
 
   return (
-    <List header="YOUR DOWNLOADS">
+    <List header="Add Requests">
       {downloads.map((download, index) => (
         <ListItem
           key={download.id}

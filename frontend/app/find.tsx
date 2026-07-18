@@ -1,8 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
-import { DownloadsScreen } from '@/features/downloads/screens/DownloadsScreen';
+import { FindMusicScreen } from '@/features/downloads/screens/FindMusicScreen';
 
-export default function DownloadsPage() {
+export default function FindMusicPage() {
   const { q } = useLocalSearchParams<{ q?: string }>();
   const initialQuery = typeof q === 'string' ? q : Array.isArray(q) ? q[0] : '';
-  return <DownloadsScreen initialQuery={initialQuery ?? ''} />;
+  return <FindMusicScreen initialQuery={initialQuery ?? ''} />;
 }

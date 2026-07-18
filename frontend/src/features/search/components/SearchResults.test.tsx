@@ -41,7 +41,7 @@ const populatedData: SearchData = {
 function renderSearchResults(
   data: SearchData,
   props: {
-    onFindDownload?: () => void;
+    onFindMusic?: () => void;
   } = {},
 ) {
   return render(
@@ -62,35 +62,35 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('SearchResults — find & download CTA', () => {
-  it('shows find & download prompt when results exist', () => {
-    renderSearchResults(populatedData, { onFindDownload: vi.fn() });
+describe('SearchResults — find music CTA', () => {
+  it('shows find music prompt when results exist', () => {
+    renderSearchResults(populatedData, { onFindMusic: vi.fn() });
 
     expect(screen.getByText("Not what you're looking for?")).toBeInTheDocument();
-    expect(screen.getByText('Find & download')).toBeInTheDocument();
+    expect(screen.getByText('Find music')).toBeInTheDocument();
   });
 
-  it('shows find & download prompt when backend results are empty', () => {
-    renderSearchResults(emptyData, { onFindDownload: vi.fn() });
+  it('shows find music prompt when backend results are empty', () => {
+    renderSearchResults(emptyData, { onFindMusic: vi.fn() });
 
     expect(screen.getByText("Not what you're looking for?")).toBeInTheDocument();
-    expect(screen.getByText('Find & download')).toBeInTheDocument();
+    expect(screen.getByText('Find music')).toBeInTheDocument();
   });
 
-  it('hides CTA when onFindDownload is not provided', () => {
+  it('hides CTA when onFindMusic is not provided', () => {
     renderSearchResults(populatedData);
 
-    expect(screen.queryByText('Find & download')).not.toBeInTheDocument();
+    expect(screen.queryByText('Find music')).not.toBeInTheDocument();
   });
 
-  it('calls onFindDownload when button pressed', async () => {
+  it('calls onFindMusic when button pressed', async () => {
     const user = userEvent.setup();
-    const onFindDownload = vi.fn();
+    const onFindMusic = vi.fn();
 
-    renderSearchResults(populatedData, { onFindDownload });
+    renderSearchResults(populatedData, { onFindMusic });
 
-    await user.click(screen.getByText('Find & download'));
+    await user.click(screen.getByText('Find music'));
 
-    expect(onFindDownload).toHaveBeenCalledTimes(1);
+    expect(onFindMusic).toHaveBeenCalledTimes(1);
   });
 });

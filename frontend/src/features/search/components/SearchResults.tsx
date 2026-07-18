@@ -15,14 +15,14 @@ type SearchResultsProps = {
   data: SearchResultsData;
   loading: boolean;
   error: Error | null;
-  onFindDownload?: () => void;
+  onFindMusic?: () => void;
 };
 
 export function SearchResults({
   data,
   loading,
   error,
-  onFindDownload,
+  onFindMusic,
 }: SearchResultsProps) {
   const router = useRouter();
   const { playPlaylist } = useMusicPlayer();
@@ -47,14 +47,14 @@ export function SearchResults({
   const hasAlbums = data.albums.length > 0;
   const hasTracks = data.tracks.length > 0;
 
-  const findDownloadCta = onFindDownload ? (
+  const findMusicCta = onFindMusic ? (
     <View style={styles.extendedSearch}>
       <Text style={styles.extendedText}>{"Not what you're looking for?"}</Text>
       <Button
-        title="Find & download"
+        title="Find music"
         variant="secondary"
         size="sm"
-        onPress={onFindDownload}
+        onPress={onFindMusic}
       />
     </View>
   ) : null;
@@ -65,7 +65,7 @@ export function SearchResults({
         <View style={styles.centered}>
           <Text style={styles.emptyText}>No results found</Text>
         </View>
-        {findDownloadCta}
+        {findMusicCta}
       </View>
     );
   }
@@ -117,7 +117,7 @@ export function SearchResults({
         </List>
       )}
 
-      {findDownloadCta}
+      {findMusicCta}
     </View>
   );
 }

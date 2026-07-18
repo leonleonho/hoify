@@ -173,7 +173,8 @@ export const resolvers = {
         .select()
         .from(musicDownloads)
         .where(eq(musicDownloads.userId, context.currentUser!.id))
-        .orderBy(desc(musicDownloads.createdAt));
+        .orderBy(desc(musicDownloads.createdAt))
+        .limit(20);
 
       return Promise.all(rows.map(enrichDownload));
     },
