@@ -1,8 +1,13 @@
-const SLSKD_URL = process.env.SLSKD_URL ?? "http://localhost:5030";
-const SLSKD_API_KEY = process.env.SLSKD_API_KEY;
-
 export function isSlskdEnabled(): boolean {
   return process.env.SLSKD_ENABLED === "true";
+}
+
+function baseUrl(): string {
+  return process.env.SLSKD_URL ?? "http://localhost:5030";
+}
+
+function apiKey(): string | undefined {
+  return process.env.SLSKD_API_KEY;
 }
 
 export async function apiFetch<T>(
@@ -13,10 +18,11 @@ export async function apiFetch<T>(
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
-  if (SLSKD_API_KEY) {
-    headers["X-API-Key"] = SLSKD_API_KEY;
+  const key = apiKey();
+  if (key) {
+    headers["X-API-Key"] = key;
   }
-  const res = await fetch(`${SLSKD_URL}${urlPath}`, {
+  const res = await fetch(`${baseUrl()}${urlPath}`, {
     ...options,
     headers,
   });
