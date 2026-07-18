@@ -173,6 +173,30 @@ export type Track = typeof tracks.$inferSelect;
 export type NewTrack = typeof tracks.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// Library scan state (skip ledger for enrichment queue)
+// ---------------------------------------------------------------------------
+
+export const libraryScanStatusEnum = pgEnum("library_scan_status", [
+  "ok",
+  "failed",
+  "skipped_dup",
+]);
+
+export const libraryScanState = pgTable("library_scan_state", {
+  filePath: text("file_path").primaryKey(),
+  fileMtime: bigint("file_mtime", { mode: "number" }).notNull(),
+  status: libraryScanStatusEnum("status").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`)
+    .$onUpdate(() => new Date()),
+});
+
+export type LibraryScanState = typeof libraryScanState.$inferSelect;
+export type NewLibraryScanState = typeof libraryScanState.$inferInsert;
+export type LibraryScanStatus = (typeof libraryScanStatusEnum.enumValues)[number];
+
+// ---------------------------------------------------------------------------
 // Genres
 // ---------------------------------------------------------------------------
 

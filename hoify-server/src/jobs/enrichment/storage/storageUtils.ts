@@ -12,6 +12,7 @@ import {
 import { logger } from "../../../util/logger.js";
 import { musicLibraryPath, albumArtPath as ART_PATH } from "../../../paths.js";
 import type { ParsedTrack, ArtData } from "../types/types.js";
+import { recordScanState } from "./scanState.js";
 
 export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }> {
   // --- Genres: upsert, then build lookup ---
@@ -118,6 +119,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
         { title: track.title, artist: albumArtistName },
         "Skipping dup — existing track has equal or better bitrate",
       );
+      await recordScanState(track.filePath, track.fileMtime, "skipped_dup");
       return { albumId: existing.albumId };
     }
 
@@ -152,6 +154,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
       })
       .where(eq(tracks.id, existing.id));
 
+    await recordScanState(track.filePath, track.fileMtime, "ok");
     return { albumId };
   }
 
@@ -241,6 +244,7 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
     }
   }
 
+  await recordScanState(track.filePath, track.fileMtime, "ok");
   return { albumId };
 }
 
