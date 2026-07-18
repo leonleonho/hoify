@@ -70,10 +70,6 @@ docker run -p 4000:4000 -p 3000:3000 \
 | `ACOUSTID_API_KEY` | AcoustID API key (https://acoustid.org/register) |
 | `MUSICBRAINZ_USER_AGENT` | MusicBrainz API user agent |
 
-### Optional — Discogs (frontend)
-
-Set via `DOCKER_EXPO_PUBLIC_API_URL` build arg only (Expo inlines at build time). Not settable at runtime.
-
 ## Run with .env file
 
 ```bash

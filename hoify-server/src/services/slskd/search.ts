@@ -1,6 +1,8 @@
 import { apiFetch } from "./client.js";
 import {
+  SEARCH_PEER_LIMIT,
   SEARCH_TIMEOUT_MS,
+  SLSKD_SEARCH_TIMEOUT_MS,
   compareFilesByQuality,
   fileExtension,
   fileQualityScore,
@@ -16,8 +18,15 @@ import type {
   SlskdSearchStatus,
 } from "./types.js";
 
-/** Local start times so we can enforce the 15s cap without relying on slskd. */
+/** Local start times so we can enforce the search cap without relying on slskd. */
 const searchStartedAt = new Map<string, number>();
+
+const RESPONSE_FLUSH_WAIT_MS = 3_000;
+const RESPONSE_FLUSH_POLL_MS = 150;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export async function startSearch(query: string): Promise<{ id: string }> {
   const result = await apiFetch<{ id: string }>("/api/v0/searches", {
@@ -26,7 +35,7 @@ export async function startSearch(query: string): Promise<{ id: string }> {
       searchText: query,
       fileLimit: 200,
       filterResponses: true,
-      searchTimeout: SEARCH_TIMEOUT_MS,
+      searchTimeout: SLSKD_SEARCH_TIMEOUT_MS,
     }),
   });
   searchStartedAt.set(result.id, Date.now());
@@ -37,13 +46,55 @@ export async function getSearchStatus(id: string): Promise<SlskdSearchStatus> {
   return apiFetch<SlskdSearchStatus>(`/api/v0/searches/${id}`);
 }
 
+/**
+ * Ask slskd to stop an in-progress search. Cancellation triggers finalize,
+ * which writes accumulated responses to the DB so GET /responses can return them.
+ */
+export async function cancelSearch(id: string): Promise<void> {
+  await apiFetch(`/api/v0/searches/${id}`, { method: "PUT" });
+}
+
+/**
+ * Fetch search response payloads from slskd.
+ *
+ * Note: slskd only persists responses when a search completes (or is cancelled).
+ * While in progress this endpoint returns []. Live progress is on getSearchStatus
+ * (fileCount / responseCount).
+ */
 export async function getSearchResponses(
   id: string,
 ): Promise<SlskdSearchResponse[]> {
   const responses = await apiFetch<SlskdSearchResponse[]>(
-    `/api/v0/searches/${id}/responses?includeResponses=true`,
+    `/api/v0/searches/${id}/responses`,
   );
   return responses ?? [];
+}
+
+/**
+ * Poll until responses appear or the search is marked complete (or we give up).
+ * Used after cancel/timeout so we don't return empty peers while slskd flushes.
+ */
+export async function waitForSearchResponses(
+  id: string,
+  options: { maxWaitMs?: number; intervalMs?: number } = {},
+): Promise<SlskdSearchResponse[]> {
+  const maxWaitMs = options.maxWaitMs ?? RESPONSE_FLUSH_WAIT_MS;
+  const intervalMs = options.intervalMs ?? RESPONSE_FLUSH_POLL_MS;
+  const deadline = Date.now() + maxWaitMs;
+
+  let responses = await getSearchResponses(id);
+  if (responses.length > 0) return responses;
+
+  while (Date.now() < deadline) {
+    await sleep(intervalMs);
+    const status = await getSearchStatus(id);
+    responses = await getSearchResponses(id);
+    if (responses.length > 0 || status.isComplete) {
+      return responses;
+    }
+  }
+
+  return getSearchResponses(id);
 }
 
 function toSearchFile(file: SlskdFile): DownloadSearchFile {
@@ -131,6 +182,25 @@ export function isSearchTimedOut(
   const start = new Date(startedAt).getTime();
   if (Number.isNaN(start)) return false;
   return Date.now() - start >= SEARCH_TIMEOUT_MS;
+}
+
+/** True when more than SEARCH_PEER_LIMIT peers have responded. */
+export function hasEnoughSearchPeers(
+  responseCount: number | null | undefined,
+): boolean {
+  return (responseCount ?? 0) > SEARCH_PEER_LIMIT;
+}
+
+/** Finalize after the time cap or once enough peers have responded. */
+export function shouldFinalizeSearch(
+  searchId: string,
+  startedAt: string | undefined | null,
+  responseCount: number | null | undefined,
+): boolean {
+  return (
+    isSearchTimedOut(searchId, startedAt) ||
+    hasEnoughSearchPeers(responseCount)
+  );
 }
 
 export function clearSearchStart(searchId: string): void {

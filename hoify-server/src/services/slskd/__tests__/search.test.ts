@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
-import { SEARCH_TIMEOUT_MS } from "../helpers.js";
+import { SEARCH_TIMEOUT_MS, SLSKD_SEARCH_TIMEOUT_MS } from "../helpers.js";
 
 const mockFetch = jest.fn<typeof fetch>();
 
@@ -24,7 +24,7 @@ function okResponse(body: unknown): Response {
 }
 
 describe("slskd search API", () => {
-  it("startSearch posts with 15s searchTimeout and returns id", async () => {
+  it("startSearch posts with long slskd timeout and returns id", async () => {
     const { startSearch, clearSearchStart } = await import("../search.js");
     mockFetch.mockResolvedValue(okResponse({ id: "search-1" }));
 
@@ -35,10 +35,12 @@ describe("slskd search API", () => {
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body).toMatchObject({
       searchText: "Daft Punk",
-      searchTimeout: SEARCH_TIMEOUT_MS,
+      searchTimeout: SLSKD_SEARCH_TIMEOUT_MS,
       fileLimit: 200,
       filterResponses: true,
     });
+    expect(SEARCH_TIMEOUT_MS).toBe(10_000);
+    expect(SLSKD_SEARCH_TIMEOUT_MS).toBeGreaterThan(SEARCH_TIMEOUT_MS);
 
     clearSearchStart("search-1");
   });
@@ -70,6 +72,35 @@ describe("slskd search API", () => {
     );
   });
 
+  it("cancelSearch uses PUT", async () => {
+    const { cancelSearch } = await import("../search.js");
+    mockFetch.mockResolvedValue(okResponse(undefined));
+
+    await cancelSearch("s1");
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      "http://slskd.test/api/v0/searches/s1",
+    );
+    expect((mockFetch.mock.calls[0][1] as RequestInit).method).toBe("PUT");
+  });
+
+  it("waitForSearchResponses returns once responses appear", async () => {
+    const { waitForSearchResponses } = await import("../search.js");
+    mockFetch
+      .mockResolvedValueOnce(okResponse([]))
+      .mockResolvedValueOnce(
+        okResponse({ id: "s1", isComplete: false }),
+      )
+      .mockResolvedValueOnce(
+        okResponse([{ username: "peer", files: [{ filename: "a.flac", size: 1 }] }]),
+      );
+
+    await expect(
+      waitForSearchResponses("s1", { maxWaitMs: 1000, intervalMs: 10 }),
+    ).resolves.toEqual([
+      { username: "peer", files: [{ filename: "a.flac", size: 1 }] },
+    ]);
+  });
+
   it("getSearchResponses returns [] when API returns nullish", async () => {
     const { getSearchResponses } = await import("../search.js");
     mockFetch.mockResolvedValue({
@@ -93,10 +124,10 @@ describe("slskd search API", () => {
 
     expect(isSearchTimedOut("timed", null)).toBe(false);
 
-    jest.setSystemTime(new Date("2026-01-01T00:00:14Z"));
+    jest.setSystemTime(new Date("2026-01-01T00:00:09Z"));
     expect(isSearchTimedOut("timed", null)).toBe(false);
 
-    jest.setSystemTime(new Date("2026-01-01T00:00:15Z"));
+    jest.setSystemTime(new Date("2026-01-01T00:00:10Z"));
     expect(isSearchTimedOut("timed", null)).toBe(true);
 
     clearSearchStart("timed");
@@ -109,5 +140,33 @@ describe("slskd search API", () => {
     expect(
       isSearchTimedOut("unknown-id", new Date().toISOString()),
     ).toBe(false);
+  });
+
+  it("hasEnoughSearchPeers is true only above the peer limit", async () => {
+    const { hasEnoughSearchPeers } = await import("../search.js");
+    expect(hasEnoughSearchPeers(15)).toBe(false);
+    expect(hasEnoughSearchPeers(16)).toBe(true);
+    expect(hasEnoughSearchPeers(null)).toBe(false);
+  });
+
+  it("shouldFinalizeSearch is true on timeout or enough peers", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+
+    const {
+      startSearch,
+      shouldFinalizeSearch,
+      clearSearchStart,
+    } = await import("../search.js");
+    mockFetch.mockResolvedValue(okResponse({ id: "ready" }));
+    await startSearch("query");
+
+    expect(shouldFinalizeSearch("ready", null, 3)).toBe(false);
+    expect(shouldFinalizeSearch("ready", null, 16)).toBe(true);
+
+    jest.setSystemTime(new Date("2026-01-01T00:00:10Z"));
+    expect(shouldFinalizeSearch("ready", null, 3)).toBe(true);
+
+    clearSearchStart("ready");
   });
 });

@@ -6,17 +6,18 @@ import {
   type MusicDownload as MusicDownloadRow,
 } from "../../db/schema.js";
 import {
+  cancelSearch,
   clearSearchStart,
   enqueueDownloads,
-  getSearchResponses,
   getSearchStatus,
   getTransfer,
   groupByPeerAndFolder,
-  isSearchTimedOut,
   isSlskdEnabled,
   isTerminalStatus,
   mapTransferStatus,
+  shouldFinalizeSearch,
   startSearch,
+  waitForSearchResponses,
   type DownloadStatus,
 } from "../../services/slskd/index.js";
 import { fmtDate } from "../music/services.js";
@@ -119,26 +120,47 @@ export const resolvers = {
       requireProviderEnabled();
 
       const status = await getSearchStatus(args.id);
-      const timedOut = isSearchTimedOut(args.id, status.startedAt);
-      const isComplete = status.isComplete || timedOut;
+      // Own the cutoff: ignore early slskd completion. Finalize after 10s or
+      // once >15 peers have responded, then cancel to flush responses to DB.
+      const ready = shouldFinalizeSearch(
+        args.id,
+        status.startedAt,
+        status.responseCount,
+      );
 
-      // Return whatever responses we have so far (partial while searching).
-      const responses = await getSearchResponses(args.id);
+      if (!ready) {
+        return {
+          id: status.id,
+          query: status.searchText ?? "",
+          isComplete: false,
+          fileCount: status.fileCount ?? 0,
+          responseCount: status.responseCount ?? 0,
+          peers: [],
+        };
+      }
+
+      if (!status.isComplete) {
+        try {
+          await cancelSearch(args.id);
+        } catch {
+          // Search may already be completing; still wait for flush below.
+        }
+      }
+
+      const responses = await waitForSearchResponses(args.id);
       const peers = groupByPeerAndFolder(responses);
+      clearSearchStart(args.id);
+
       const fileCount = peers.reduce(
         (sum, peer) =>
           sum + peer.folders.reduce((s, folder) => s + folder.files.length, 0),
         0,
       );
 
-      if (isComplete) {
-        clearSearchStart(args.id);
-      }
-
       return {
         id: status.id,
         query: status.searchText ?? "",
-        isComplete,
+        isComplete: true,
         fileCount,
         responseCount: peers.length,
         peers,

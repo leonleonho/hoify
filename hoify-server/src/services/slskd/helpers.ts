@@ -1,4 +1,11 @@
-export const SEARCH_TIMEOUT_MS = 15_000;
+export const SEARCH_TIMEOUT_MS = 10_000;
+
+/** Finalize early once more than this many peers have responded. */
+export const SEARCH_PEER_LIMIT = 15;
+
+/** How long to let slskd keep searching before we cancel. Longer than
+ *  SEARCH_TIMEOUT_MS so we own the cutoff via cancelSearch. */
+export const SLSKD_SEARCH_TIMEOUT_MS = 30_000;
 
 const AUDIO_EXTS = new Set([".flac", ".mp3", ".m4a", ".opus", ".ogg"]);
 

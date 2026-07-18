@@ -6,32 +6,23 @@ import { List, ListItem } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
-import { DiscogsResults } from '@/features/search/components/DiscogsResults';
-import type { DiscogsResult } from '@/features/search/discogs/types';
 import type { SearchMusicQuery } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated/types';
+
 type SearchResultsData = SearchMusicQuery['searchMusic'];
 
 type SearchResultsProps = {
   data: SearchResultsData;
   loading: boolean;
   error: Error | null;
-  onExtendedSearch?: () => void;
-  discogsResults?: DiscogsResult[];
-  discogsLoading?: boolean;
-  discogsError?: string | null;
-  discogsSearched?: boolean;
+  onFindDownload?: () => void;
 };
 
 export function SearchResults({
   data,
   loading,
   error,
-  onExtendedSearch,
-  discogsResults,
-  discogsLoading,
-  discogsError,
-  discogsSearched,
+  onFindDownload,
 }: SearchResultsProps) {
   const router = useRouter();
   const { playPlaylist } = useMusicPlayer();
@@ -56,30 +47,25 @@ export function SearchResults({
   const hasAlbums = data.albums.length > 0;
   const hasTracks = data.tracks.length > 0;
 
+  const findDownloadCta = onFindDownload ? (
+    <View style={styles.extendedSearch}>
+      <Text style={styles.extendedText}>{"Not what you're looking for?"}</Text>
+      <Button
+        title="Find & download"
+        variant="secondary"
+        size="sm"
+        onPress={onFindDownload}
+      />
+    </View>
+  ) : null;
+
   if (!hasArtists && !hasAlbums && !hasTracks) {
     return (
       <View style={styles.container}>
         <View style={styles.centered}>
           <Text style={styles.emptyText}>No results found</Text>
         </View>
-        {!discogsSearched && (
-          <View style={styles.extendedSearch}>
-            <Text style={styles.extendedText}>Not what you're looking for?</Text>
-            <Button
-              title="Search on Discogs"
-              variant="secondary"
-              size="sm"
-              onPress={onExtendedSearch}
-            />
-          </View>
-        )}
-        {discogsSearched && (
-          <DiscogsResults
-            results={discogsResults ?? []}
-            loading={discogsLoading ?? false}
-            error={discogsError ?? null}
-          />
-        )}
+        {findDownloadCta}
       </View>
     );
   }
@@ -131,25 +117,7 @@ export function SearchResults({
         </List>
       )}
 
-      {!discogsSearched && (
-        <View style={styles.extendedSearch}>
-          <Text style={styles.extendedText}>Not what you're looking for?</Text>
-          <Button
-            title="Search on Discogs"
-            variant="secondary"
-            size="sm"
-            onPress={onExtendedSearch}
-          />
-        </View>
-      )}
-
-      {discogsSearched && (
-        <DiscogsResults
-          results={discogsResults ?? []}
-          loading={discogsLoading ?? false}
-          error={discogsError ?? null}
-        />
-      )}
+      {findDownloadCta}
     </View>
   );
 }

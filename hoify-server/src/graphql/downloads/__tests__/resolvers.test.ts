@@ -5,8 +5,10 @@ const mockIsSlskdEnabled = jest.fn(() => true);
 const mockStartSearch = jest.fn(async () => ({ id: "search-1" }));
 const mockGetSearchStatus = jest.fn();
 const mockGetSearchResponses = jest.fn(async () => []);
+const mockCancelSearch = jest.fn(async () => undefined);
+const mockWaitForSearchResponses = jest.fn(async () => []);
 const mockGroupByPeerAndFolder = jest.fn(() => []);
-const mockIsSearchTimedOut = jest.fn(() => false);
+const mockShouldFinalizeSearch = jest.fn(() => false);
 const mockClearSearchStart = jest.fn();
 const mockEnqueueDownloads = jest.fn();
 const mockGetTransfer = jest.fn();
@@ -29,8 +31,10 @@ jest.unstable_mockModule("../../../services/slskd/index.js", () => ({
   startSearch: mockStartSearch,
   getSearchStatus: mockGetSearchStatus,
   getSearchResponses: mockGetSearchResponses,
+  cancelSearch: mockCancelSearch,
+  waitForSearchResponses: mockWaitForSearchResponses,
   groupByPeerAndFolder: mockGroupByPeerAndFolder,
-  isSearchTimedOut: mockIsSearchTimedOut,
+  shouldFinalizeSearch: mockShouldFinalizeSearch,
   clearSearchStart: mockClearSearchStart,
   enqueueDownloads: mockEnqueueDownloads,
   getTransfer: mockGetTransfer,
@@ -55,7 +59,7 @@ const context = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockIsSlskdEnabled.mockReturnValue(true);
-  mockIsSearchTimedOut.mockReturnValue(false);
+  mockShouldFinalizeSearch.mockReturnValue(false);
   mockGroupByPeerAndFolder.mockReturnValue([]);
   mockGetSearchResponses.mockResolvedValue([]);
   mockIsTerminalStatus.mockImplementation(
@@ -104,13 +108,59 @@ describe("downloads resolvers — search", () => {
     });
   });
 
-  it("downloadSearch returns partial peers while incomplete", async () => {
+  it("downloadSearch returns live counts without fetching peers while incomplete", async () => {
     mockGetSearchStatus.mockResolvedValue({
       id: "s1",
       searchText: "q",
       isComplete: false,
+      fileCount: 42,
+      responseCount: 7,
     });
-    mockGetSearchResponses.mockResolvedValue([{ username: "p", files: [] }]);
+
+    const result = await resolvers.Query.downloadSearch(null, { id: "s1" });
+
+    expect(result.isComplete).toBe(false);
+    expect(result.peers).toEqual([]);
+    expect(result.fileCount).toBe(42);
+    expect(result.responseCount).toBe(7);
+    expect(mockGetSearchResponses).not.toHaveBeenCalled();
+    expect(mockCancelSearch).not.toHaveBeenCalled();
+    expect(mockClearSearchStart).not.toHaveBeenCalled();
+  });
+
+  it("downloadSearch ignores early slskd completion until finalize conditions", async () => {
+    mockGetSearchStatus.mockResolvedValue({
+      id: "s1",
+      searchText: "q",
+      isComplete: true,
+      fileCount: 99,
+      responseCount: 5,
+    });
+    mockShouldFinalizeSearch.mockReturnValue(false);
+
+    const result = await resolvers.Query.downloadSearch(null, { id: "s1" });
+
+    expect(result.isComplete).toBe(false);
+    expect(result.peers).toEqual([]);
+    expect(result.fileCount).toBe(99);
+    expect(result.responseCount).toBe(5);
+    expect(mockCancelSearch).not.toHaveBeenCalled();
+    expect(mockGetSearchResponses).not.toHaveBeenCalled();
+    expect(mockWaitForSearchResponses).not.toHaveBeenCalled();
+  });
+
+  it("downloadSearch cancels and waits for flush when ready", async () => {
+    mockGetSearchStatus.mockResolvedValue({
+      id: "s1",
+      searchText: "q",
+      isComplete: false,
+      fileCount: 10,
+      responseCount: 16,
+    });
+    mockShouldFinalizeSearch.mockReturnValue(true);
+    mockWaitForSearchResponses.mockResolvedValue([
+      { username: "p", files: [{ filename: "a.flac", size: 1 }] },
+    ]);
     mockGroupByPeerAndFolder.mockReturnValue([
       {
         peer: "p",
@@ -138,25 +188,33 @@ describe("downloads resolvers — search", () => {
 
     const result = await resolvers.Query.downloadSearch(null, { id: "s1" });
 
-    expect(result.isComplete).toBe(false);
+    expect(mockShouldFinalizeSearch).toHaveBeenCalledWith("s1", undefined, 16);
+    expect(result.isComplete).toBe(true);
+    expect(mockCancelSearch).toHaveBeenCalledWith("s1");
+    expect(mockWaitForSearchResponses).toHaveBeenCalledWith("s1");
+    expect(mockGetSearchResponses).not.toHaveBeenCalled();
     expect(result.peers).toHaveLength(1);
     expect(result.fileCount).toBe(1);
-    expect(mockClearSearchStart).not.toHaveBeenCalled();
+    expect(mockClearSearchStart).toHaveBeenCalledWith("s1");
   });
 
-  it("downloadSearch marks complete on timeout and clears start", async () => {
+  it("downloadSearch skips cancel when slskd already complete at finalize", async () => {
     mockGetSearchStatus.mockResolvedValue({
       id: "s1",
       searchText: "q",
-      isComplete: false,
+      isComplete: true,
+      fileCount: 5,
+      responseCount: 2,
     });
-    mockIsSearchTimedOut.mockReturnValue(true);
+    mockShouldFinalizeSearch.mockReturnValue(true);
+    mockWaitForSearchResponses.mockResolvedValue([]);
     mockGroupByPeerAndFolder.mockReturnValue([]);
 
     const result = await resolvers.Query.downloadSearch(null, { id: "s1" });
 
     expect(result.isComplete).toBe(true);
-    expect(mockClearSearchStart).toHaveBeenCalledWith("s1");
+    expect(mockCancelSearch).not.toHaveBeenCalled();
+    expect(mockWaitForSearchResponses).toHaveBeenCalledWith("s1");
   });
 });
 

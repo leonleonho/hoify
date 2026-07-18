@@ -1,0 +1,27 @@
+query DownloadSearch($id: ID!) {
+  downloadSearch(id: $id) {
+    id
+    query
+    isComplete
+    fileCount
+    responseCount
+    peers {
+      peer
+      hasFreeUploadSlot
+      uploadSpeed
+      queueLength
+      folders {
+        name
+        files {
+          filename
+          size
+          extension
+          bitRate
+          bitDepth
+          sampleRate
+          isLocked
+        }
+      }
+    }
+  }
+}

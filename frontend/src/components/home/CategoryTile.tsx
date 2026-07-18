@@ -1,12 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Users, Disc3, ChevronRight } from 'lucide-react-native';
+import { Users, Disc3, Download, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/constants/theme';
 
-type Category = 'artists' | 'albums';
+type Category = 'artists' | 'albums' | 'downloads';
 
 const CATEGORY_MAP: Record<Category, { label: string; Icon: typeof Users }> = {
   artists: { label: 'Artists', Icon: Users },
   albums: { label: 'Albums', Icon: Disc3 },
+  downloads: { label: 'Downloads', Icon: Download },
 };
 
 type Props = {

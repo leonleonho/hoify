@@ -1,6 +1,0 @@
-mutation RequestMusicDownload($artistName: String!, $albumName: String, $songName: String) {
-  requestMusicDownload(artistName: $artistName, albumName: $albumName, songName: $songName) {
-    id
-    status
-  }
-}

@@ -1,6 +1,8 @@
 export { isSlskdEnabled, apiFetch } from "./client.js";
 export {
   SEARCH_TIMEOUT_MS,
+  SEARCH_PEER_LIMIT,
+  SLSKD_SEARCH_TIMEOUT_MS,
   isAudioFile,
   formatRank,
   folderNameFromPath,
@@ -13,8 +15,12 @@ export {
   startSearch,
   getSearchStatus,
   getSearchResponses,
+  cancelSearch,
+  waitForSearchResponses,
   groupByPeerAndFolder,
   isSearchTimedOut,
+  hasEnoughSearchPeers,
+  shouldFinalizeSearch,
   clearSearchStart,
 } from "./search.js";
 export { enqueueDownloads, getTransfer } from "./transfers.js";
