@@ -1,20 +1,34 @@
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { users } from "../db/schema.js";
 import { createUser } from "../graphql/users/services.js";
 import { logger } from "../util/logger.js";
 
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: unknown }).code === "23505"
+  );
+}
+
+async function adminCount(): Promise<number> {
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(users)
+    .where(eq(users.role, "admin"));
+  return value;
+}
+
 /**
- * On first startup (empty users table), create the initial admin from env vars.
- * Once any user exists, this is a no-op — INIT_ADMIN_* is never used again.
+ * Ensure at least one admin exists.
+ * On first startup (or after all admins were removed), create/promote from INIT_ADMIN_*.
+ * Concurrent startups are safe: unique-email conflicts are treated as another winner.
  */
 export async function ensureInitialAdmin(): Promise<void> {
-  const [{ value: userCount }] = await db
-    .select({ value: count() })
-    .from(users);
-
-  if (userCount > 0) {
-    logger.debug("Users already exist; skipping initial admin bootstrap");
+  if ((await adminCount()) > 0) {
+    logger.debug("Admin user(s) already exist; skipping initial admin bootstrap");
     return;
   }
 
@@ -36,20 +50,52 @@ export async function ensureInitialAdmin(): Promise<void> {
 
   if (missing.length > 0) {
     throw new Error(
-      `No users exist and initial admin env vars are missing: ${missing.join(", ")}. ` +
-        "Set these to bootstrap the first admin account.",
+      `No admin users exist and initial admin env vars are missing: ${missing.join(", ")}. ` +
+        "Set these to bootstrap an admin account.",
     );
   }
 
-  await createUser(
-    {
-      email: email!,
-      password: password!,
-      firstName: firstName!,
-      lastName: lastName!,
-    },
-    "admin",
-  );
+  try {
+    await createUser(
+      {
+        email: email!,
+        password: password!,
+        firstName: firstName!,
+        lastName: lastName!,
+      },
+      "admin",
+    );
+    logger.info(
+      { email },
+      "Initial admin user created from environment variables",
+    );
+    return;
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+  }
 
-  logger.info({ email }, "Initial admin user created from environment variables");
+  // Another instance won the race, or INIT_ADMIN_EMAIL already belongs to a user.
+  if ((await adminCount()) > 0) {
+    logger.debug(
+      "Admin already present after create conflict; continuing startup",
+    );
+    return;
+  }
+
+  const [promoted] = await db
+    .update(users)
+    .set({ role: "admin" })
+    .where(eq(users.email, email!))
+    .returning({ id: users.id, email: users.email });
+
+  if (!promoted) {
+    throw new Error(
+      `Failed to bootstrap admin: email ${email} conflicted but no matching user was found.`,
+    );
+  }
+
+  logger.info(
+    { email: promoted.email },
+    "Promoted existing user to admin (no admins remained)",
+  );
 }
