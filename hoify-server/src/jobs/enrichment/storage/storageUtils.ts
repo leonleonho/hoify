@@ -14,6 +14,19 @@ import { musicLibraryPath, albumArtPath as ART_PATH } from "../../../paths.js";
 import type { ParsedTrack, ArtData } from "../types/types.js";
 import { recordScanState } from "./scanState.js";
 
+async function deleteLibraryFile(filePath: string, reason: string): Promise<void> {
+  if (!filePath.startsWith(musicLibraryPath)) {
+    logger.warn({ filePath, reason }, "Refusing to delete file outside music library");
+    return;
+  }
+  try {
+    await unlink(filePath);
+    logger.info({ filePath, reason }, "Deleted lower-bitrate duplicate file");
+  } catch (err) {
+    logger.warn({ filePath, reason, err }, "Failed to delete duplicate file");
+  }
+}
+
 export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }> {
   // --- Genres: upsert, then build lookup ---
   const allGenreNames = [...new Set(track.genreNames)].filter(Boolean);
@@ -116,8 +129,17 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
 
     if (!newIsBetter) {
       logger.debug(
-        { title: track.title, artist: albumArtistName },
+        {
+          title: track.title,
+          artist: albumArtistName,
+          kept: existing.filePath,
+          discarded: track.filePath,
+        },
         "Skipping dup — existing track has equal or better bitrate",
+      );
+      await deleteLibraryFile(
+        track.filePath,
+        "duplicate with equal or lower bitrate",
       );
       await recordScanState(track.filePath, track.fileMtime, "skipped_dup");
       return { albumId: existing.albumId };
@@ -129,9 +151,10 @@ export async function upsertOne(track: ParsedTrack): Promise<{ albumId: string }
       "Upgrading to higher bitrate track",
     );
 
-    if (existing.filePath.startsWith(musicLibraryPath)) {
-      try { await unlink(existing.filePath); } catch { /* file may already be gone */ }
-    }
+    await deleteLibraryFile(
+      existing.filePath,
+      "replaced by higher-bitrate duplicate",
+    );
 
     await db
       .update(tracks)

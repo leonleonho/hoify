@@ -5,7 +5,7 @@ import { join, parse } from "node:path";
 // Supported audio extensions
 // ---------------------------------------------------------------------------
 
-const AUDIO_EXTENSIONS = new Set([
+export const AUDIO_EXTENSIONS = new Set([
   ".mp3",
   ".flac",
   ".wav",
@@ -14,6 +14,10 @@ const AUDIO_EXTENSIONS = new Set([
   ".m4a",
   ".wma",
 ]);
+
+export function isAudioFile(filePath: string): boolean {
+  return AUDIO_EXTENSIONS.has(parse(filePath).ext.toLowerCase());
+}
 
 // ---------------------------------------------------------------------------
 // Walk directory tree, yielding audio file paths
@@ -26,11 +30,8 @@ export async function* walkDirectory(dir: string): AsyncGenerator<string> {
 
     if (entry.isDirectory()) {
       yield* walkDirectory(fullPath);
-    } else if (entry.isFile()) {
-      const ext = parse(entry.name).ext.toLowerCase();
-      if (AUDIO_EXTENSIONS.has(ext)) {
-        yield fullPath;
-      }
+    } else if (entry.isFile() && isAudioFile(fullPath)) {
+      yield fullPath;
     }
   }
 }
