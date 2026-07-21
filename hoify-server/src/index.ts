@@ -1,12 +1,15 @@
 import "dotenv/config";
+import { mkdirSync } from "node:fs";
 import { client } from "./db/index.js";
 import { createApp } from "./app.js";
 import { closeWorker } from "./jobs/enrichment/worker.js";
 import { connection } from "./db/redis.js";
 import { logger } from "./util/logger.js";
-import { ingestAndScan } from "./jobs/beets-ingest/run.js";
+import { ingestDropZone } from "./jobs/beets-ingest/run.js";
 import { startWatchIngest } from "./jobs/beets-ingest/watcher.js";
-import { ingestPath } from "./paths.js";
+import { scanLibrary } from "./jobs/library-scanner/scanner.js";
+import { startWatchLibrary } from "./jobs/library-scanner/watcher.js";
+import { ingestPath, musicLibraryPath } from "./paths.js";
 
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
 
@@ -21,15 +24,35 @@ async function start() {
     logger.info("📦 Database connected");
     logger.info("⚙️  Enrichment worker started");
 
-    // non-blocking: run beets import + library scan at boot
-    ingestAndScan(ingestPath)
+    mkdirSync(musicLibraryPath, { recursive: true });
+
+    // Library watcher first so beets moves during boot ingest are picked up.
+    startWatchLibrary(musicLibraryPath);
+
+    // Catch-up for files already in the library (watcher uses ignoreInitial).
+    scanLibrary(musicLibraryPath)
+      .then((summary) => {
+        logger.info(
+          {
+            enqueued: summary.filesFound - summary.skipped,
+            skipped: summary.skipped,
+          },
+          "Startup library scan complete",
+        );
+      })
+      .catch((err) => {
+        logger.error(err, "Startup library scan failed");
+      });
+
+    // Beets import of drop zone; enrichment comes from the music watcher.
+    ingestDropZone(ingestPath)
       .then(() => {
-        logger.info("Startup ingest complete. Starting file watcher...");
+        logger.info("Startup ingest complete. Starting ingest watcher...");
         startWatchIngest(ingestPath);
       })
       .catch((err) => {
         logger.error(err, "Beets ingest failed at startup");
-        logger.info("Starting file watcher anyway...");
+        logger.info("Starting ingest watcher anyway...");
         startWatchIngest(ingestPath);
       });
   });

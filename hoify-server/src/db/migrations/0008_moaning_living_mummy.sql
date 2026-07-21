@@ -1,0 +1,1 @@
+ALTER TYPE "public"."library_scan_status" ADD VALUE 'pending';

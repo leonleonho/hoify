@@ -180,6 +180,7 @@ export const libraryScanStatusEnum = pgEnum("library_scan_status", [
   "ok",
   "failed",
   "skipped_dup",
+  "pending",
 ]);
 
 export const libraryScanState = pgTable("library_scan_state", {
