@@ -10,10 +10,13 @@ import { startWatchIngest } from "./jobs/beets-ingest/watcher.js";
 import { scanLibrary } from "./jobs/library-scanner/scanner.js";
 import { startWatchLibrary } from "./jobs/library-scanner/watcher.js";
 import { ingestPath, musicLibraryPath } from "./paths.js";
+import { ensureInitialAdmin } from "./bootstrap/ensureInitialAdmin.js";
 
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
 
 async function start() {
+  await ensureInitialAdmin();
+
   const { app } = await createApp();
 
   app.listen(PORT, () => {

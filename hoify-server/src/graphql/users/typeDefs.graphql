@@ -1,9 +1,15 @@
+enum UserRole {
+  admin
+  moderator
+  user
+}
+
 type User {
   id: ID!
   email: String!
   firstName: String!
   lastName: String!
-  role: String!
+  role: UserRole!
   isActive: Boolean!
   verifiedAt: String
   createdAt: String!

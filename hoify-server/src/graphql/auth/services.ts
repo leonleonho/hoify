@@ -12,7 +12,7 @@ import { users } from "../../db/schema.js";
 
 export interface JwtPayload {
   userId: string;
-  role: string;
+  role: "admin" | "moderator" | "user";
 }
 
 export interface Context {

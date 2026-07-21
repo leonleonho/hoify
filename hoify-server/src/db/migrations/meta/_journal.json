@@ -64,6 +64,13 @@
       "when": 1784610389498,
       "tag": "0008_moaning_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784613116442,
+      "tag": "0009_smart_echo",
+      "breakpoints": true
     }
   ]
 }

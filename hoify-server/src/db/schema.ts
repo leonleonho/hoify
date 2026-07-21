@@ -18,6 +18,7 @@ import { relations, sql } from "drizzle-orm";
 // ---------------------------------------------------------------------------
 
 export const playlistTypeEnum = pgEnum("playlist_type", ["liked", "suggested"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "moderator", "user"]);
 
 // ---------------------------------------------------------------------------
 // Users
@@ -29,7 +30,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
-  role: text("role").notNull().default("user"),
+  role: userRoleEnum("role").notNull().default("user"),
   isActive: boolean("is_active").notNull().default(true),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
