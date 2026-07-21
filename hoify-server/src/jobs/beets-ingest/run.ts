@@ -27,6 +27,7 @@ import {
   ingestPath as INGEST_PATH,
 } from "../../paths.js";
 import { collapseImportRoots } from "./paths.js";
+import { createCoalesceQueue } from "../../util/coalesceQueue.js";
 
 const SERVER_DIR = process.cwd();
 
@@ -145,32 +146,26 @@ export function runBeetsImport(
   });
 }
 
-let ingestChain: Promise<void> = Promise.resolve();
-const coalescedPaths = new Set<string>();
+let currentIngestRoot = INGEST_PATH;
+
+const ingestQueue = createCoalesceQueue({
+  label: "Beets ingest",
+  retryDelayMs: 5_000,
+  run: async (batch) => {
+    await ingestPaths(batch, currentIngestRoot);
+  },
+});
 
 /**
  * Serialize ingest runs. Paths arriving while a run is in flight are coalesced
- * into follow-up path-scoped imports (never stacked in parallel).
+ * into follow-up path-scoped imports. Failed batches stay queued and retry.
  */
 export function scheduleIngest(
   paths: string[],
   ingestRoot: string = INGEST_PATH,
 ): Promise<void> {
-  for (const p of paths) coalescedPaths.add(p);
-
-  ingestChain = ingestChain
-    .then(async () => {
-      while (coalescedPaths.size > 0) {
-        const batch = [...coalescedPaths];
-        coalescedPaths.clear();
-        await ingestPaths(batch, ingestRoot);
-      }
-    })
-    .catch((err) => {
-      logger.error(err, "Scheduled ingest failed");
-    });
-
-  return ingestChain;
+  currentIngestRoot = ingestRoot;
+  return ingestQueue.schedule(paths);
 }
 
 /**

@@ -46,9 +46,9 @@ describe("enqueueTracks", () => {
     mockRecordScanState.mockResolvedValue(undefined);
   });
 
-  it("skips files whose path+mtime match scan state", async () => {
+  it("skips files with terminal status and matching mtime", async () => {
     mockSelectFrom.mockResolvedValue([
-      { filePath: "/music/a.mp3", fileMtime: 1000 },
+      { filePath: "/music/a.mp3", fileMtime: 1000, status: "ok" },
     ]);
     mockStat.mockResolvedValue({ mtimeMs: 1000 });
 
@@ -58,6 +58,23 @@ describe("enqueueTracks", () => {
     expect(summary.filesFound).toBe(1);
     expect(mockAdd).not.toHaveBeenCalled();
     expect(mockRecordScanState).not.toHaveBeenCalled();
+  });
+
+  it("re-enqueues pending rows with matching mtime", async () => {
+    mockSelectFrom.mockResolvedValue([
+      { filePath: "/music/a.mp3", fileMtime: 1000, status: "pending" },
+    ]);
+    mockStat.mockResolvedValue({ mtimeMs: 1000 });
+
+    const summary = await enqueueTracks(["/music/a.mp3"]);
+
+    expect(summary.skipped).toBe(0);
+    expect(mockAdd).toHaveBeenCalledTimes(1);
+    expect(mockRecordScanState).toHaveBeenCalledWith(
+      "/music/a.mp3",
+      1000,
+      "pending",
+    );
   });
 
   it("enqueues new files and records pending scan state", async () => {
@@ -78,7 +95,7 @@ describe("enqueueTracks", () => {
 
   it("re-enqueues when mtime changed", async () => {
     mockSelectFrom.mockResolvedValue([
-      { filePath: "/music/a.mp3", fileMtime: 1000 },
+      { filePath: "/music/a.mp3", fileMtime: 1000, status: "ok" },
     ]);
     mockStat.mockResolvedValue({ mtimeMs: 3000 });
 

@@ -1,5 +1,6 @@
 import { watch as chokidarWatch } from "chokidar";
 import { logger } from "../../util/logger.js";
+import { createCoalesceQueue } from "../../util/coalesceQueue.js";
 import { enqueueTracks } from "./scanner.js";
 import { isAudioFile } from "./walker.js";
 
@@ -8,26 +9,13 @@ const DEBOUNCE_MS = 2_000;
 let activeTimer: ReturnType<typeof setTimeout> | null = null;
 const pendingPaths = new Set<string>();
 
-let enqueueChain: Promise<void> = Promise.resolve();
-const coalescedPaths = new Set<string>();
-
-function scheduleEnqueue(paths: string[]): Promise<void> {
-  for (const p of paths) coalescedPaths.add(p);
-
-  enqueueChain = enqueueChain
-    .then(async () => {
-      while (coalescedPaths.size > 0) {
-        const batch = [...coalescedPaths];
-        coalescedPaths.clear();
-        await enqueueTracks(batch);
-      }
-    })
-    .catch((err) => {
-      logger.error(err, "Library watcher enqueue failed");
-    });
-
-  return enqueueChain;
-}
+const enqueueQueue = createCoalesceQueue({
+  label: "Library watcher enqueue",
+  retryDelayMs: 2_000,
+  run: async (batch) => {
+    await enqueueTracks(batch);
+  },
+});
 
 function flushPending() {
   activeTimer = null;
@@ -39,7 +27,7 @@ function flushPending() {
     { count: paths.length },
     "Music library changes detected — enqueueing enrichment",
   );
-  scheduleEnqueue(paths);
+  enqueueQueue.schedule(paths);
 }
 
 function debounceEnqueue(eventPath: string) {
