@@ -1,6 +1,14 @@
 import { fmtDate, createUser, updateUser, deleteUser } from "./services.js";
+import { requireAdmin } from "../auth/plugin.js";
+import type { Context } from "../auth/resolvers.js";
 
 export const resolvers = {
+  UserRole: {
+    admin: "admin",
+    moderator: "moderator",
+    user: "user",
+  },
+
   User: {
     verifiedAt: (parent: { verifiedAt: Date | string | null }) =>
       fmtDate(parent.verifiedAt),
@@ -23,7 +31,11 @@ export const resolvers = {
           lastName: string;
         };
       },
-    ) => createUser(args.input),
+      context: Context,
+    ) => {
+      requireAdmin(context.currentUser);
+      return createUser(args.input);
+    },
 
     updateUser: (
       _: unknown,

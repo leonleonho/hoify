@@ -20,12 +20,15 @@ export function fmtDate(
 // Mutations
 // ---------------------------------------------------------------------------
 
-export async function createUser(input: {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-}) {
+export async function createUser(
+  input: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  },
+  role: "admin" | "moderator" | "user" = "user",
+) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
   const [user] = await db
@@ -35,6 +38,7 @@ export async function createUser(input: {
       passwordHash,
       firstName: input.firstName,
       lastName: input.lastName,
+      role,
     })
     .returning();
 

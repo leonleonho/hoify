@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import request from "supertest";
 
-import { executeGraphQL, CREATE_USER_MUTATION, LOGIN_MUTATION, ME_QUERY } from "../helpers/graphql.js";
+import {
+  executeGraphQL,
+  CREATE_USER_MUTATION,
+  LOGIN_MUTATION,
+  ME_QUERY,
+} from "../helpers/graphql.js";
+import { seedAdminAndLogin } from "../helpers/users.js";
 
 const UPDATE_USER_MUTATION = `
   mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
@@ -25,6 +31,7 @@ import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 let fixture: E2eFixture;
 let agent: ReturnType<typeof request>;
 
+let adminToken: string;
 let authToken: string;
 let userId: string;
 
@@ -39,12 +46,16 @@ beforeAll(async () => {
   fixture = await setupE2e();
   agent = fixture.agent;
 
-  // Create a user + login once for all tests in this file
+  const admin = await seedAdminAndLogin(agent);
+  adminToken = admin.token;
+
+  // Create a regular user + login once for all tests in this file
   const createRes = await executeGraphQL<{
     createUser: { id: string };
   }>(agent, {
     query: CREATE_USER_MUTATION,
     variables: { input: TEST_USER },
+    token: adminToken,
   });
   userId = createRes.data!.createUser.id;
 
@@ -89,6 +100,7 @@ describe("Users e2e", () => {
           lastName: "Check",
         },
       },
+      token: adminToken,
     });
 
     expect(res.errors).toBeUndefined();
@@ -114,6 +126,7 @@ describe("Users e2e", () => {
           lastName: "Stamp",
         },
       },
+      token: adminToken,
     });
 
     expect(res.errors).toBeUndefined();
@@ -122,6 +135,41 @@ describe("Users e2e", () => {
     expect(createdAt.getTime()).toBeGreaterThan(0);
     expect(updatedAt.getTime()).toBeGreaterThan(0);
     expect(res.data!.createUser.verifiedAt).toBeNull();
+  });
+
+  it("rejects createUser without auth", async () => {
+    const res = await executeGraphQL(agent, {
+      query: CREATE_USER_MUTATION,
+      variables: {
+        input: {
+          email: "noauth-user@test.com",
+          password: "secret123",
+          firstName: "No",
+          lastName: "Auth",
+        },
+      },
+    });
+
+    expect(res.data).toBeFalsy();
+    expect(res.errors![0]?.extensions?.code).toBe("UNAUTHENTICATED");
+  });
+
+  it("rejects createUser for non-admin users", async () => {
+    const res = await executeGraphQL(agent, {
+      query: CREATE_USER_MUTATION,
+      variables: {
+        input: {
+          email: "forbidden-user@test.com",
+          password: "secret123",
+          firstName: "For",
+          lastName: "Bidden",
+        },
+      },
+      token: authToken,
+    });
+
+    expect(res.data).toBeFalsy();
+    expect(res.errors![0]?.extensions?.code).toBe("FORBIDDEN");
   });
 
   // -----------------------------------------------------------------------
@@ -185,7 +233,6 @@ describe("Users e2e", () => {
   // -----------------------------------------------------------------------
 
   it("deletes an existing user and returns true", async () => {
-    // Create a disposable user
     const createRes = await executeGraphQL<{
       createUser: { id: string };
     }>(agent, {
@@ -198,6 +245,7 @@ describe("Users e2e", () => {
           lastName: "Me",
         },
       },
+      token: adminToken,
     });
     const disposableId = createRes.data!.createUser.id;
 
@@ -232,7 +280,6 @@ describe("Users e2e", () => {
   // -----------------------------------------------------------------------
 
   it("completes full lifecycle: create → update → me → delete → me fails", async () => {
-    // Create
     const createRes = await executeGraphQL<{
       createUser: { id: string };
     }>(agent, {
@@ -245,10 +292,10 @@ describe("Users e2e", () => {
           lastName: "Cycle",
         },
       },
+      token: adminToken,
     });
     const lifecycleId = createRes.data!.createUser.id;
 
-    // Login to get a token for this user
     const loginRes = await executeGraphQL<{
       login: { token: string; user: { id: string } };
     }>(agent, {
@@ -257,7 +304,6 @@ describe("Users e2e", () => {
     });
     const lifecycleToken = loginRes.data!.login.token;
 
-    // Update
     const updateRes = await executeGraphQL<{
       updateUser: { firstName: string; lastName: string };
     }>(agent, {
@@ -270,7 +316,6 @@ describe("Users e2e", () => {
     });
     expect(updateRes.data!.updateUser.firstName).toBe("Full");
 
-    // Me should return updated user
     const meRes = await executeGraphQL<{
       me: { id: string; firstName: string };
     }>(agent, {
@@ -280,7 +325,6 @@ describe("Users e2e", () => {
     expect(meRes.data!.me.id).toBe(lifecycleId);
     expect(meRes.data!.me.firstName).toBe("Full");
 
-    // Delete
     const deleteRes = await executeGraphQL<{
       deleteUser: boolean;
     }>(agent, {
@@ -290,12 +334,10 @@ describe("Users e2e", () => {
     });
     expect(deleteRes.data!.deleteUser).toBe(true);
 
-    // Me should now fail (user deleted from DB, token no longer resolves)
     const meAfterDelete = await executeGraphQL(agent, {
       query: ME_QUERY,
       token: lifecycleToken,
     });
-    // Non-null field `me: User!` → entire data is null on auth failure
     expect(meAfterDelete.data).toBeFalsy();
     expect(meAfterDelete.errors).toBeDefined();
   });
@@ -323,7 +365,6 @@ describe("Users e2e", () => {
       variables: { id: userId },
     });
 
-    // Non-null field `Boolean!` → entire data is null on auth failure
     expect(res.data).toBeFalsy();
     expect(res.errors).toBeDefined();
     expect(res.errors![0]?.extensions?.code).toBe("UNAUTHENTICATED");

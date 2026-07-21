@@ -3,8 +3,6 @@ import request from "supertest";
 
 import {
   executeGraphQL,
-  CREATE_USER_MUTATION,
-  LOGIN_MUTATION,
   CREATE_ARTIST_MUTATION,
   CREATE_ALBUM_MUTATION,
   CREATE_TRACK_MUTATION,
@@ -248,6 +246,7 @@ const SEARCH_MUSIC_QUERY = `
 `;
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
+import { seedAdminAndLogin } from "../helpers/users.js";
 
 // ── Shared state ──────────────────────────────────────────────────────────
 let fixture: E2eFixture;
@@ -266,28 +265,13 @@ beforeAll(async () => {
   fixture = await setupE2e();
   agent = fixture.agent;
 
-  // Create a user + login so we have a valid token for mutations
-  await executeGraphQL<{
-    createUser: { id: string };
-  }>(agent, {
-    query: CREATE_USER_MUTATION,
-    variables: {
-      input: {
-        email: "music-tester@test.com",
-        password: "secret123",
-        firstName: "Music",
-        lastName: "Tester",
-      },
-    },
+  const admin = await seedAdminAndLogin(agent, {
+    email: "music-tester@test.com",
+    password: "secret123",
+    firstName: "Music",
+    lastName: "Tester",
   });
-
-  const loginRes = await executeGraphQL<{
-    login: { token: string };
-  }>(agent, {
-    query: LOGIN_MUTATION,
-    variables: { email: "music-tester@test.com", password: "secret123" },
-  });
-  authToken = loginRes.data!.login.token;
+  authToken = admin.token;
 });
 
 afterAll(async () => {
@@ -341,6 +325,7 @@ describe("Music e2e", () => {
         artists: Array<{ id: string; name: string }>;
       }>(agent, {
         query: ARTISTS_QUERY,
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -350,12 +335,22 @@ describe("Music e2e", () => {
       );
     });
 
+    it("rejects artists query without auth", async () => {
+      const res = await executeGraphQL(agent, {
+        query: ARTISTS_QUERY,
+      });
+
+      expect(res.data).toBeFalsy();
+      expect(res.errors![0]?.extensions?.code).toBe("UNAUTHENTICATED");
+    });
+
     it("gets artist by id with nested albums", async () => {
       const res = await executeGraphQL<{
         artist: { id: string; name: string; albums: Array<{ id: string }> };
       }>(agent, {
         query: ARTIST_QUERY,
         variables: { id: testArtistId },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -370,6 +365,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: ARTIST_QUERY,
         variables: { id: "00000000-0000-0000-0000-000000000000" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -477,6 +473,7 @@ describe("Music e2e", () => {
         albums: Array<{ id: string; title: string }>;
       }>(agent, {
         query: ALBUMS_QUERY,
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -490,6 +487,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: ALBUMS_QUERY,
         variables: { artistId: testArtistId },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -508,6 +506,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: ALBUM_QUERY,
         variables: { id: testAlbumId },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -523,6 +522,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: ALBUM_QUERY,
         variables: { id: "00000000-0000-0000-0000-000000000000" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -603,6 +603,7 @@ describe("Music e2e", () => {
         tracks: Array<{ id: string; title: string }>;
       }>(agent, {
         query: TRACKS_QUERY,
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -616,6 +617,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: TRACKS_QUERY,
         variables: { albumId: testAlbumId },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -637,6 +639,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: TRACK_QUERY,
         variables: { id: testTrackId },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -652,6 +655,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: TRACK_QUERY,
         variables: { id: "00000000-0000-0000-0000-000000000000" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -711,6 +715,7 @@ describe("Music e2e", () => {
         genres: Array<{ id: string; name: string }>;
       }>(agent, {
         query: GENRES_QUERY,
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -750,6 +755,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: SEARCH_MUSIC_QUERY,
         variables: { query: "Updated" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -769,6 +775,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: SEARCH_MUSIC_QUERY,
         variables: { query: "Updated Artist" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -784,6 +791,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: SEARCH_MUSIC_QUERY,
         variables: { query: "Updated Album" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -803,6 +811,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: SEARCH_MUSIC_QUERY,
         variables: { query: "xyznonexistentxyz" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -821,6 +830,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: SEARCH_MUSIC_QUERY,
         variables: { query: "" },
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -873,6 +883,7 @@ describe("Music e2e", () => {
         artists: Array<unknown>;
       }>(agent, {
         query: ARTISTS_QUERY,
+        token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
@@ -953,6 +964,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: TRACK_QUERY,
         variables: { id: lifecycleTrackId },
+        token: authToken,
       });
 
       expect(trackDetailRes.errors).toBeUndefined();
@@ -969,6 +981,7 @@ describe("Music e2e", () => {
       }>(agent, {
         query: SEARCH_MUSIC_QUERY,
         variables: { query: "Lifecycle" },
+        token: authToken,
       });
 
       expect(searchRes.errors).toBeUndefined();

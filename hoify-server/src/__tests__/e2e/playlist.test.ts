@@ -141,11 +141,13 @@ const UNLIKE_TRACK_MUTATION = `
 `;
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
+import { seedAdminAndLogin } from "../helpers/users.js";
 
 // ── Shared state ──────────────────────────────────────────────────────────
 let fixture: E2eFixture;
 let agent: ReturnType<typeof request>;
 
+let adminToken: string;
 let userAToken: string;
 let userBToken: string;
 
@@ -158,6 +160,9 @@ beforeAll(async () => {
   fixture = await setupE2e();
   agent = fixture.agent;
 
+  const admin = await seedAdminAndLogin(agent);
+  adminToken = admin.token;
+
   // Create user A (playlist creator)
   await executeGraphQL<{ createUser: { id: string } }>(agent, {
     query: CREATE_USER_MUTATION,
@@ -169,6 +174,7 @@ beforeAll(async () => {
         lastName: "UserA",
       },
     },
+    token: adminToken,
   });
 
   const loginARes = await executeGraphQL<{ login: { token: string } }>(
@@ -191,6 +197,7 @@ beforeAll(async () => {
         lastName: "UserB",
       },
     },
+    token: adminToken,
   });
 
   const loginBRes = await executeGraphQL<{ login: { token: string } }>(

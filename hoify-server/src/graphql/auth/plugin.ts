@@ -11,18 +11,7 @@ import type { User } from "../../db/schema.js";
  * Everything else on Query and Mutation requires a valid token.
  */
 const PUBLIC_OPERATIONS: Record<string, string[]> = {
-  Query: [
-    "searchMusic",
-    "artists",
-    "artist",
-    "albums",
-    "album",
-    "tracks",
-    "track",
-    "genres",
-    "genre",
-  ],
-  Mutation: ["createUser", "login"],
+  Mutation: ["login"],
 };
 
 export const authPlugin: ApolloServerPlugin<Context> = {
@@ -45,7 +34,7 @@ export const authPlugin: ApolloServerPlugin<Context> = {
           return;
         }
 
-        // Everything else requires authentication
+        // Everything else requires authentication (any role)
         requireAuth(contextValue.currentUser);
       },
     }),
@@ -58,6 +47,17 @@ export function requireAuth(
   if (!currentUser) {
     throw new GraphQLError("Authentication required", {
       extensions: { code: "UNAUTHENTICATED" },
+    });
+  }
+}
+
+export function requireAdmin(
+  currentUser: User | null,
+): asserts currentUser is User {
+  requireAuth(currentUser);
+  if (currentUser.role !== "admin") {
+    throw new GraphQLError("Admin access required", {
+      extensions: { code: "FORBIDDEN" },
     });
   }
 }

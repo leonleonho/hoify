@@ -7,11 +7,13 @@ import {
   LOGIN_MUTATION,
   ME_QUERY,
 } from "../helpers/graphql.js";
+import { seedAdminAndLogin } from "../helpers/users.js";
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 
-// ── Shared state (populated in beforeAll)────────────────────────────
+// ── Shared state (populated in beforeAll)──────────────────────────────────
 let fixture: E2eFixture;
 let agent: ReturnType<typeof request>;
+let adminToken: string;
 
 const TEST_USER = {
   email: "alice@test.com",
@@ -25,6 +27,8 @@ let authToken: string;
 beforeAll(async () => {
   fixture = await setupE2e();
   agent = fixture.agent;
+  const admin = await seedAdminAndLogin(agent);
+  adminToken = admin.token;
 });
 
 afterAll(async () => {
@@ -34,7 +38,7 @@ afterAll(async () => {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 describe("Auth e2e", () => {
-  it("creates a user with all input fields", async () => {
+  it("creates a user with all input fields (admin)", async () => {
     const res = await executeGraphQL<{
       createUser: {
         id: string;
@@ -50,6 +54,7 @@ describe("Auth e2e", () => {
     }>(agent, {
       query: CREATE_USER_MUTATION,
       variables: { input: TEST_USER },
+      token: adminToken,
     });
 
     expect(res.errors).toBeUndefined();
@@ -68,10 +73,59 @@ describe("Auth e2e", () => {
     expect(user.updatedAt).toBeTruthy();
   });
 
+  it("rejects createUser without auth", async () => {
+    const res = await executeGraphQL(agent, {
+      query: CREATE_USER_MUTATION,
+      variables: {
+        input: {
+          email: "noauth@test.com",
+          password: "secret123",
+          firstName: "No",
+          lastName: "Auth",
+        },
+      },
+    });
+
+    expect(res.data).toBeFalsy();
+    expect(res.errors).toBeDefined();
+    expect(res.errors![0]?.extensions?.code).toBe("UNAUTHENTICATED");
+  });
+
+  it("rejects createUser for non-admin users", async () => {
+    const loginRes = await executeGraphQL<{
+      login: { token: string };
+    }>(agent, {
+      query: LOGIN_MUTATION,
+      variables: {
+        email: TEST_USER.email,
+        password: TEST_USER.password,
+      },
+    });
+    const userToken = loginRes.data!.login.token;
+
+    const res = await executeGraphQL(agent, {
+      query: CREATE_USER_MUTATION,
+      variables: {
+        input: {
+          email: "forbidden@test.com",
+          password: "secret123",
+          firstName: "For",
+          lastName: "Bidden",
+        },
+      },
+      token: userToken,
+    });
+
+    expect(res.data).toBeFalsy();
+    expect(res.errors).toBeDefined();
+    expect(res.errors![0]?.extensions?.code).toBe("FORBIDDEN");
+  });
+
   it("rejects duplicate email on createUser", async () => {
     const res = await executeGraphQL(agent, {
       query: CREATE_USER_MUTATION,
       variables: { input: TEST_USER },
+      token: adminToken,
     });
 
     // `createUser: User!` non-null → entire data is null on error
@@ -163,7 +217,6 @@ describe("Auth e2e", () => {
   });
 
   it("sets httpOnly cookie on login response", async () => {
-    // Create a fresh user to get a clean login response
     const freshUser = {
       email: "cookie-test@test.com",
       password: "secret123",
@@ -174,6 +227,7 @@ describe("Auth e2e", () => {
     await executeGraphQL(agent, {
       query: CREATE_USER_MUTATION,
       variables: { input: freshUser },
+      token: adminToken,
     });
 
     const loginRes = await agent
