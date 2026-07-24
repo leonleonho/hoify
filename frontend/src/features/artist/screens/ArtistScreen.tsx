@@ -12,8 +12,10 @@ import { useRouter } from 'expo-router';
 import { ArtistDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated/types';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
+import { useCanModerate } from '@/features/auth/hooks/useCanModerate';
 import { List, ListItem } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';
+import { Button } from '@/components/button/Button';
 import { colors, spacing, typography } from '@/constants/theme';
 
 type Props = {
@@ -22,6 +24,7 @@ type Props = {
 
 export function ArtistScreen({ artistId }: Props) {
   const router = useRouter();
+  const { canModerate } = useCanModerate();
   const { playPlaylist } = useMusicPlayer();
   const { data, loading, error } = useQuery(ArtistDocument, {
     variables: { id: artistId },
@@ -91,6 +94,14 @@ export function ArtistScreen({ artistId }: Props) {
         )}
         <Text style={styles.artistName}>{artist.name}</Text>
         {artist.bio && <Text style={styles.bio}>{artist.bio}</Text>}
+        {canModerate ? (
+          <Button
+            title="Edit"
+            variant="secondary"
+            onPress={() => router.push(`/artist/${artistId}/edit` as any)}
+            style={styles.editButton}
+          />
+        ) : null}
       </View>
 
       {/* Albums */}
@@ -174,6 +185,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  editButton: {
+    marginTop: spacing.sm,
   },
   errorText: {
     ...typography.body,

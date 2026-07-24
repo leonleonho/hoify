@@ -80,6 +80,7 @@ input UpdateAlbumArtInput {
 
 input UpdateTrackInput {
   title: String
+  trackArtist: String
   albumId: ID
   trackNumber: Int
   discNumber: Int

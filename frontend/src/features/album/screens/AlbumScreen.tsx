@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useQuery } from '@apollo/client/react';
+import { useRouter } from 'expo-router';
 import { AlbumDocument } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated/types';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
+import { useCanModerate } from '@/features/auth/hooks/useCanModerate';
 import { SongListItem } from '@/components/list/SongListItem';
 import { Button } from '@/components/button/Button';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -21,6 +23,8 @@ type Props = {
 };
 
 export function AlbumScreen({ albumId }: Props) {
+  const router = useRouter();
+  const { canModerate } = useCanModerate();
   const { playPlaylist } = useMusicPlayer();
   const { data, loading, error } = useQuery(AlbumDocument, {
     variables: { id: albumId },
@@ -89,7 +93,16 @@ export function AlbumScreen({ albumId }: Props) {
         )}
       </View>
 
-      <Button title="Play All" onPress={handlePlayAll} />
+      <View style={styles.actions}>
+        <Button title="Play All" onPress={handlePlayAll} />
+        {canModerate ? (
+          <Button
+            title="Edit"
+            variant="secondary"
+            onPress={() => router.push(`/album/${albumId}/edit` as any)}
+          />
+        ) : null}
+      </View>
 
       {tracksWithAlbum.length > 0 && (
         <Text style={styles.sectionHeader}>TRACKS</Text>
@@ -160,6 +173,14 @@ const styles = StyleSheet.create({
   releaseYear: {
     ...typography.body,
     color: colors.textMuted,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    flexWrap: 'wrap',
   },
   errorText: {
     ...typography.body,

@@ -19,6 +19,10 @@ vi.mock('expo-router', () => ({
   }),
 }));
 
+vi.mock('@/features/auth/hooks/useCanModerate', () => ({
+  useCanModerate: () => ({ canModerate: false, loading: false }),
+}));
+
 // ── useMusicPlayer mock ──────────────────────────────────────────
 const { mockPlayPlaylist } = vi.hoisted(() => ({ mockPlayPlaylist: vi.fn() }));
 

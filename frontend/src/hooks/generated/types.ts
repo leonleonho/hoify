@@ -468,6 +468,7 @@ export type UpdateTrackInput = {
   fileSize?: InputMaybe<Scalars['Int']['input']>;
   genreIds?: InputMaybe<Array<Scalars['ID']['input']>>;
   title?: InputMaybe<Scalars['String']['input']>;
+  trackArtist?: InputMaybe<Scalars['String']['input']>;
   trackNumber?: InputMaybe<Scalars['Int']['input']>;
 };
 

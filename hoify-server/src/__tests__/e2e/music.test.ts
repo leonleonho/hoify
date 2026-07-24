@@ -131,6 +131,7 @@ const UPDATE_TRACK_MUTATION = `
     updateTrack(id: $id, input: $input) {
       id
       title
+      trackArtist
       trackNumber
       duration
       filePath
@@ -738,20 +739,29 @@ describe("Music e2e", () => {
       expect(res.data!.track).toBeNull();
     });
 
-    it("updates track title and duration", async () => {
+    it("updates track title, trackArtist, and duration", async () => {
       const res = await executeGraphQL<{
-        updateTrack: { title: string; duration: number | null };
+        updateTrack: {
+          title: string;
+          trackArtist: string | null;
+          duration: number | null;
+        };
       }>(agent, {
         query: UPDATE_TRACK_MUTATION,
         variables: {
           id: testTrackId,
-          input: { title: "Updated Track", duration: 200 },
+          input: {
+            title: "Updated Track",
+            trackArtist: "Featured Artist",
+            duration: 200,
+          },
         },
         token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
       expect(res.data!.updateTrack.title).toBe("Updated Track");
+      expect(res.data!.updateTrack.trackArtist).toBe("Featured Artist");
       expect(res.data!.updateTrack.duration).toBe(200);
     });
   });

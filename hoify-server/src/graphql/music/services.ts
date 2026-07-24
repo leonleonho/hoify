@@ -261,6 +261,7 @@ export async function updateTrack(
   id: string,
   input: {
     title?: string;
+    trackArtist?: string | null;
     albumId?: string;
     trackNumber?: number | null;
     discNumber?: number | null;

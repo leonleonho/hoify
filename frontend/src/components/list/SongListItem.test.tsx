@@ -11,6 +11,10 @@ import { PlayerProvider } from '@/features/player/components/PlayerProvider';
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
+vi.mock('@/features/auth/hooks/useCanModerate', () => ({
+  useCanModerate: () => ({ canModerate: false, loading: false }),
+}));
+
 // ── helpers ─────────────────────────────────────────────────────────────
 
 const baseTrack = (overrides?: Partial<Track>): Track =>

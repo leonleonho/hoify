@@ -1,0 +1,26 @@
+query Track($id: ID!) {
+  track(id: $id) {
+    id
+    title
+    trackArtist
+    trackNumber
+    discNumber
+    duration
+    filePath
+    liked
+    album {
+      id
+      title
+      coverUrl
+      releaseYear
+      artist {
+        id
+        name
+      }
+    }
+    genres {
+      id
+      name
+    }
+  }
+}
