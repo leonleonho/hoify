@@ -28,7 +28,23 @@ export async function seedAdminAndLogin(
     lastName: string;
   } = DEFAULT_ADMIN,
 ): Promise<{ token: string; userId: string }> {
-  const user = await createUser(input, "admin");
+  return seedUserAndLogin(agent, input, "admin");
+}
+
+/**
+ * Insert a user with the given role directly (bypasses GraphQL) and return a login token.
+ */
+export async function seedUserAndLogin(
+  agent: SuperTestAgent,
+  input: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  },
+  role: "admin" | "moderator" | "user",
+): Promise<{ token: string; userId: string }> {
+  const user = await createUser(input, role);
 
   const loginRes = await executeGraphQL<{
     login: { token: string; user: { id: string } };
@@ -39,7 +55,7 @@ export async function seedAdminAndLogin(
 
   if (!loginRes.data?.login.token) {
     throw new Error(
-      `Failed to login seeded admin: ${JSON.stringify(loginRes.errors)}`,
+      `Failed to login seeded ${role}: ${JSON.stringify(loginRes.errors)}`,
     );
   }
 

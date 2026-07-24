@@ -21,6 +21,7 @@ export function Input({
   error,
   disabled = false,
   style,
+  multiline,
   onBlur,
   onFocus,
   ...rest
@@ -39,6 +40,7 @@ export function Input({
 
   const containerStyles = [
     styles.container,
+    multiline ? styles.containerMultiline : undefined,
     focused && !error ? styles.containerFocused : undefined,
     error ? styles.containerError : undefined,
     disabled ? styles.containerDisabled : undefined,
@@ -49,11 +51,13 @@ export function Input({
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={containerStyles}>
         <RNTextInput
-          style={styles.input}
+          style={[styles.input, multiline ? styles.inputMultiline : undefined]}
           placeholderTextColor={colors.textMuted}
           editable={!disabled}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          multiline={multiline}
+          textAlignVertical={multiline ? 'top' : 'center'}
           {...rest}
         />
       </View>
@@ -83,6 +87,12 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     height: 48,
   },
+  containerMultiline: {
+    height: undefined,
+    minHeight: 120,
+    alignItems: 'flex-start',
+    paddingVertical: spacing.sm,
+  },
   containerFocused: {
     borderColor: colors.primary,
   },
@@ -101,6 +111,10 @@ const styles = StyleSheet.create({
     outlineStyle: 'none',
     outlineWidth: 0,
   } as any,
+  inputMultiline: {
+    height: undefined,
+    minHeight: 104,
+  },
   error: {
     ...typography.caption,
     color: colors.error,

@@ -17,6 +17,7 @@ import { artUrl } from '../../constants/api';
 import type { Track } from '../../hooks/generated/types';
 import { LikeTrackDocument, UnlikeTrackDocument } from '../../hooks/generated';
 import { useMusicPlayer } from '../../features/player/components/PlayerProvider';
+import { useCanModerate } from '../../features/auth/hooks/useCanModerate';
 import { ContextMenu } from '../ui/ContextMenu';
 import { PlaylistPicker } from '../ui/PlaylistPicker';
 
@@ -101,6 +102,7 @@ export const SongListItem = React.memo(function SongListItem({
   const [unlikeTrack] = useMutation(UnlikeTrackDocument);
   const { playNext } = useMusicPlayer();
   const router = useRouter();
+  const { canModerate } = useCanModerate();
 
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
@@ -137,12 +139,29 @@ export const SongListItem = React.memo(function SongListItem({
     setPlaylistPickerVisible(true);
   }, []);
 
-  const contextMenuItems = useMemo(() => [
-    { label: 'Add to queue', icon: undefined, onPress: handleAddToQueue },
-    { label: 'Add to playlist', icon: undefined, onPress: handleAddToPlaylist },
-    { label: 'Go to artist', icon: undefined, onPress: handleGoToArtist },
-    { label: 'Go to album', icon: undefined, onPress: handleGoToAlbum },
-  ], [handleAddToQueue, handleAddToPlaylist, handleGoToArtist, handleGoToAlbum]);
+  const handleEditTrack = useCallback(() => {
+    router.push(`/track/${track.id}/edit` as any);
+  }, [router, track.id]);
+
+  const contextMenuItems = useMemo(() => {
+    const items = [
+      { label: 'Add to queue', icon: undefined, onPress: handleAddToQueue },
+      { label: 'Add to playlist', icon: undefined, onPress: handleAddToPlaylist },
+      { label: 'Go to artist', icon: undefined, onPress: handleGoToArtist },
+      { label: 'Go to album', icon: undefined, onPress: handleGoToAlbum },
+    ];
+    if (canModerate) {
+      items.push({ label: 'Edit', icon: undefined, onPress: handleEditTrack });
+    }
+    return items;
+  }, [
+    canModerate,
+    handleAddToQueue,
+    handleAddToPlaylist,
+    handleGoToArtist,
+    handleGoToAlbum,
+    handleEditTrack,
+  ]);
 
   const resolvedSwipeRight = useMemo(() => swipeRightAction ?? {
     icon: <Heart size={22} color="#fff" fill={track.liked ? '#fff' : 'transparent'} />,

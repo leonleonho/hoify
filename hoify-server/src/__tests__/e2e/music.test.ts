@@ -5,7 +5,8 @@ import {
   executeGraphQL,
   CREATE_ARTIST_MUTATION,
   CREATE_ALBUM_MUTATION,
-  CREATE_TRACK_MUTATION,
+  LOGIN_MUTATION,
+  CREATE_USER_MUTATION,
 } from "../helpers/graphql.js";
 
 // ---------------------------------------------------------------------------
@@ -18,6 +19,15 @@ const UPDATE_ARTIST_MUTATION = `
       id
       name
       bio
+      imageUrl
+    }
+  }
+`;
+
+const UPDATE_ARTIST_ART_MUTATION = `
+  mutation UpdateArtistArt($artistId: ID!, $input: UpdateArtistArtInput!) {
+    updateArtistArt(artistId: $artistId, input: $input) {
+      id
       imageUrl
     }
   }
@@ -73,6 +83,15 @@ const UPDATE_ALBUM_MUTATION = `
   }
 `;
 
+const UPDATE_ALBUM_ART_MUTATION = `
+  mutation UpdateAlbumArt($albumId: ID!, $input: UpdateAlbumArtInput!) {
+    updateAlbumArt(albumId: $albumId, input: $input) {
+      id
+      coverUrl
+    }
+  }
+`;
+
 const DELETE_ALBUM_MUTATION = `
   mutation DeleteAlbum($id: ID!) {
     deleteAlbum(id: $id)
@@ -121,6 +140,7 @@ const UPDATE_TRACK_MUTATION = `
     updateTrack(id: $id, input: $input) {
       id
       title
+      trackArtist
       trackNumber
       duration
       filePath
@@ -246,7 +266,8 @@ const SEARCH_MUSIC_QUERY = `
 `;
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
-import { seedAdminAndLogin } from "../helpers/users.js";
+import { seedAdminAndLogin, seedUserAndLogin } from "../helpers/users.js";
+import { createTrack } from "../helpers/music.js";
 
 // ── Shared state ──────────────────────────────────────────────────────────
 let fixture: E2eFixture;
@@ -389,6 +410,83 @@ describe("Music e2e", () => {
       expect(res.data!.updateArtist.bio).toBe("Updated bio");
     });
 
+    // 1x1 PNG
+    const TINY_PNG_BASE64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    // minimal JPEG
+    const TINY_JPEG_BASE64 =
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=";
+
+    it("sets artist art via updateArtistArt and serves it", async () => {
+      const res = await executeGraphQL<{
+        updateArtistArt: { id: string; imageUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ARTIST_ART_MUTATION,
+        variables: {
+          artistId: testArtistId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/png",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateArtistArt.imageUrl).toBe(
+        `/art/${testArtistId}.png`,
+      );
+
+      const artRes = await agent.get(`/art/${testArtistId}.png`);
+      expect(artRes.status).toBe(200);
+      expect(artRes.headers["content-type"]).toBe("image/png");
+    });
+
+    it("overwrites artist art with a different mime type", async () => {
+      const res = await executeGraphQL<{
+        updateArtistArt: { imageUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ARTIST_ART_MUTATION,
+        variables: {
+          artistId: testArtistId,
+          input: {
+            imageBase64: TINY_JPEG_BASE64,
+            mimeType: "image/jpeg",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateArtistArt.imageUrl).toBe(
+        `/art/${testArtistId}.jpg`,
+      );
+
+      const jpgRes = await agent.get(`/art/${testArtistId}.jpg`);
+      expect(jpgRes.status).toBe(200);
+
+      const oldPng = await agent.get(`/art/${testArtistId}.png`);
+      expect(oldPng.status).toBe(404);
+    });
+
+    it("rejects unsupported mime type for artist art", async () => {
+      const res = await executeGraphQL(agent, {
+        query: UPDATE_ARTIST_ART_MUTATION,
+        variables: {
+          artistId: testArtistId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/svg+xml",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.data?.updateArtistArt ?? null).toBeNull();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("BAD_USER_INPUT");
+    });
+
     it("deletes an artist", async () => {
       // Create disposable artist
       const createRes = await executeGraphQL<{
@@ -449,7 +547,6 @@ describe("Music e2e", () => {
             title: "Test Album",
             artistId: testArtistId,
             releaseYear: 2024,
-            coverUrl: "https://example.com/album.jpg",
           },
         },
         token: authToken,
@@ -461,9 +558,7 @@ describe("Music e2e", () => {
       expect(res.data!.createAlbum.title).toBe("Test Album");
       expect(res.data!.createAlbum.artist.id).toBe(testArtistId);
       expect(res.data!.createAlbum.releaseYear).toBe(2024);
-      expect(res.data!.createAlbum.coverUrl).toBe(
-        "https://example.com/album.jpg",
-      );
+      expect(res.data!.createAlbum.coverUrl).toBeNull();
       expect(res.data!.createAlbum.createdAt).toBeTruthy();
       expect(res.data!.createAlbum.updatedAt).toBeTruthy();
     });
@@ -544,6 +639,97 @@ describe("Music e2e", () => {
       expect(res.errors).toBeUndefined();
       expect(res.data!.updateAlbum.title).toBe("Updated Album");
     });
+
+    // 1x1 PNG
+    const TINY_PNG_BASE64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    // minimal JPEG
+    const TINY_JPEG_BASE64 =
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=";
+
+    it("sets album art via updateAlbumArt and serves it", async () => {
+      const res = await executeGraphQL<{
+        updateAlbumArt: { id: string; coverUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/png",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateAlbumArt.coverUrl).toBe(`/art/${testAlbumId}.png`);
+
+      const artRes = await agent.get(`/art/${testAlbumId}.png`);
+      expect(artRes.status).toBe(200);
+      expect(artRes.headers["content-type"]).toBe("image/png");
+    });
+
+    it("overwrites album art with a different mime type", async () => {
+      const res = await executeGraphQL<{
+        updateAlbumArt: { coverUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: TINY_JPEG_BASE64,
+            mimeType: "image/jpeg",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateAlbumArt.coverUrl).toBe(`/art/${testAlbumId}.jpg`);
+
+      const jpgRes = await agent.get(`/art/${testAlbumId}.jpg`);
+      expect(jpgRes.status).toBe(200);
+
+      const oldPng = await agent.get(`/art/${testAlbumId}.png`);
+      expect(oldPng.status).toBe(404);
+    });
+
+    it("rejects unsupported mime type for album art", async () => {
+      const res = await executeGraphQL(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/svg+xml",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.data?.updateAlbumArt ?? null).toBeNull();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("BAD_USER_INPUT");
+    });
+
+    it("rejects invalid base64 for album art", async () => {
+      const res = await executeGraphQL(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: "%%%not-base64%%%",
+            mimeType: "image/png",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.data?.updateAlbumArt ?? null).toBeNull();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("BAD_USER_INPUT");
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -551,51 +737,28 @@ describe("Music e2e", () => {
   // -------------------------------------------------------------------------
 
   describe("Tracks", () => {
-    it("creates a track linked to album", async () => {
-      const res = await executeGraphQL<{
-        createTrack: {
-          id: string;
-          title: string;
-          album: { id: string };
-          trackNumber: number | null;
-          discNumber: number | null;
-          duration: number | null;
-          filePath: string;
-          fileFormat: string | null;
-          fileSize: number | null;
-          createdAt: string;
-          updatedAt: string;
-        };
-      }>(agent, {
-        query: CREATE_TRACK_MUTATION,
-        variables: {
-          input: {
-            title: "Test Track",
-            albumId: testAlbumId,
-            trackNumber: 1,
-            discNumber: 1,
-            duration: 180,
-            filePath: "test-artist/test-album/test-track.mp3",
-            fileFormat: "mp3",
-            fileSize: 5000000,
-          },
-        },
-        token: authToken,
+    it("seeds a track linked to album", async () => {
+      const track = await createTrack({
+        title: "Test Track",
+        albumId: testAlbumId,
+        trackNumber: 1,
+        discNumber: 1,
+        duration: 180,
+        filePath: "test-artist/test-album/test-track.mp3",
+        fileFormat: "mp3",
+        fileSize: 5000000,
       });
 
-      expect(res.errors).toBeUndefined();
-      testTrackId = res.data!.createTrack.id;
+      testTrackId = track.id;
       expect(testTrackId).toMatch(UUID_RE);
-      expect(res.data!.createTrack.title).toBe("Test Track");
-      expect(res.data!.createTrack.album.id).toBe(testAlbumId);
-      expect(res.data!.createTrack.trackNumber).toBe(1);
-      expect(res.data!.createTrack.discNumber).toBe(1);
-      expect(res.data!.createTrack.duration).toBe(180);
-      expect(res.data!.createTrack.filePath).toBe(
-        "test-artist/test-album/test-track.mp3",
-      );
-      expect(res.data!.createTrack.fileFormat).toBe("mp3");
-      expect(res.data!.createTrack.fileSize).toBe(5000000);
+      expect(track.title).toBe("Test Track");
+      expect(track.albumId).toBe(testAlbumId);
+      expect(track.trackNumber).toBe(1);
+      expect(track.discNumber).toBe(1);
+      expect(track.duration).toBe(180);
+      expect(track.filePath).toBe("test-artist/test-album/test-track.mp3");
+      expect(track.fileFormat).toBe("mp3");
+      expect(track.fileSize).toBe(5000000);
     });
 
     it("lists tracks", async () => {
@@ -662,20 +825,29 @@ describe("Music e2e", () => {
       expect(res.data!.track).toBeNull();
     });
 
-    it("updates track title and duration", async () => {
+    it("updates track title, trackArtist, and duration", async () => {
       const res = await executeGraphQL<{
-        updateTrack: { title: string; duration: number | null };
+        updateTrack: {
+          title: string;
+          trackArtist: string | null;
+          duration: number | null;
+        };
       }>(agent, {
         query: UPDATE_TRACK_MUTATION,
         variables: {
           id: testTrackId,
-          input: { title: "Updated Track", duration: 200 },
+          input: {
+            title: "Updated Track",
+            trackArtist: "Featured Artist",
+            duration: 200,
+          },
         },
         token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
       expect(res.data!.updateTrack.title).toBe("Updated Track");
+      expect(res.data!.updateTrack.trackArtist).toBe("Featured Artist");
       expect(res.data!.updateTrack.duration).toBe(200);
     });
   });
@@ -878,6 +1050,87 @@ describe("Music e2e", () => {
       expect(res.errors).toBeDefined();
     });
 
+    it("rejects music mutations for regular users", async () => {
+      await executeGraphQL(agent, {
+        query: CREATE_USER_MUTATION,
+        variables: {
+          input: {
+            email: "music-user@test.com",
+            password: "secret123",
+            firstName: "Music",
+            lastName: "User",
+          },
+        },
+        token: authToken,
+      });
+
+      const loginRes = await executeGraphQL<{ login: { token: string } }>(
+        agent,
+        {
+          query: LOGIN_MUTATION,
+          variables: {
+            email: "music-user@test.com",
+            password: "secret123",
+          },
+        },
+      );
+      const userToken = loginRes.data!.login.token;
+
+      const res = await executeGraphQL(agent, {
+        query: CREATE_ARTIST_MUTATION,
+        variables: { input: { name: "Forbidden Artist" } },
+        token: userToken,
+      });
+
+      expect(res.data).toBeFalsy();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("FORBIDDEN");
+
+      const artRes = await executeGraphQL(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64:
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            mimeType: "image/png",
+          },
+        },
+        token: userToken,
+      });
+
+      expect(artRes.data?.updateAlbumArt ?? null).toBeNull();
+      expect(artRes.errors).toBeDefined();
+      expect(artRes.errors![0]?.extensions?.code).toBe("FORBIDDEN");
+    });
+
+    it("allows music mutations for moderators", async () => {
+      const moderator = await seedUserAndLogin(
+        agent,
+        {
+          email: "music-mod@test.com",
+          password: "secret123",
+          firstName: "Music",
+          lastName: "Mod",
+        },
+        "moderator",
+      );
+
+      const res = await executeGraphQL<{
+        updateArtist: { name: string };
+      }>(agent, {
+        query: UPDATE_ARTIST_MUTATION,
+        variables: {
+          id: testArtistId,
+          input: { name: "Updated Artist" },
+        },
+        token: moderator.token,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateArtist.name).toBe("Updated Artist");
+    });
+
     it("allows list queries without auth token", async () => {
       const res = await executeGraphQL<{
         artists: Array<unknown>;
@@ -932,26 +1185,14 @@ describe("Music e2e", () => {
       });
       const lifecycleAlbumId = albumRes.data!.createAlbum.id;
 
-      // Create track with genre
-      const trackRes = await executeGraphQL<{
-        createTrack: {
-          id: string;
-          title: string;
-          album: { id: string };
-        };
-      }>(agent, {
-        query: CREATE_TRACK_MUTATION,
-        variables: {
-          input: {
-            title: "Lifecycle Track",
-            albumId: lifecycleAlbumId,
-            filePath: "lifecycle/artist/track.mp3",
-            genreIds: [lifecycleGenreId],
-          },
-        },
-        token: authToken,
+      // Create track with genre (via service — no GraphQL createTrack)
+      const lifecycleTrack = await createTrack({
+        title: "Lifecycle Track",
+        albumId: lifecycleAlbumId,
+        filePath: "lifecycle/artist/track.mp3",
+        genreIds: [lifecycleGenreId],
       });
-      const lifecycleTrackId = trackRes.data!.createTrack.id;
+      const lifecycleTrackId = lifecycleTrack.id;
 
       // Verify nested resolution: track → album → artist
       const trackDetailRes = await executeGraphQL<{

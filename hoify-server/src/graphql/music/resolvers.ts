@@ -9,10 +9,11 @@ import {
   getAlbum,
   createAlbum,
   updateAlbum,
+  updateAlbumArt,
+  updateArtistArt,
   deleteAlbum,
   listTracks,
   getTrack,
-  createTrack,
   updateTrack,
   deleteTrack,
   listGenres,
@@ -25,6 +26,7 @@ import {
   searchMusic,
 } from "./services.js";
 import { isTrackLikedByUser } from "../playlist/services.js";
+import { requireAdminOrModerator } from "../auth/plugin.js";
 import type { Context } from "../auth/resolvers.js";
 
 export const resolvers = {
@@ -74,7 +76,11 @@ export const resolvers = {
     createArtist: (
       _: unknown,
       args: { input: { name: string; bio?: string; imageUrl?: string } },
-    ) => createArtist(args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return createArtist(args.input);
+    },
 
     updateArtist: (
       _: unknown,
@@ -82,9 +88,32 @@ export const resolvers = {
         id: string;
         input: { name?: string; bio?: string; imageUrl?: string };
       },
-    ) => updateArtist(args.id, args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateArtist(args.id, args.input);
+    },
 
-    deleteArtist: (_: unknown, args: { id: string }) => deleteArtist(args.id),
+    updateArtistArt: (
+      _: unknown,
+      args: {
+        artistId: string;
+        input: { imageBase64: string; mimeType: string };
+      },
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateArtistArt(args.artistId, args.input);
+    },
+
+    deleteArtist: (
+      _: unknown,
+      args: { id: string },
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return deleteArtist(args.id);
+    },
 
     createAlbum: (
       _: unknown,
@@ -93,10 +122,13 @@ export const resolvers = {
           title: string;
           artistId: string;
           releaseYear?: number;
-          coverUrl?: string;
         };
       },
-    ) => createAlbum(args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return createAlbum(args.input);
+    },
 
     updateAlbum: (
       _: unknown,
@@ -106,29 +138,34 @@ export const resolvers = {
           title?: string;
           artistId?: string;
           releaseYear?: number;
-          coverUrl?: string;
         };
       },
-    ) => updateAlbum(args.id, args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateAlbum(args.id, args.input);
+    },
 
-    deleteAlbum: (_: unknown, args: { id: string }) => deleteAlbum(args.id),
-
-    createTrack: (
+    updateAlbumArt: (
       _: unknown,
       args: {
-        input: {
-          title: string;
-          albumId: string;
-          trackNumber?: number;
-          discNumber?: number;
-          duration?: number;
-          filePath: string;
-          fileFormat?: string;
-          fileSize?: number;
-          genreIds?: string[];
-        };
+        albumId: string;
+        input: { imageBase64: string; mimeType: string };
       },
-    ) => createTrack(args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateAlbumArt(args.albumId, args.input);
+    },
+
+    deleteAlbum: (
+      _: unknown,
+      args: { id: string },
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return deleteAlbum(args.id);
+    },
 
     updateTrack: (
       _: unknown,
@@ -146,20 +183,46 @@ export const resolvers = {
           genreIds?: string[];
         };
       },
-    ) => updateTrack(args.id, args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateTrack(args.id, args.input);
+    },
 
-    deleteTrack: (_: unknown, args: { id: string }) => deleteTrack(args.id),
+    deleteTrack: (
+      _: unknown,
+      args: { id: string },
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return deleteTrack(args.id);
+    },
 
     createGenre: (
       _: unknown,
       args: { input: { name: string } },
-    ) => createGenre(args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return createGenre(args.input);
+    },
 
     updateGenre: (
       _: unknown,
       args: { id: string; input: { name?: string } },
-    ) => updateGenre(args.id, args.input),
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateGenre(args.id, args.input);
+    },
 
-    deleteGenre: (_: unknown, args: { id: string }) => deleteGenre(args.id),
+    deleteGenre: (
+      _: unknown,
+      args: { id: string },
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return deleteGenre(args.id);
+    },
   },
 };

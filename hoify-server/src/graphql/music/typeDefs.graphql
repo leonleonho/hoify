@@ -65,30 +65,27 @@ input CreateAlbumInput {
   title: String!
   artistId: ID!
   releaseYear: Int
-  coverUrl: String
 }
 
 input UpdateAlbumInput {
   title: String
   artistId: ID
   releaseYear: Int
-  coverUrl: String
 }
 
-input CreateTrackInput {
-  title: String!
-  albumId: ID!
-  trackNumber: Int
-  discNumber: Int
-  duration: Int
-  filePath: String!
-  fileFormat: String
-  fileSize: Int
-  genreIds: [ID!]
+input UpdateAlbumArtInput {
+  imageBase64: String!
+  mimeType: String!
+}
+
+input UpdateArtistArtInput {
+  imageBase64: String!
+  mimeType: String!
 }
 
 input UpdateTrackInput {
   title: String
+  trackArtist: String
   albumId: ID
   trackNumber: Int
   discNumber: Int
@@ -122,11 +119,12 @@ type Query {
 type Mutation {
   createArtist(input: CreateArtistInput!): Artist!
   updateArtist(id: ID!, input: UpdateArtistInput!): Artist
+  updateArtistArt(artistId: ID!, input: UpdateArtistArtInput!): Artist
   deleteArtist(id: ID!): Boolean!
   createAlbum(input: CreateAlbumInput!): Album!
   updateAlbum(id: ID!, input: UpdateAlbumInput!): Album
+  updateAlbumArt(albumId: ID!, input: UpdateAlbumArtInput!): Album
   deleteAlbum(id: ID!): Boolean!
-  createTrack(input: CreateTrackInput!): Track!
   updateTrack(id: ID!, input: UpdateTrackInput!): Track
   deleteTrack(id: ID!): Boolean!
   createGenre(input: CreateGenreInput!): Genre!

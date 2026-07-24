@@ -8,7 +8,19 @@ import { AlbumDocument } from '@/hooks/generated';
 import { AlbumScreen } from './AlbumScreen';
 
 // ── useMusicPlayer mock ──────────────────────────────────────────
-const { mockPlayPlaylist } = vi.hoisted(() => ({ mockPlayPlaylist: vi.fn() }));
+const { mockPlayPlaylist, mockPush, mockUseCanModerate } = vi.hoisted(() => ({
+  mockPlayPlaylist: vi.fn(),
+  mockPush: vi.fn(),
+  mockUseCanModerate: vi.fn(() => ({ canModerate: false, loading: false })),
+}));
+
+vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
+
+vi.mock('@/features/auth/hooks/useCanModerate', () => ({
+  useCanModerate: () => mockUseCanModerate(),
+}));
 
 vi.mock('@/features/player/hooks/useMusicPlayer', () => ({
   useMusicPlayer: () => ({
@@ -95,6 +107,7 @@ function renderAlbum(mocks: any[] = [], id: string = albumId) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockUseCanModerate.mockReturnValue({ canModerate: false, loading: false });
 });
 
 it('shows loading state while query is in flight', () => {
@@ -194,6 +207,41 @@ it('renders Play All button', async () => {
   await waitFor(() => {
     expect(screen.getByRole('button', { name: /play all/i })).toBeInTheDocument();
   });
+});
+
+it('does not show Edit for non-moderators', async () => {
+  renderAlbum([
+    {
+      request: { query: AlbumDocument, variables: { id: albumId } },
+      result: { data: successData },
+    },
+  ]);
+
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: /play all/i })).toBeInTheDocument();
+  });
+
+  expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+});
+
+it('shows Edit for moderators and navigates to edit page', async () => {
+  mockUseCanModerate.mockReturnValue({ canModerate: true, loading: false });
+
+  renderAlbum([
+    {
+      request: { query: AlbumDocument, variables: { id: albumId } },
+      result: { data: successData },
+    },
+  ]);
+
+  const user = userEvent.setup();
+
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+  });
+
+  await user.click(screen.getByRole('button', { name: /^edit$/i }));
+  expect(mockPush).toHaveBeenCalledWith('/album/album-1/edit');
 });
 
 it('calls playPlaylist with all tracks from start when Play All is pressed', async () => {
