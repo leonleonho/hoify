@@ -4,13 +4,20 @@ import { ApolloProvider } from '@apollo/client/react';
 import { Redirect, Slot, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { client } from '@/apollo/client';
 import { MeDocument } from '@/hooks/generated';
 import { colors } from '@/constants/theme';
-import { MiniPlayer } from '@/features/player/components/MiniPlayer';
+import {
+  MiniPlayer,
+  MINI_PLAYER_BAR_HEIGHT,
+} from '@/features/player/components/MiniPlayer';
 import { FullPlayerOverlay } from '@/features/player/components/FullPlayerOverlay';
-import { PlayerProvider } from '@/features/player/components/PlayerProvider';
+import { PlayerProvider, useMusicPlayer } from '@/features/player/components/PlayerProvider';
 import { loadSavedApiBase } from '@/constants/api';
 import { useEffect, useState } from 'react';
 
@@ -52,6 +59,35 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * App chrome inside PlayerProvider. Shrinks the Slot viewport when the mini
+ * player is visible so lists/screens aren't covered by the bottom bar.
+ */
+function AppShell() {
+  const { currentTrack } = useMusicPlayer();
+  const insets = useSafeAreaInsets();
+  const miniPlayerInset = currentTrack
+    ? MINI_PLAYER_BAR_HEIGHT + insets.bottom
+    : 0;
+
+  return (
+    <View style={styles.appRoot}>
+      <SafeAreaView style={styles.shell} edges={['top', 'left', 'right']}>
+        <View style={[styles.content, { paddingBottom: miniPlayerInset }]}>
+          <Slot />
+        </View>
+      </SafeAreaView>
+      {/* Float above native stack screens — otherwise Android eats touches */}
+      <View style={styles.playerChrome} pointerEvents="box-none">
+        <View style={styles.playerChromeSafe}>
+          <MiniPlayer />
+        </View>
+        <FullPlayerOverlay />
+      </View>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [configReady, setConfigReady] = useState(false);
 
@@ -73,20 +109,7 @@ export default function RootLayout() {
         <StatusBar style="auto" />
         <AuthGate>
           <PlayerProvider>
-            <View style={styles.appRoot}>
-              <SafeAreaView style={styles.shell} edges={['top', 'left', 'right']}>
-                <View style={styles.content}>
-                  <Slot />
-                </View>
-              </SafeAreaView>
-              {/* Float above native stack screens — otherwise Android eats touches */}
-              <View style={styles.playerChrome} pointerEvents="box-none">
-                <View style={styles.playerChromeSafe}>
-                  <MiniPlayer />
-                </View>
-                <FullPlayerOverlay />
-              </View>
-            </View>
+            <AppShell />
           </PlayerProvider>
         </AuthGate>
       </ApolloProvider>

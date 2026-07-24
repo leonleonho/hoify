@@ -1,0 +1,8 @@
+mutation ReorderPlaylistTracks($input: ReorderPlaylistTracksInput!) {
+  reorderPlaylistTracks(input: $input) {
+    id
+    tracks {
+      id
+    }
+  }
+}
