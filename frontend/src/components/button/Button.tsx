@@ -19,6 +19,7 @@ type ButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
+  destructive?: boolean;
   style?: ViewStyle;
   onPress?: () => void;
 };
@@ -30,11 +31,15 @@ export function Button({
   disabled = false,
   loading = false,
   fullWidth = false,
+  destructive = false,
   style,
   onPress,
 }: ButtonProps) {
-  const spinnerColor =
-    variant === 'primary' ? colors.text : colors.primary;
+  const spinnerColor = destructive
+    ? colors.error
+    : variant === 'primary'
+      ? colors.text
+      : colors.primary;
 
   return (
     <Pressable
@@ -59,7 +64,19 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={spinnerColor} size="small" />
       ) : (
-        <Text style={[styles.textBase, styles[`text_${variant}` as keyof typeof styles], styles[`textSize_${size}` as keyof typeof styles], disabled ? styles.textDisabled : undefined] as TextStyle[]}>{title}</Text>
+        <Text
+          style={
+            [
+              styles.textBase,
+              styles[`text_${variant}` as keyof typeof styles],
+              styles[`textSize_${size}` as keyof typeof styles],
+              destructive ? styles.textDestructive : undefined,
+              disabled ? styles.textDisabled : undefined,
+            ] as TextStyle[]
+          }
+        >
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -132,6 +149,9 @@ const styles = StyleSheet.create({
   },
   text_ghost: {
     color: colors.primary,
+  },
+  textDestructive: {
+    color: colors.error,
   },
   textSize_sm: {
     ...typography.bodySmall,

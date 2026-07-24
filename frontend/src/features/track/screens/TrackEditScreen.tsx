@@ -7,10 +7,15 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { Redirect, useRouter } from 'expo-router';
-import { TrackDocument, UpdateTrackDocument } from '@/hooks/generated';
+import {
+  TrackDocument,
+  UpdateTrackDocument,
+  DeleteTrackDocument,
+} from '@/hooks/generated';
 import { useCanModerate } from '@/features/auth/hooks/useCanModerate';
 import { EntitySuggest } from '@/components/suggest/EntitySuggest';
 import { Button } from '@/components/button/Button';
@@ -29,6 +34,9 @@ export function TrackEditScreen({ trackId }: Props) {
     variables: { id: trackId },
   });
   const [updateTrack, { loading: saving }] = useMutation(UpdateTrackDocument, {
+    refetchQueries: ['Track', 'Album', 'Artist', 'SearchMusic', 'Playlist'],
+  });
+  const [deleteTrack, { loading: deleting }] = useMutation(DeleteTrackDocument, {
     refetchQueries: ['Track', 'Album', 'Artist', 'SearchMusic', 'Playlist'],
   });
 
@@ -139,6 +147,46 @@ export function TrackEditScreen({ trackId }: Props) {
     }
   };
 
+  const performDelete = async () => {
+    setFormError('');
+    try {
+      await deleteTrack({ variables: { id: trackId } });
+      router.back();
+    } catch (e) {
+      setFormError(
+        e instanceof Error ? e.message : 'Failed to delete track.',
+      );
+    }
+  };
+
+  const handleDelete = () => {
+    // Alert.alert is a no-op on web; use window.confirm there.
+    if (Platform.OS === 'web') {
+      if (
+        typeof window !== 'undefined' &&
+        window.confirm('Delete this track? This cannot be undone.')
+      ) {
+        void performDelete();
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Delete track',
+      'Delete this track? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void performDelete();
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
@@ -189,6 +237,7 @@ export function TrackEditScreen({ trackId }: Props) {
           title="Save"
           onPress={handleSave}
           loading={saving}
+          disabled={deleting}
           fullWidth
           style={styles.saveButton}
         />
@@ -196,6 +245,16 @@ export function TrackEditScreen({ trackId }: Props) {
           title="Cancel"
           variant="ghost"
           onPress={() => router.back()}
+          disabled={saving || deleting}
+          fullWidth
+        />
+        <Button
+          title="Delete"
+          variant="ghost"
+          destructive
+          onPress={handleDelete}
+          loading={deleting}
+          disabled={saving}
           fullWidth
         />
       </ScrollView>
