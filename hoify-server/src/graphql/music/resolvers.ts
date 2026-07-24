@@ -10,6 +10,7 @@ import {
   createAlbum,
   updateAlbum,
   updateAlbumArt,
+  updateArtistArt,
   deleteAlbum,
   listTracks,
   getTrack,
@@ -91,6 +92,18 @@ export const resolvers = {
     ) => {
       requireAdminOrModerator(context.currentUser);
       return updateArtist(args.id, args.input);
+    },
+
+    updateArtistArt: (
+      _: unknown,
+      args: {
+        artistId: string;
+        input: { imageBase64: string; mimeType: string };
+      },
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateArtistArt(args.artistId, args.input);
     },
 
     deleteArtist: (

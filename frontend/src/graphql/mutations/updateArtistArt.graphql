@@ -1,0 +1,6 @@
+mutation UpdateArtistArt($artistId: ID!, $input: UpdateArtistArtInput!) {
+  updateArtistArt(artistId: $artistId, input: $input) {
+    id
+    imageUrl
+  }
+}

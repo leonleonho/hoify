@@ -3,7 +3,7 @@ import { createReadStream, existsSync } from "fs";
 import { resolve } from "path";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { albums } from "../db/schema.js";
+import { albums, artists } from "../db/schema.js";
 import { albumArtPath } from "../paths.js";
 
 const router = Router();
@@ -32,18 +32,27 @@ router.get("/:filename", async (req, res) => {
     return;
   }
 
-  const albumId = filename.slice(0, dotIndex);
+  const entityId = filename.slice(0, dotIndex);
   const ext = filename.slice(dotIndex + 1).toLowerCase();
 
   const album = await db
     .select({ coverUrl: albums.coverUrl })
     .from(albums)
-    .where(eq(albums.id, albumId))
+    .where(eq(albums.id, entityId))
     .limit(1)
     .then((rows) => rows[0] ?? null);
 
-  if (!album) {
-    res.status(404).json({ error: "Album not found" });
+  const artist = album
+    ? null
+    : await db
+        .select({ imageUrl: artists.imageUrl })
+        .from(artists)
+        .where(eq(artists.id, entityId))
+        .limit(1)
+        .then((rows) => rows[0] ?? null);
+
+  if (!album && !artist) {
+    res.status(404).json({ error: "Art not found" });
     return;
   }
 
@@ -55,7 +64,7 @@ router.get("/:filename", async (req, res) => {
   }
 
   if (!existsSync(filePath)) {
-    res.status(404).json({ error: "Cover art file not found" });
+    res.status(404).json({ error: "Art file not found" });
     return;
   }
 

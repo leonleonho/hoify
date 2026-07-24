@@ -158,6 +158,7 @@ export type Mutation = {
   updateAlbum?: Maybe<Album>;
   updateAlbumArt?: Maybe<Album>;
   updateArtist?: Maybe<Artist>;
+  updateArtistArt?: Maybe<Artist>;
   updateGenre?: Maybe<Genre>;
   updatePlaylist?: Maybe<Playlist>;
   updateTrack?: Maybe<Track>;
@@ -272,6 +273,12 @@ export type MutationUpdateAlbumArtArgs = {
 export type MutationUpdateArtistArgs = {
   id: Scalars['ID']['input'];
   input: UpdateArtistInput;
+};
+
+
+export type MutationUpdateArtistArtArgs = {
+  artistId: Scalars['ID']['input'];
+  input: UpdateArtistArtInput;
 };
 
 
@@ -441,6 +448,11 @@ export type UpdateAlbumInput = {
   artistId?: InputMaybe<Scalars['ID']['input']>;
   releaseYear?: InputMaybe<Scalars['Int']['input']>;
   title?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateArtistArtInput = {
+  imageBase64: Scalars['String']['input'];
+  mimeType: Scalars['String']['input'];
 };
 
 export type UpdateArtistInput = {

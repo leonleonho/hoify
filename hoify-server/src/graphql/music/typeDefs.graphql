@@ -78,6 +78,11 @@ input UpdateAlbumArtInput {
   mimeType: String!
 }
 
+input UpdateArtistArtInput {
+  imageBase64: String!
+  mimeType: String!
+}
+
 input UpdateTrackInput {
   title: String
   trackArtist: String
@@ -114,6 +119,7 @@ type Query {
 type Mutation {
   createArtist(input: CreateArtistInput!): Artist!
   updateArtist(id: ID!, input: UpdateArtistInput!): Artist
+  updateArtistArt(artistId: ID!, input: UpdateArtistArtInput!): Artist
   deleteArtist(id: ID!): Boolean!
   createAlbum(input: CreateAlbumInput!): Album!
   updateAlbum(id: ID!, input: UpdateAlbumInput!): Album

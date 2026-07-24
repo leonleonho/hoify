@@ -24,6 +24,15 @@ const UPDATE_ARTIST_MUTATION = `
   }
 `;
 
+const UPDATE_ARTIST_ART_MUTATION = `
+  mutation UpdateArtistArt($artistId: ID!, $input: UpdateArtistArtInput!) {
+    updateArtistArt(artistId: $artistId, input: $input) {
+      id
+      imageUrl
+    }
+  }
+`;
+
 const DELETE_ARTIST_MUTATION = `
   mutation DeleteArtist($id: ID!) {
     deleteArtist(id: $id)
@@ -399,6 +408,83 @@ describe("Music e2e", () => {
       expect(res.errors).toBeUndefined();
       expect(res.data!.updateArtist.name).toBe("Updated Artist");
       expect(res.data!.updateArtist.bio).toBe("Updated bio");
+    });
+
+    // 1x1 PNG
+    const TINY_PNG_BASE64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    // minimal JPEG
+    const TINY_JPEG_BASE64 =
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=";
+
+    it("sets artist art via updateArtistArt and serves it", async () => {
+      const res = await executeGraphQL<{
+        updateArtistArt: { id: string; imageUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ARTIST_ART_MUTATION,
+        variables: {
+          artistId: testArtistId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/png",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateArtistArt.imageUrl).toBe(
+        `/art/${testArtistId}.png`,
+      );
+
+      const artRes = await agent.get(`/art/${testArtistId}.png`);
+      expect(artRes.status).toBe(200);
+      expect(artRes.headers["content-type"]).toBe("image/png");
+    });
+
+    it("overwrites artist art with a different mime type", async () => {
+      const res = await executeGraphQL<{
+        updateArtistArt: { imageUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ARTIST_ART_MUTATION,
+        variables: {
+          artistId: testArtistId,
+          input: {
+            imageBase64: TINY_JPEG_BASE64,
+            mimeType: "image/jpeg",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateArtistArt.imageUrl).toBe(
+        `/art/${testArtistId}.jpg`,
+      );
+
+      const jpgRes = await agent.get(`/art/${testArtistId}.jpg`);
+      expect(jpgRes.status).toBe(200);
+
+      const oldPng = await agent.get(`/art/${testArtistId}.png`);
+      expect(oldPng.status).toBe(404);
+    });
+
+    it("rejects unsupported mime type for artist art", async () => {
+      const res = await executeGraphQL(agent, {
+        query: UPDATE_ARTIST_ART_MUTATION,
+        variables: {
+          artistId: testArtistId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/svg+xml",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.data?.updateArtistArt ?? null).toBeNull();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("BAD_USER_INPUT");
     });
 
     it("deletes an artist", async () => {

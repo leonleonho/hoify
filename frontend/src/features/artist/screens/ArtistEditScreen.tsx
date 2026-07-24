@@ -14,11 +14,14 @@ import { Redirect, useRouter } from 'expo-router';
 import {
   ArtistDocument,
   UpdateArtistDocument,
+  UpdateArtistArtDocument,
 } from '@/hooks/generated';
 import { useCanModerate } from '@/features/auth/hooks/useCanModerate';
+import { pickAlbumArtImage } from '@/features/music/utils/pickAlbumArtImage';
 import { Button } from '@/components/button/Button';
 import { Input } from '@/components/input/Input';
 import { colors, spacing, typography } from '@/constants/theme';
+import { artUrl } from '@/constants/api';
 
 type Props = {
   artistId: string;
@@ -28,16 +31,19 @@ export function ArtistEditScreen({ artistId }: Props) {
   const router = useRouter();
   const { canModerate, loading: roleLoading } = useCanModerate();
 
-  const { data, loading, error } = useQuery(ArtistDocument, {
+  const { data, loading, error, refetch } = useQuery(ArtistDocument, {
     variables: { id: artistId },
   });
   const [updateArtist, { loading: saving }] = useMutation(UpdateArtistDocument, {
     refetchQueries: ['Artist', 'Artists', 'SearchMusic'],
   });
+  const [updateArtistArt, { loading: uploadingArt }] = useMutation(
+    UpdateArtistArtDocument,
+    { refetchQueries: ['Artist', 'Artists', 'SearchMusic'] },
+  );
 
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [formError, setFormError] = useState('');
   const [initialized, setInitialized] = useState(false);
 
@@ -45,7 +51,6 @@ export function ArtistEditScreen({ artistId }: Props) {
     if (data?.artist && !initialized) {
       setName(data.artist.name);
       setBio(data.artist.bio ?? '');
-      setImageUrl(data.artist.imageUrl ?? '');
       setInitialized(true);
     }
   }, [data, initialized]);
@@ -80,6 +85,30 @@ export function ArtistEditScreen({ artistId }: Props) {
     );
   }
 
+  const imageUri = artUrl(data.artist.imageUrl);
+
+  const handleReplaceArt = async () => {
+    setFormError('');
+    try {
+      const picked = await pickAlbumArtImage();
+      if (!picked) return;
+      await updateArtistArt({
+        variables: {
+          artistId,
+          input: {
+            imageBase64: picked.imageBase64,
+            mimeType: picked.mimeType,
+          },
+        },
+      });
+      await refetch();
+    } catch (e) {
+      setFormError(
+        e instanceof Error ? e.message : 'Failed to update artist art.',
+      );
+    }
+  };
+
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
@@ -94,7 +123,6 @@ export function ArtistEditScreen({ artistId }: Props) {
           input: {
             name: trimmed,
             bio: bio.trim() || null,
-            imageUrl: imageUrl.trim() || null,
           },
         },
       });
@@ -115,9 +143,21 @@ export function ArtistEditScreen({ artistId }: Props) {
       >
         <Text style={styles.heading}>Edit artist</Text>
 
-        {imageUrl.trim() ? (
-          <Image source={{ uri: imageUrl.trim() }} style={styles.preview} />
-        ) : null}
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.preview} />
+        ) : (
+          <View style={[styles.preview, styles.previewPlaceholder]}>
+            <Text style={styles.previewPlaceholderText}>No art</Text>
+          </View>
+        )}
+
+        <Button
+          title="Replace artist art"
+          variant="secondary"
+          onPress={handleReplaceArt}
+          loading={uploadingArt}
+          fullWidth
+        />
 
         <Input label="Name" value={name} onChangeText={setName} />
         <Input
@@ -126,13 +166,6 @@ export function ArtistEditScreen({ artistId }: Props) {
           onChangeText={setBio}
           multiline
           numberOfLines={6}
-        />
-        <Input
-          label="Image URL"
-          value={imageUrl}
-          onChangeText={setImageUrl}
-          autoCapitalize="none"
-          autoCorrect={false}
         />
 
         {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
@@ -182,7 +215,15 @@ const styles = StyleSheet.create({
     borderRadius: 80,
     alignSelf: 'center',
     backgroundColor: colors.surfaceLight,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  previewPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewPlaceholderText: {
+    ...typography.body,
+    color: colors.textMuted,
   },
   errorText: {
     ...typography.body,

@@ -17,6 +17,7 @@ import { List, ListItem } from '@/components/list/List';
 import { SongListItem } from '@/components/list/SongListItem';
 import { Button } from '@/components/button/Button';
 import { colors, spacing, typography } from '@/constants/theme';
+import { artUrl } from '@/constants/api';
 
 type Props = {
   artistId: string;
@@ -73,6 +74,7 @@ export function ArtistScreen({ artistId }: Props) {
   }
 
   const artist = data.artist!;
+  const artistImageUri = artUrl(artist.imageUrl);
 
   const handleAlbumPress = (albumId: string) => {
     router.push(`/album/${albumId}` as any);
@@ -86,12 +88,12 @@ export function ArtistScreen({ artistId }: Props) {
     <View>
       {/* Artist header */}
       <View style={styles.header}>
-        {artist.imageUrl && (
+        {artistImageUri ? (
           <Image
-            source={{ uri: artist.imageUrl }}
+            source={{ uri: artistImageUri }}
             style={styles.artistImage}
           />
-        )}
+        ) : null}
         <Text style={styles.artistName}>{artist.name}</Text>
         {artist.bio && <Text style={styles.bio}>{artist.bio}</Text>}
         {canModerate ? (
