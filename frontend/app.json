@@ -34,6 +34,12 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Hoify to access your photos to set album and artist art."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
