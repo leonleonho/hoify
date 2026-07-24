@@ -10,6 +10,7 @@ import {
   genres,
   trackGenres,
   playlists,
+  playlistTracks,
 } from "../../db/schema.js";
 import { albumArtPath } from "../../paths.js";
 
@@ -332,6 +333,7 @@ export async function updateTrack(
 }
 
 export async function deleteTrack(id: string) {
+  await db.delete(playlistTracks).where(eq(playlistTracks.trackId, id));
   await db.delete(trackGenres).where(eq(trackGenres.trackId, id));
   const [deleted] = await db
     .delete(tracks)
