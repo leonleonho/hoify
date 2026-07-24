@@ -1,5 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
-
 export type PickedImage = {
   imageBase64: string;
   mimeType: string;
@@ -8,8 +6,13 @@ export type PickedImage = {
 /**
  * Opens the device image library and returns base64 + mimeType
  * suitable for `updateAlbumArt`, or null if the user cancels.
+ *
+ * ImagePicker is loaded lazily so Expo Router can evaluate edit
+ * routes at startup without requiring the native module upfront.
  */
 export async function pickAlbumArtImage(): Promise<PickedImage | null> {
+  const ImagePicker = await import('expo-image-picker');
+
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
     return null;
