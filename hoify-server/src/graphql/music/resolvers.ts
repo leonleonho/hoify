@@ -9,6 +9,7 @@ import {
   getAlbum,
   createAlbum,
   updateAlbum,
+  updateAlbumArt,
   deleteAlbum,
   listTracks,
   getTrack,
@@ -108,7 +109,6 @@ export const resolvers = {
           title: string;
           artistId: string;
           releaseYear?: number;
-          coverUrl?: string;
         };
       },
       context: Context,
@@ -125,13 +125,24 @@ export const resolvers = {
           title?: string;
           artistId?: string;
           releaseYear?: number;
-          coverUrl?: string;
         };
       },
       context: Context,
     ) => {
       requireAdminOrModerator(context.currentUser);
       return updateAlbum(args.id, args.input);
+    },
+
+    updateAlbumArt: (
+      _: unknown,
+      args: {
+        albumId: string;
+        input: { imageBase64: string; mimeType: string };
+      },
+      context: Context,
+    ) => {
+      requireAdminOrModerator(context.currentUser);
+      return updateAlbumArt(args.albumId, args.input);
     },
 
     deleteAlbum: (

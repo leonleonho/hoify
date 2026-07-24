@@ -1,4 +1,7 @@
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { asc, eq, sql } from "drizzle-orm";
+import { GraphQLError } from "graphql";
 import { db } from "../../db/index.js";
 import {
   artists,
@@ -8,6 +11,18 @@ import {
   trackGenres,
   playlists,
 } from "../../db/schema.js";
+import { albumArtPath } from "../../paths.js";
+
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/bmp": "bmp",
+  "image/tiff": "tiff",
+};
+
+const MAX_ALBUM_ART_BYTES = 10 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -18,6 +33,55 @@ export function fmtDate(
 ): string | null {
   if (value == null) return null;
   return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function decodeAlbumArtBase64(imageBase64: string): Buffer {
+  const raw = imageBase64.includes(",")
+    ? imageBase64.slice(imageBase64.indexOf(",") + 1)
+    : imageBase64;
+
+  if (!raw || !/^[A-Za-z0-9+/=\s]+$/.test(raw)) {
+    throw new GraphQLError("Invalid base64 image data", {
+      extensions: { code: "BAD_USER_INPUT" },
+    });
+  }
+
+  const data = Buffer.from(raw, "base64");
+
+  if (data.length === 0) {
+    throw new GraphQLError("Invalid base64 image data", {
+      extensions: { code: "BAD_USER_INPUT" },
+    });
+  }
+
+  if (data.length > MAX_ALBUM_ART_BYTES) {
+    throw new GraphQLError("Album art exceeds maximum size of 10 MiB", {
+      extensions: { code: "BAD_USER_INPUT" },
+    });
+  }
+
+  return data;
+}
+
+async function removeOldAlbumArtFile(
+  albumId: string,
+  coverUrl: string | null,
+  nextFileName: string,
+): Promise<void> {
+  if (!coverUrl?.startsWith("/art/")) return;
+
+  const oldFileName = coverUrl.slice("/art/".length);
+  if (!oldFileName || oldFileName === nextFileName) return;
+  if (!oldFileName.startsWith(`${albumId}.`)) return;
+
+  const oldPath = resolve(albumArtPath, oldFileName);
+  if (!oldPath.startsWith(albumArtPath)) return;
+
+  try {
+    await unlink(oldPath);
+  } catch {
+    // Missing old file is fine when overwriting
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +145,6 @@ export async function createAlbum(input: {
   title: string;
   artistId: string;
   releaseYear?: number | null;
-  coverUrl?: string | null;
 }) {
   const [row] = await db.insert(albums).values(input).returning();
   return row;
@@ -93,7 +156,6 @@ export async function updateAlbum(
     title?: string;
     artistId?: string;
     releaseYear?: number | null;
-    coverUrl?: string | null;
   },
 ) {
   const [row] = await db
@@ -101,6 +163,45 @@ export async function updateAlbum(
     .set(input)
     .where(eq(albums.id, id))
     .returning();
+  return row ?? null;
+}
+
+export async function updateAlbumArt(
+  albumId: string,
+  input: { imageBase64: string; mimeType: string },
+) {
+  const album = await getAlbum(albumId);
+  if (!album) return null;
+
+  const ext = MIME_TO_EXT[input.mimeType];
+  if (!ext) {
+    throw new GraphQLError(
+      `Unsupported mime type: ${input.mimeType}. Allowed: ${Object.keys(MIME_TO_EXT).join(", ")}`,
+      { extensions: { code: "BAD_USER_INPUT" } },
+    );
+  }
+
+  const data = decodeAlbumArtBase64(input.imageBase64);
+  const fileName = `${albumId}.${ext}`;
+  const filePath = resolve(albumArtPath, fileName);
+
+  if (!filePath.startsWith(albumArtPath)) {
+    throw new GraphQLError("Invalid album art path", {
+      extensions: { code: "BAD_USER_INPUT" },
+    });
+  }
+
+  await removeOldAlbumArtFile(albumId, album.coverUrl, fileName);
+  await mkdir(albumArtPath, { recursive: true });
+  await writeFile(filePath, data);
+
+  const coverUrl = `/art/${fileName}`;
+  const [row] = await db
+    .update(albums)
+    .set({ coverUrl })
+    .where(eq(albums.id, albumId))
+    .returning();
+
   return row ?? null;
 }
 

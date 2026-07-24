@@ -74,6 +74,15 @@ const UPDATE_ALBUM_MUTATION = `
   }
 `;
 
+const UPDATE_ALBUM_ART_MUTATION = `
+  mutation UpdateAlbumArt($albumId: ID!, $input: UpdateAlbumArtInput!) {
+    updateAlbumArt(albumId: $albumId, input: $input) {
+      id
+      coverUrl
+    }
+  }
+`;
+
 const DELETE_ALBUM_MUTATION = `
   mutation DeleteAlbum($id: ID!) {
     deleteAlbum(id: $id)
@@ -451,7 +460,6 @@ describe("Music e2e", () => {
             title: "Test Album",
             artistId: testArtistId,
             releaseYear: 2024,
-            coverUrl: "https://example.com/album.jpg",
           },
         },
         token: authToken,
@@ -463,9 +471,7 @@ describe("Music e2e", () => {
       expect(res.data!.createAlbum.title).toBe("Test Album");
       expect(res.data!.createAlbum.artist.id).toBe(testArtistId);
       expect(res.data!.createAlbum.releaseYear).toBe(2024);
-      expect(res.data!.createAlbum.coverUrl).toBe(
-        "https://example.com/album.jpg",
-      );
+      expect(res.data!.createAlbum.coverUrl).toBeNull();
       expect(res.data!.createAlbum.createdAt).toBeTruthy();
       expect(res.data!.createAlbum.updatedAt).toBeTruthy();
     });
@@ -545,6 +551,97 @@ describe("Music e2e", () => {
 
       expect(res.errors).toBeUndefined();
       expect(res.data!.updateAlbum.title).toBe("Updated Album");
+    });
+
+    // 1x1 PNG
+    const TINY_PNG_BASE64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    // minimal JPEG
+    const TINY_JPEG_BASE64 =
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=";
+
+    it("sets album art via updateAlbumArt and serves it", async () => {
+      const res = await executeGraphQL<{
+        updateAlbumArt: { id: string; coverUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/png",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateAlbumArt.coverUrl).toBe(`/art/${testAlbumId}.png`);
+
+      const artRes = await agent.get(`/art/${testAlbumId}.png`);
+      expect(artRes.status).toBe(200);
+      expect(artRes.headers["content-type"]).toBe("image/png");
+    });
+
+    it("overwrites album art with a different mime type", async () => {
+      const res = await executeGraphQL<{
+        updateAlbumArt: { coverUrl: string | null };
+      }>(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: TINY_JPEG_BASE64,
+            mimeType: "image/jpeg",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateAlbumArt.coverUrl).toBe(`/art/${testAlbumId}.jpg`);
+
+      const jpgRes = await agent.get(`/art/${testAlbumId}.jpg`);
+      expect(jpgRes.status).toBe(200);
+
+      const oldPng = await agent.get(`/art/${testAlbumId}.png`);
+      expect(oldPng.status).toBe(404);
+    });
+
+    it("rejects unsupported mime type for album art", async () => {
+      const res = await executeGraphQL(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: TINY_PNG_BASE64,
+            mimeType: "image/svg+xml",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.data?.updateAlbumArt ?? null).toBeNull();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("BAD_USER_INPUT");
+    });
+
+    it("rejects invalid base64 for album art", async () => {
+      const res = await executeGraphQL(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64: "%%%not-base64%%%",
+            mimeType: "image/png",
+          },
+        },
+        token: authToken,
+      });
+
+      expect(res.data?.updateAlbumArt ?? null).toBeNull();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("BAD_USER_INPUT");
     });
   });
 
@@ -892,6 +989,23 @@ describe("Music e2e", () => {
       expect(res.data).toBeFalsy();
       expect(res.errors).toBeDefined();
       expect(res.errors![0]?.extensions?.code).toBe("FORBIDDEN");
+
+      const artRes = await executeGraphQL(agent, {
+        query: UPDATE_ALBUM_ART_MUTATION,
+        variables: {
+          albumId: testAlbumId,
+          input: {
+            imageBase64:
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            mimeType: "image/png",
+          },
+        },
+        token: userToken,
+      });
+
+      expect(artRes.data?.updateAlbumArt ?? null).toBeNull();
+      expect(artRes.errors).toBeDefined();
+      expect(artRes.errors![0]?.extensions?.code).toBe("FORBIDDEN");
     });
 
     it("allows music mutations for moderators", async () => {

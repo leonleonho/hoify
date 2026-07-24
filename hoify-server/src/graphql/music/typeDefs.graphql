@@ -65,14 +65,17 @@ input CreateAlbumInput {
   title: String!
   artistId: ID!
   releaseYear: Int
-  coverUrl: String
 }
 
 input UpdateAlbumInput {
   title: String
   artistId: ID
   releaseYear: Int
-  coverUrl: String
+}
+
+input UpdateAlbumArtInput {
+  imageBase64: String!
+  mimeType: String!
 }
 
 input UpdateTrackInput {
@@ -113,6 +116,7 @@ type Mutation {
   deleteArtist(id: ID!): Boolean!
   createAlbum(input: CreateAlbumInput!): Album!
   updateAlbum(id: ID!, input: UpdateAlbumInput!): Album
+  updateAlbumArt(albumId: ID!, input: UpdateAlbumArtInput!): Album
   deleteAlbum(id: ID!): Boolean!
   updateTrack(id: ID!, input: UpdateTrackInput!): Track
   deleteTrack(id: ID!): Boolean!
