@@ -25,6 +25,11 @@ export type PlaylistType =
   | 'liked'
   | 'suggested';
 
+export type UserRole =
+  | 'admin'
+  | 'moderator'
+  | 'user';
+
 export type AddTracksToPlaylistMutationVariables = Exact<{
   input: AddTracksToPlaylistInput;
 }>;
@@ -52,7 +57,7 @@ export type LoginMutationVariables = Exact<{
 }>;
 
 
-export type LoginMutation = { login: { token: string, user: { id: string, email: string, firstName: string, lastName: string, role: string } } };
+export type LoginMutation = { login: { token: string, user: { id: string, email: string, firstName: string, lastName: string, role: UserRole } } };
 
 export type StartDownloadMutationVariables = Exact<{
   peer: string;
@@ -108,7 +113,7 @@ export type DownloadsQuery = { downloads: Array<{ id: string, peer: string, file
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MeQuery = { me: { id: string, email: string, firstName: string, lastName: string, role: string } };
+export type MeQuery = { me: { id: string, email: string, firstName: string, lastName: string, role: UserRole } };
 
 export type MyPlaylistsQueryVariables = Exact<{ [key: string]: never; }>;
 

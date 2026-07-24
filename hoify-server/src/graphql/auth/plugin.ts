@@ -61,3 +61,14 @@ export function requireAdmin(
     });
   }
 }
+
+export function requireAdminOrModerator(
+  currentUser: User | null,
+): asserts currentUser is User {
+  requireAuth(currentUser);
+  if (currentUser.role !== "admin" && currentUser.role !== "moderator") {
+    throw new GraphQLError("Admin or moderator access required", {
+      extensions: { code: "FORBIDDEN" },
+    });
+  }
+}

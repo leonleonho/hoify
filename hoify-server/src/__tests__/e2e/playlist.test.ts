@@ -5,9 +5,6 @@ import {
   executeGraphQL,
   CREATE_USER_MUTATION,
   LOGIN_MUTATION,
-  CREATE_ARTIST_MUTATION,
-  CREATE_ALBUM_MUTATION,
-  CREATE_TRACK_MUTATION,
 } from "../helpers/graphql.js";
 
 // ---------------------------------------------------------------------------
@@ -142,6 +139,7 @@ const UNLIKE_TRACK_MUTATION = `
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
 import { seedAdminAndLogin } from "../helpers/users.js";
+import { seedArtistAlbumTracks } from "../helpers/music.js";
 
 // ── Shared state ──────────────────────────────────────────────────────────
 let fixture: E2eFixture;
@@ -209,50 +207,16 @@ beforeAll(async () => {
   );
   userBToken = loginBRes.data!.login.token;
 
-  // Create tracks to use in playlists
-  const artistRes = await executeGraphQL<{
-    createArtist: { id: string };
-  }>(agent, {
-    query: CREATE_ARTIST_MUTATION,
-    variables: { input: { name: "Playlist Test Artist" } },
-    token: userAToken,
+  // Create tracks to use in playlists (service seed — no GraphQL createTrack)
+  const seeded = await seedArtistAlbumTracks({
+    artistName: "Playlist Test Artist",
+    albumTitle: "Playlist Test Album",
+    tracks: ["Alpha Track", "Beta Track", "Gamma Track"].map((title) => ({
+      title,
+      filePath: `playlist-test/${title.toLowerCase().replace(/\s+/g, "-")}.mp3`,
+    })),
   });
-  const artistId = artistRes.data!.createArtist.id;
-
-  const albumRes = await executeGraphQL<{ createAlbum: { id: string } }>(
-    agent,
-    {
-      query: CREATE_ALBUM_MUTATION,
-      variables: {
-        input: {
-          title: "Playlist Test Album",
-          artistId,
-        },
-      },
-      token: userAToken,
-    },
-  );
-  const albumId = albumRes.data!.createAlbum.id;
-
-  const trackNames = ["Alpha Track", "Beta Track", "Gamma Track"];
-  testTrackIds = [];
-  for (const title of trackNames) {
-    const res = await executeGraphQL<{
-      createTrack: { id: string; title: string };
-    }>(agent, {
-      query: CREATE_TRACK_MUTATION,
-      variables: {
-        input: {
-          title,
-          albumId,
-          trackNumber: testTrackIds.length + 1,
-          filePath: `playlist-test/${title.toLowerCase().replace(/\s+/g, "-")}.mp3`,
-        },
-      },
-      token: userAToken,
-    });
-    testTrackIds.push(res.data!.createTrack.id);
-  }
+  testTrackIds = seeded.trackIds;
 });
 
 afterAll(async () => {

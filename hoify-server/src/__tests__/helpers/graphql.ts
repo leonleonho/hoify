@@ -84,26 +84,6 @@ export const CREATE_ALBUM_MUTATION = `
   }
 `;
 
-export const CREATE_TRACK_MUTATION = `
-  mutation CreateTrack($input: CreateTrackInput!) {
-    createTrack(input: $input) {
-      id
-      title
-      trackNumber
-      discNumber
-      duration
-      filePath
-      fileFormat
-      fileSize
-      album {
-        id
-      }
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

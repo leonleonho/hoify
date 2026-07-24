@@ -75,18 +75,6 @@ input UpdateAlbumInput {
   coverUrl: String
 }
 
-input CreateTrackInput {
-  title: String!
-  albumId: ID!
-  trackNumber: Int
-  discNumber: Int
-  duration: Int
-  filePath: String!
-  fileFormat: String
-  fileSize: Int
-  genreIds: [ID!]
-}
-
 input UpdateTrackInput {
   title: String
   albumId: ID
@@ -126,7 +114,6 @@ type Mutation {
   createAlbum(input: CreateAlbumInput!): Album!
   updateAlbum(id: ID!, input: UpdateAlbumInput!): Album
   deleteAlbum(id: ID!): Boolean!
-  createTrack(input: CreateTrackInput!): Track!
   updateTrack(id: ID!, input: UpdateTrackInput!): Track
   deleteTrack(id: ID!): Boolean!
   createGenre(input: CreateGenreInput!): Genre!

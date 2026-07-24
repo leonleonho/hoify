@@ -68,18 +68,6 @@ export type CreatePlaylistInput = {
   trackIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
-export type CreateTrackInput = {
-  albumId: Scalars['ID']['input'];
-  discNumber?: InputMaybe<Scalars['Int']['input']>;
-  duration?: InputMaybe<Scalars['Int']['input']>;
-  fileFormat?: InputMaybe<Scalars['String']['input']>;
-  filePath: Scalars['String']['input'];
-  fileSize?: InputMaybe<Scalars['Int']['input']>;
-  genreIds?: InputMaybe<Array<Scalars['ID']['input']>>;
-  title: Scalars['String']['input'];
-  trackNumber?: InputMaybe<Scalars['Int']['input']>;
-};
-
 export type CreateUserInput = {
   email: Scalars['String']['input'];
   firstName: Scalars['String']['input'];
@@ -155,7 +143,6 @@ export type Mutation = {
   createArtist: Artist;
   createGenre: Genre;
   createPlaylist: Playlist;
-  createTrack: Track;
   createUser: User;
   deleteAlbum: Scalars['Boolean']['output'];
   deleteArtist: Scalars['Boolean']['output'];
@@ -200,11 +187,6 @@ export type MutationCreateGenreArgs = {
 
 export type MutationCreatePlaylistArgs = {
   input: CreatePlaylistInput;
-};
-
-
-export type MutationCreateTrackArgs = {
-  input: CreateTrackInput;
 };
 
 
@@ -493,7 +475,13 @@ export type User = {
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   lastName: Scalars['String']['output'];
-  role: Scalars['String']['output'];
+  role: UserRole;
   updatedAt: Scalars['String']['output'];
   verifiedAt?: Maybe<Scalars['String']['output']>;
 };
+
+export enum UserRole {
+  Admin = 'admin',
+  Moderator = 'moderator',
+  User = 'user'
+}

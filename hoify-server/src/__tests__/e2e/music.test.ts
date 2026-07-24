@@ -5,7 +5,8 @@ import {
   executeGraphQL,
   CREATE_ARTIST_MUTATION,
   CREATE_ALBUM_MUTATION,
-  CREATE_TRACK_MUTATION,
+  LOGIN_MUTATION,
+  CREATE_USER_MUTATION,
 } from "../helpers/graphql.js";
 
 // ---------------------------------------------------------------------------
@@ -246,7 +247,8 @@ const SEARCH_MUSIC_QUERY = `
 `;
 
 import { setupE2e, type E2eFixture } from "../helpers/setup-e2e.js";
-import { seedAdminAndLogin } from "../helpers/users.js";
+import { seedAdminAndLogin, seedUserAndLogin } from "../helpers/users.js";
+import { createTrack } from "../helpers/music.js";
 
 // ── Shared state ──────────────────────────────────────────────────────────
 let fixture: E2eFixture;
@@ -551,51 +553,28 @@ describe("Music e2e", () => {
   // -------------------------------------------------------------------------
 
   describe("Tracks", () => {
-    it("creates a track linked to album", async () => {
-      const res = await executeGraphQL<{
-        createTrack: {
-          id: string;
-          title: string;
-          album: { id: string };
-          trackNumber: number | null;
-          discNumber: number | null;
-          duration: number | null;
-          filePath: string;
-          fileFormat: string | null;
-          fileSize: number | null;
-          createdAt: string;
-          updatedAt: string;
-        };
-      }>(agent, {
-        query: CREATE_TRACK_MUTATION,
-        variables: {
-          input: {
-            title: "Test Track",
-            albumId: testAlbumId,
-            trackNumber: 1,
-            discNumber: 1,
-            duration: 180,
-            filePath: "test-artist/test-album/test-track.mp3",
-            fileFormat: "mp3",
-            fileSize: 5000000,
-          },
-        },
-        token: authToken,
+    it("seeds a track linked to album", async () => {
+      const track = await createTrack({
+        title: "Test Track",
+        albumId: testAlbumId,
+        trackNumber: 1,
+        discNumber: 1,
+        duration: 180,
+        filePath: "test-artist/test-album/test-track.mp3",
+        fileFormat: "mp3",
+        fileSize: 5000000,
       });
 
-      expect(res.errors).toBeUndefined();
-      testTrackId = res.data!.createTrack.id;
+      testTrackId = track.id;
       expect(testTrackId).toMatch(UUID_RE);
-      expect(res.data!.createTrack.title).toBe("Test Track");
-      expect(res.data!.createTrack.album.id).toBe(testAlbumId);
-      expect(res.data!.createTrack.trackNumber).toBe(1);
-      expect(res.data!.createTrack.discNumber).toBe(1);
-      expect(res.data!.createTrack.duration).toBe(180);
-      expect(res.data!.createTrack.filePath).toBe(
-        "test-artist/test-album/test-track.mp3",
-      );
-      expect(res.data!.createTrack.fileFormat).toBe("mp3");
-      expect(res.data!.createTrack.fileSize).toBe(5000000);
+      expect(track.title).toBe("Test Track");
+      expect(track.albumId).toBe(testAlbumId);
+      expect(track.trackNumber).toBe(1);
+      expect(track.discNumber).toBe(1);
+      expect(track.duration).toBe(180);
+      expect(track.filePath).toBe("test-artist/test-album/test-track.mp3");
+      expect(track.fileFormat).toBe("mp3");
+      expect(track.fileSize).toBe(5000000);
     });
 
     it("lists tracks", async () => {
@@ -878,6 +857,70 @@ describe("Music e2e", () => {
       expect(res.errors).toBeDefined();
     });
 
+    it("rejects music mutations for regular users", async () => {
+      await executeGraphQL(agent, {
+        query: CREATE_USER_MUTATION,
+        variables: {
+          input: {
+            email: "music-user@test.com",
+            password: "secret123",
+            firstName: "Music",
+            lastName: "User",
+          },
+        },
+        token: authToken,
+      });
+
+      const loginRes = await executeGraphQL<{ login: { token: string } }>(
+        agent,
+        {
+          query: LOGIN_MUTATION,
+          variables: {
+            email: "music-user@test.com",
+            password: "secret123",
+          },
+        },
+      );
+      const userToken = loginRes.data!.login.token;
+
+      const res = await executeGraphQL(agent, {
+        query: CREATE_ARTIST_MUTATION,
+        variables: { input: { name: "Forbidden Artist" } },
+        token: userToken,
+      });
+
+      expect(res.data).toBeFalsy();
+      expect(res.errors).toBeDefined();
+      expect(res.errors![0]?.extensions?.code).toBe("FORBIDDEN");
+    });
+
+    it("allows music mutations for moderators", async () => {
+      const moderator = await seedUserAndLogin(
+        agent,
+        {
+          email: "music-mod@test.com",
+          password: "secret123",
+          firstName: "Music",
+          lastName: "Mod",
+        },
+        "moderator",
+      );
+
+      const res = await executeGraphQL<{
+        updateArtist: { name: string };
+      }>(agent, {
+        query: UPDATE_ARTIST_MUTATION,
+        variables: {
+          id: testArtistId,
+          input: { name: "Updated Artist" },
+        },
+        token: moderator.token,
+      });
+
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateArtist.name).toBe("Updated Artist");
+    });
+
     it("allows list queries without auth token", async () => {
       const res = await executeGraphQL<{
         artists: Array<unknown>;
@@ -932,26 +975,14 @@ describe("Music e2e", () => {
       });
       const lifecycleAlbumId = albumRes.data!.createAlbum.id;
 
-      // Create track with genre
-      const trackRes = await executeGraphQL<{
-        createTrack: {
-          id: string;
-          title: string;
-          album: { id: string };
-        };
-      }>(agent, {
-        query: CREATE_TRACK_MUTATION,
-        variables: {
-          input: {
-            title: "Lifecycle Track",
-            albumId: lifecycleAlbumId,
-            filePath: "lifecycle/artist/track.mp3",
-            genreIds: [lifecycleGenreId],
-          },
-        },
-        token: authToken,
+      // Create track with genre (via service — no GraphQL createTrack)
+      const lifecycleTrack = await createTrack({
+        title: "Lifecycle Track",
+        albumId: lifecycleAlbumId,
+        filePath: "lifecycle/artist/track.mp3",
+        genreIds: [lifecycleGenreId],
       });
-      const lifecycleTrackId = trackRes.data!.createTrack.id;
+      const lifecycleTrackId = lifecycleTrack.id;
 
       // Verify nested resolution: track → album → artist
       const trackDetailRes = await executeGraphQL<{
