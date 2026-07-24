@@ -23,6 +23,9 @@ const TRACK_LIKED_FRAGMENT = gql`
   }
 `;
 
+/** Mini player height excluding bottom safe-area inset (art 48 + vertical padding). */
+export const MINI_PLAYER_BAR_HEIGHT = 48 + spacing.sm * 2;
+
 /**
  * Fixed bottom bar showing current track with play/pause + next controls.
  * Tapping the bar opens the full player overlay.
