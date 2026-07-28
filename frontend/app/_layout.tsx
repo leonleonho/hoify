@@ -18,6 +18,7 @@ import {
 } from '@/features/player/components/MiniPlayer';
 import { FullPlayerOverlay } from '@/features/player/components/FullPlayerOverlay';
 import { PlayerProvider, useMusicPlayer } from '@/features/player/components/PlayerProvider';
+import { OfflineProvider } from '@/features/offline/OfflineProvider';
 import { loadSavedApiBase } from '@/constants/api';
 import { useEffect, useState } from 'react';
 
@@ -108,9 +109,11 @@ export default function RootLayout() {
       <ApolloProvider client={client}>
         <StatusBar style="auto" />
         <AuthGate>
-          <PlayerProvider>
-            <AppShell />
-          </PlayerProvider>
+          <OfflineProvider>
+            <PlayerProvider>
+              <AppShell />
+            </PlayerProvider>
+          </OfflineProvider>
         </AuthGate>
       </ApolloProvider>
     </SafeAreaProvider>

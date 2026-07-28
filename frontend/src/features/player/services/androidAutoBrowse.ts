@@ -5,7 +5,8 @@ import {
   PlaylistDocument,
 } from '@/hooks/generated';
 import { PlaylistType, type Track } from '@/hooks/generated/types';
-import { getApiBase, artUrl } from '@/constants/api';
+import { artUrl } from '@/constants/api';
+import { resolveTrackUrl } from '@/features/offline/resolveTrackUrl';
 
 /** Module cache so Auto-started playback can update React UI without refetch. */
 const playlistTracksCache = new Map<string, Track[]>();
@@ -40,10 +41,6 @@ type BrowseTrackInput = {
   } | null;
 };
 
-function streamUrl(trackId: string): string {
-  return `${getApiBase()}/stream/${encodeURIComponent(trackId)}?quality=original`;
-}
-
 function trackArtistName(track: BrowseTrackInput): string | undefined {
   return track.trackArtist ?? track.album?.artist?.name ?? undefined;
 }
@@ -55,7 +52,7 @@ export function buildBrowseTrackItem(
 ): BrowseItem {
   return {
     mediaId: `${playlistId}:${track.id}`,
-    url: streamUrl(track.id),
+    url: resolveTrackUrl(track.id, 'original'),
     title: track.title,
     artist: trackArtistName(track),
     artworkUrl: track.album?.coverUrl ? artUrl(track.album.coverUrl) : undefined,

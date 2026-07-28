@@ -8,8 +8,9 @@ import {
   Animated,
   PanResponder,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { Heart, Plus, MoreVertical } from 'lucide-react-native';
+import { Heart, Plus, MoreVertical, Download, CircleCheck, CircleAlert } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@apollo/client/react';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -18,6 +19,7 @@ import type { Track } from '../../hooks/generated/types';
 import { LikeTrackDocument, UnlikeTrackDocument } from '../../hooks/generated';
 import { useMusicPlayer } from '../../features/player/components/PlayerProvider';
 import { useCanModerate } from '../../features/auth/hooks/useCanModerate';
+import type { OfflineTrackStatus } from '../../features/offline/types';
 import { ContextMenu } from '../ui/ContextMenu';
 import { PlaylistPicker } from '../ui/PlaylistPicker';
 
@@ -78,7 +80,23 @@ export type SongListItemProps = {
    * - `'click'`: always show action buttons
    */
   interactionMode?: 'auto' | 'swipe' | 'click';
+  /** Per-track offline download status (omit when playlist is not offline-marked). */
+  offlineStatus?: OfflineTrackStatus;
 };
+
+function OfflineStatusIcon({ status }: { status: OfflineTrackStatus }) {
+  if (status === 'ready') {
+    return <CircleCheck size={16} color={colors.textMuted} />;
+  }
+  if (status === 'downloading') {
+    return <ActivityIndicator size="small" color={colors.primary} />;
+  }
+  if (status === 'error') {
+    return <CircleAlert size={16} color={colors.error} />;
+  }
+  // pending
+  return <Download size={16} color={colors.border} />;
+}
 
 // ── constants ───────────────────────────────────────────────────────
 const ART_SIZE = 44;
@@ -93,6 +111,7 @@ export const SongListItem = React.memo(function SongListItem({
   swipeLeftAction,
   swipeRightAction,
   interactionMode = 'auto',
+  offlineStatus,
 }: SongListItemProps) {
   const swipeCapable = useSwipeCapable();
   const useSwipe =
@@ -221,6 +240,11 @@ export const SongListItem = React.memo(function SongListItem({
           </Text>
         </View>
         <Text style={styles.duration}>{formatDuration(track.duration)}</Text>
+        {offlineStatus ? (
+          <View style={styles.offlineIcon}>
+            <OfflineStatusIcon status={offlineStatus} />
+          </View>
+        ) : null}
       </View>
     );
 
@@ -449,6 +473,11 @@ export const SongListItem = React.memo(function SongListItem({
           <Text style={styles.duration}>
             {formatDuration(track.duration)}
           </Text>
+          {offlineStatus ? (
+            <View style={styles.offlineIcon}>
+              <OfflineStatusIcon status={offlineStatus} />
+            </View>
+          ) : null}
         </Pressable>
 
         <View ref={moreButtonRef}>
@@ -545,6 +574,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ['tabular-nums'],
     marginRight: spacing.sm,
+  },
+
+  offlineIcon: {
+    marginRight: spacing.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   clickContainer: {

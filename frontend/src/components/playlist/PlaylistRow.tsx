@@ -5,26 +5,59 @@ import { MyPlaylistsDocument } from '@/hooks/generated';
 import { colors, spacing, typography } from '@/constants/theme';
 import { PlaylistTile } from './PlaylistTile';
 import { PlaylistType } from '@/hooks/generated/types';
+import { useOffline } from '@/features/offline/OfflineProvider';
 
 type Props = {
   onPlaylistPress?: (id: string) => void;
 };
 
+type PlaylistSummary = {
+  id: string;
+  name: string;
+  trackCount: number;
+  type?: string | null;
+};
+
 export function PlaylistRow({ onPlaylistPress }: Props) {
-  const { data, loading } = useQuery(MyPlaylistsDocument);
+  const { data, loading, error } = useQuery(MyPlaylistsDocument);
+  const { offlinePlaylists, isOffline } = useOffline();
 
-  const sorted = useMemo(() => {
-    if (!data?.myPlaylists) return [];
-    const playlists = [...data.myPlaylists];
-    playlists.sort((a, b) => {
-      if (a.type === PlaylistType.Liked) return -1;
-      if (b.type === PlaylistType.Liked) return 1;
-      return 0;
-    });
-    return playlists.slice(0, 10);
-  }, [data]);
+  const sorted = useMemo((): PlaylistSummary[] => {
+    if (data?.myPlaylists?.length) {
+      const playlists = [...data.myPlaylists];
+      playlists.sort((a, b) => {
+        if (a.type === PlaylistType.Liked) return -1;
+        if (b.type === PlaylistType.Liked) return 1;
+        return 0;
+      });
+      return playlists.slice(0, 10).map((p) => ({
+        id: p.id,
+        name: p.name,
+        trackCount: p.trackCount,
+        type: p.type,
+      }));
+    }
 
-  if (loading) {
+    // Offline / API failure fallback — show locally cached playlists
+    if ((error || !data?.myPlaylists?.length) && offlinePlaylists.length > 0) {
+      const list = [...offlinePlaylists];
+      list.sort((a, b) => {
+        if (a.type === PlaylistType.Liked) return -1;
+        if (b.type === PlaylistType.Liked) return 1;
+        return 0;
+      });
+      return list.slice(0, 10).map((p) => ({
+        id: p.id,
+        name: p.name,
+        trackCount: p.trackCount,
+        type: p.type,
+      }));
+    }
+
+    return [];
+  }, [data, error, offlinePlaylists]);
+
+  if (loading && sorted.length === 0) {
     return (
       <View style={styles.section}>
         <Text style={styles.header}>Your Playlists</Text>
@@ -50,6 +83,7 @@ export function PlaylistRow({ onPlaylistPress }: Props) {
             name={playlist.name}
             trackCount={playlist.trackCount}
             isLiked={playlist.type === PlaylistType.Liked}
+            offlineReady={isOffline(playlist.id)}
             onPress={
               onPlaylistPress
                 ? () => onPlaylistPress(playlist.id)

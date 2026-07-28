@@ -16,6 +16,7 @@ import {
 } from '@/hooks/generated';
 import type { Track } from '@/hooks/generated/types';
 import { useMusicPlayer } from '@/features/player/hooks/useMusicPlayer';
+import { useOffline } from '@/features/offline/OfflineProvider';
 import { SongListItem } from '@/components/list/SongListItem';
 import { ReorderableTrackList } from '@/components/list/ReorderableTrackList';
 import { Button } from '@/components/button/Button';
@@ -30,6 +31,18 @@ type Props = {
 
 export function PlaylistScreen({ playlistId }: Props) {
   const { playPlaylist } = useMusicPlayer();
+  const {
+    supported: offlineSupported,
+    isOffline,
+    enableOffline,
+    disableOffline,
+    reconcileOffline,
+    getCachedPlaylistTracks,
+    getTrackStatus,
+    progressByPlaylist,
+    offlinePlaylists,
+  } = useOffline();
+
   const { data, loading, error } = useQuery(PlaylistDocument, {
     variables: { id: playlistId },
   });
@@ -44,12 +57,66 @@ export function PlaylistScreen({ playlistId }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [cachedTracks, setCachedTracks] = useState<Track[] | null>(null);
+  const [cachedMeta, setCachedMeta] = useState<{
+    name: string;
+    description?: string | null;
+    trackCount: number;
+    type?: string | null;
+    isPublic: boolean;
+  } | null>(null);
   const optionsRef = useRef<View>(null);
 
+  const playlistMarkedOffline = isOffline(playlistId);
+  const downloadProgress = progressByPlaylist[playlistId];
+
+  // Load offline catalog fallback when network query fails
+  useEffect(() => {
+    if (!offlineSupported) return;
+    if (data?.playlist) {
+      setCachedTracks(null);
+      setCachedMeta(null);
+      return;
+    }
+    if (loading) return;
+    let cancelled = false;
+    getCachedPlaylistTracks(playlistId).then((tracks) => {
+      if (cancelled || !tracks) return;
+      setCachedTracks(tracks);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    offlineSupported,
+    data?.playlist,
+    loading,
+    error,
+    playlistId,
+    getCachedPlaylistTracks,
+  ]);
+
+  // Also load meta from offline playlists list when falling back
+  useEffect(() => {
+    if (data?.playlist || !cachedTracks) return;
+    const meta = offlinePlaylists.find((p) => p.id === playlistId);
+    if (meta) {
+      setCachedMeta({
+        name: meta.name,
+        description: meta.description,
+        trackCount: meta.trackCount,
+        type: meta.type,
+        isPublic: meta.isPublic,
+      });
+    }
+  }, [data?.playlist, cachedTracks, offlinePlaylists, playlistId]);
+
   const queryTracks = useMemo(() => {
-    if (!data?.playlist) return [];
-    return data.playlist.tracks as unknown as Track[];
-  }, [data]);
+    if (data?.playlist) {
+      return data.playlist.tracks as unknown as Track[];
+    }
+    return cachedTracks ?? [];
+  }, [data, cachedTracks]);
 
   // Keep local order in sync with server when not actively reordering
   useEffect(() => {
@@ -57,6 +124,29 @@ export function PlaylistScreen({ playlistId }: Props) {
       setOrderedTracks(queryTracks);
     }
   }, [queryTracks, reordering]);
+
+  // Reconcile offline downloads when playlist data loads
+  useEffect(() => {
+    if (!offlineSupported || !playlistMarkedOffline || !data?.playlist) return;
+    const pl = data.playlist;
+    reconcileOffline({
+      id: pl.id,
+      name: pl.name,
+      description: pl.description,
+      isPublic: pl.isPublic,
+      type: pl.type,
+      trackCount: pl.trackCount,
+      tracks: pl.tracks as unknown as Track[],
+    }).catch(() => {});
+  }, [
+    offlineSupported,
+    playlistMarkedOffline,
+    data?.playlist?.id,
+    data?.playlist?.trackCount,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reconcile when track ids change
+    data?.playlist?.tracks?.map((t) => t.id).join(','),
+    reconcileOffline,
+  ]);
 
   const canEdit = useMemo(() => {
     const mine = myPlaylistsData?.myPlaylists ?? [];
@@ -86,6 +176,32 @@ export function PlaylistScreen({ playlistId }: Props) {
     setIsDragging(false);
     setReordering(true);
   }, [queryTracks]);
+
+  const handleToggleOffline = useCallback(async () => {
+    if (!offlineSupported) return;
+    if (playlistMarkedOffline) {
+      await disableOffline(playlistId);
+      return;
+    }
+    const pl = data?.playlist;
+    if (!pl) return;
+    await enableOffline({
+      id: pl.id,
+      name: pl.name,
+      description: pl.description,
+      isPublic: pl.isPublic,
+      type: pl.type,
+      trackCount: pl.trackCount,
+      tracks: pl.tracks as unknown as Track[],
+    });
+  }, [
+    offlineSupported,
+    playlistMarkedOffline,
+    disableOffline,
+    playlistId,
+    data?.playlist,
+    enableOffline,
+  ]);
 
   const handleOrderChange = useCallback((next: Track[]) => {
     setOrderedTracks(next);
@@ -120,7 +236,9 @@ export function PlaylistScreen({ playlistId }: Props) {
     }
   }, [orderedTracks, queryTracks, playlistId, reorderTracks]);
 
-  if (loading) {
+  const usingOfflineFallback = !data?.playlist && Boolean(cachedTracks?.length);
+
+  if (loading && !usingOfflineFallback && !cachedTracks) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -128,7 +246,7 @@ export function PlaylistScreen({ playlistId }: Props) {
     );
   }
 
-  if (error || !data?.playlist) {
+  if ((error || !data?.playlist) && !usingOfflineFallback) {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>
@@ -138,9 +256,45 @@ export function PlaylistScreen({ playlistId }: Props) {
     );
   }
 
-  const playlist = data.playlist;
+  const playlist = data?.playlist
+    ? data.playlist
+    : {
+        id: playlistId,
+        name: cachedMeta?.name ?? 'Offline playlist',
+        description: cachedMeta?.description,
+        trackCount: cachedMeta?.trackCount ?? tracks.length,
+        type: cachedMeta?.type,
+        isPublic: cachedMeta?.isPublic ?? false,
+      };
+
   const isLiked = playlist.type === PlaylistType.Liked;
-  const showOptions = canEdit && tracks.length > 0;
+  const showOptions =
+    ((canEdit && tracks.length > 0) || (offlineSupported && Boolean(data?.playlist))) &&
+    !reordering &&
+    Boolean(data?.playlist || tracks.length > 0);
+
+  const menuItems = [
+    ...(canEdit
+      ? [
+          {
+            label: 'Reorder tracks',
+            onPress: handleStartReorder,
+          },
+        ]
+      : []),
+    ...(offlineSupported && data?.playlist
+      ? [
+          {
+            label: playlistMarkedOffline
+              ? 'Remove offline download'
+              : 'Download for offline',
+            onPress: () => {
+              handleToggleOffline().catch(() => {});
+            },
+          },
+        ]
+      : []),
+  ];
 
   const headerContent = (
     <View>
@@ -178,8 +332,16 @@ export function PlaylistScreen({ playlistId }: Props) {
         <Text style={styles.meta}>
           {playlist.trackCount} {playlist.trackCount === 1 ? 'track' : 'tracks'}
           {!isLiked && !playlist.isPublic ? ' · Private' : ''}
+          {playlistMarkedOffline ? ' · Offline' : ''}
+          {usingOfflineFallback ? ' · Cached' : ''}
         </Text>
       </View>
+
+      {playlistMarkedOffline && downloadProgress?.active ? (
+        <Text style={styles.downloadProgress}>
+          Downloading {downloadProgress.done}/{downloadProgress.total}
+        </Text>
+      ) : null}
 
       {tracks.length > 0 && !reordering && (
         <Button title="Play All" onPress={handlePlayAll} />
@@ -244,6 +406,11 @@ export function PlaylistScreen({ playlistId }: Props) {
               track={item}
               onPress={() => handleTrackPress(index)}
               divider={index < tracks.length - 1}
+              offlineStatus={
+                playlistMarkedOffline
+                  ? getTrackStatus(item.id) ?? 'pending'
+                  : undefined
+              }
             />
           </View>
         )}
@@ -253,12 +420,7 @@ export function PlaylistScreen({ playlistId }: Props) {
         visible={menuVisible}
         onClose={() => setMenuVisible(false)}
         position={menuPosition}
-        items={[
-          {
-            label: 'Reorder tracks',
-            onPress: handleStartReorder,
-          },
-        ]}
+        items={menuItems}
       />
     </>
   );
@@ -319,6 +481,13 @@ const styles = StyleSheet.create({
   meta: {
     ...typography.bodySmall,
     color: colors.textMuted,
+  },
+  downloadProgress: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
   errorText: {
     ...typography.body,
