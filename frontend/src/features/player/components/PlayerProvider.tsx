@@ -10,7 +10,9 @@ import { AppState, Platform } from 'react-native';
 import type { Track } from '@/hooks/generated/types';
 import type { PlayerQuality, PlayerState, RepeatMode } from '../types/player';
 import { getItem, setItem } from '@/utils/storage';
-import { getApiBase, artUrl } from '@/constants/api';
+import { artUrl } from '@/constants/api';
+import { resolveTrackUrl } from '@/features/offline/resolveTrackUrl';
+import { getLocalUri } from '@/features/offline/localUriIndex';
 import { useMediaSession } from '../hooks/useMediaSession';
 import { useAndroidAutoBrowse } from '../hooks/useAndroidAutoBrowse';
 import { getCachedPlaylistTracks } from '../services/androidAutoBrowse';
@@ -39,18 +41,6 @@ function trackMetadata(track: Track): AudioManager.LockScreenMetadata {
   };
 }
 
-function getStreamBase(): string {
-  return `${getApiBase()}/stream`;
-}
-
-function buildStreamUrl(trackId: string, quality: PlayerQuality, seek?: number): string {
-  let url = `${getStreamBase()}/${encodeURIComponent(trackId)}?quality=${quality}`;
-  if (seek && quality !== 'original') {
-    url += `&seek=${Math.floor(seek / 1000)}`;
-  }
-  return url;
-}
-
 function buildQueueTracks(
   playlist: Track[],
   quality: PlayerQuality,
@@ -58,7 +48,7 @@ function buildQueueTracks(
 ): QueueTrack[] {
   return playlist.map((track, index) => ({
     mediaId: track.id,
-    url: buildStreamUrl(track.id, quality, seekMsByIndex?.[index]),
+    url: resolveTrackUrl(track.id, quality, seekMsByIndex?.[index]),
     playlistIndex: index,
     meta: trackMetadata(track),
     durationSeconds: track.duration ?? undefined,
@@ -274,7 +264,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const track = s.currentTrack;
         dispatchRef.current({ type: 'LOAD_TRACK', track });
         AudioManager.reloadActiveItem(
-          buildStreamUrl(track.id, s.quality),
+          resolveTrackUrl(track.id, s.quality),
           true,
           s.volume,
           trackMetadata(track),
@@ -408,7 +398,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
 
     await AudioManager.reloadActiveItem(
-      buildStreamUrl(track.id, q, seek),
+      resolveTrackUrl(track.id, q, seek),
       autoPlay,
       s.volume,
       trackMetadata(track),
@@ -567,9 +557,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [syncQueue]);
 
   const seek = useCallback(async (ms: number) => {
+    const track = stateRef.current.currentTrack;
+    // Local files always support native seek; ignore transcoder seek URLs
+    if (track && getLocalUri(track.id)) {
+      await AudioManager.setPositionAsync(ms);
+      dispatch({ type: 'PATCH', patch: { position: ms } });
+      return;
+    }
     const q = stateRef.current.quality;
     if (q !== 'original') {
-      const track = stateRef.current.currentTrack;
       if (!track) return;
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
       await reloadCurrent(stateRef.current.isPlaying, ms);

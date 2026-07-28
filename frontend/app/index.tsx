@@ -1,17 +1,19 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { Input } from '@/components/input/Input';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useSearchMusic } from '@/features/search/hooks/useSearchMusic';
 import { SearchResults } from '@/features/search/components/SearchResults';
 import { CategoryTile } from '@/components/home/CategoryTile';
 import { PlaylistRow } from '@/components/playlist/PlaylistRow';
+import { useOfflineMode } from '@/features/offline/hooks/useOfflineMode';
 
 const DEBOUNCE_MS = 300;
 
 export default function IndexScreen() {
   const router = useRouter();
+  const { offlineMode, checking } = useOfflineMode();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,6 +40,10 @@ export default function IndexScreen() {
       : '/find';
     router.push(path as any);
   }, [debouncedQuery, router]);
+
+  if (!checking && offlineMode) {
+    return <Redirect href="/offline" />;
+  }
 
   return (
     <View style={styles.container}>

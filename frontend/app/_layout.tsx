@@ -10,6 +10,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { client } from '@/apollo/client';
+import { isAuthError } from '@/apollo/errorUtils';
 import { MeDocument } from '@/hooks/generated';
 import { colors } from '@/constants/theme';
 import {
@@ -18,6 +19,9 @@ import {
 } from '@/features/player/components/MiniPlayer';
 import { FullPlayerOverlay } from '@/features/player/components/FullPlayerOverlay';
 import { PlayerProvider, useMusicPlayer } from '@/features/player/components/PlayerProvider';
+import { OfflineProvider, useOffline } from '@/features/offline/OfflineProvider';
+import { OfflineModeRedirect } from '@/features/offline/components/OfflineModeRedirect';
+import { useOfflineMode } from '@/features/offline/hooks/useOfflineMode';
 import { loadSavedApiBase } from '@/constants/api';
 import { useEffect, useState } from 'react';
 
@@ -27,6 +31,8 @@ import { useEffect, useState } from 'react';
  */
 function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
+  const { offlinePlaylists, ready: offlineReady } = useOffline();
+  const { offlineMode } = useOfflineMode();
 
   // Routes that don't need authentication
   const publicRoutes = ['login'];
@@ -37,8 +43,16 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     errorPolicy: 'all',
   });
 
-  // Still loading auth check
-  if (loading && !isPublic) {
+  const isAuthenticated = Boolean(data?.me);
+  const hasOfflineContent = offlinePlaylists.length > 0;
+
+  // Still loading auth check — but don't block forever on network when offline catalog is ready
+  if (
+    loading &&
+    !isPublic &&
+    !isAuthenticated &&
+    !(offlineReady && (offlineMode || hasOfflineContent))
+  ) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -46,13 +60,23 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Not authenticated → redirect to login
-  if (error && !isPublic) {
+  // Session invalid (not a connectivity issue) → login
+  if (error && !isPublic && !isAuthenticated && isAuthError(error)) {
+    return <Redirect href="/login" />;
+  }
+
+  // Offline / unreachable server — allow cached content instead of login
+  if (error && !isPublic && !isAuthenticated && offlineMode) {
+    return <>{children}</>;
+  }
+
+  // Ambiguous error with no me data — only login if we can't use offline content
+  if (error && !isPublic && !isAuthenticated && !hasOfflineContent) {
     return <Redirect href="/login" />;
   }
 
   // Already authenticated on a public route (e.g. /login) → redirect to home
-  if (isPublic && data) {
+  if (isPublic && isAuthenticated) {
     return <Redirect href="/" />;
   }
 
@@ -72,6 +96,7 @@ function AppShell() {
 
   return (
     <View style={styles.appRoot}>
+      <OfflineModeRedirect />
       <SafeAreaView style={styles.shell} edges={['top', 'left', 'right']}>
         <View style={[styles.content, { paddingBottom: miniPlayerInset }]}>
           <Slot />
@@ -107,11 +132,13 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ApolloProvider client={client}>
         <StatusBar style="auto" />
-        <AuthGate>
-          <PlayerProvider>
-            <AppShell />
-          </PlayerProvider>
-        </AuthGate>
+        <OfflineProvider>
+          <AuthGate>
+            <PlayerProvider>
+              <AppShell />
+            </PlayerProvider>
+          </AuthGate>
+        </OfflineProvider>
       </ApolloProvider>
     </SafeAreaProvider>
   );

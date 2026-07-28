@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View, Text } from 'react-native';
-import { ListMusic, Heart } from 'lucide-react-native';
+import { ListMusic, Heart, Download } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/constants/theme';
 
 type Props = {
@@ -7,10 +7,12 @@ type Props = {
   name: string;
   trackCount: number;
   isLiked?: boolean;
+  /** Show a small download badge when the playlist is available offline. */
+  offlineReady?: boolean;
   onPress?: () => void;
 };
 
-export function PlaylistTile({ name, trackCount, isLiked, onPress }: Props) {
+export function PlaylistTile({ name, trackCount, isLiked, offlineReady, onPress }: Props) {
 
   return (
     <Pressable
@@ -23,6 +25,11 @@ export function PlaylistTile({ name, trackCount, isLiked, onPress }: Props) {
         ) : (
           <ListMusic size={28} color={colors.textSecondary} />
         )}
+        {offlineReady ? (
+          <View style={styles.offlineBadge}>
+            <Download size={12} color={colors.text} />
+          </View>
+        ) : null}
       </View>
       <Text style={styles.name} numberOfLines={1}>
         {name}
@@ -53,6 +60,17 @@ const styles = StyleSheet.create({
   },
   likedBg: {
     backgroundColor: colors.surfaceLight,
+  },
+  offlineBadge: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.sm,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   name: {
     ...typography.body,
