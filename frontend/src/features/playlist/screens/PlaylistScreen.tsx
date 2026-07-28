@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
+import { isAuthError, isNetworkError } from '@/apollo/errorUtils';
 import { useQuery, useMutation } from '@apollo/client/react';
 import {
   PlaylistDocument,
@@ -45,8 +46,11 @@ export function PlaylistScreen({ playlistId }: Props) {
 
   const { data, loading, error } = useQuery(PlaylistDocument, {
     variables: { id: playlistId },
+    errorPolicy: 'all',
   });
-  const { data: myPlaylistsData } = useQuery(MyPlaylistsDocument);
+  const { data: myPlaylistsData } = useQuery(MyPlaylistsDocument, {
+    errorPolicy: 'all',
+  });
   const [reorderTracks, { loading: savingOrder }] = useMutation(
     ReorderPlaylistTracksDocument,
   );
@@ -69,6 +73,35 @@ export function PlaylistScreen({ playlistId }: Props) {
 
   const playlistMarkedOffline = isOffline(playlistId);
   const downloadProgress = progressByPlaylist[playlistId];
+  const inOfflineCatalog = offlinePlaylists.some((p) => p.id === playlistId);
+  const networkUnreachable = Boolean(error) && isNetworkError(error) && !isAuthError(error);
+
+  // Eagerly load from on-device catalog when this playlist is available offline
+  useEffect(() => {
+    if (!offlineSupported) return;
+    if (data?.playlist) {
+      setCachedTracks(null);
+      return;
+    }
+    if (!playlistMarkedOffline && !inOfflineCatalog && !networkUnreachable) return;
+
+    let cancelled = false;
+    getCachedPlaylistTracks(playlistId).then((tracks) => {
+      if (cancelled) return;
+      setCachedTracks(tracks);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    offlineSupported,
+    data?.playlist,
+    playlistMarkedOffline,
+    inOfflineCatalog,
+    networkUnreachable,
+    playlistId,
+    getCachedPlaylistTracks,
+  ]);
 
   // Load offline catalog fallback when network query fails
   useEffect(() => {
@@ -236,9 +269,13 @@ export function PlaylistScreen({ playlistId }: Props) {
     }
   }, [orderedTracks, queryTracks, playlistId, reorderTracks]);
 
-  const usingOfflineFallback = !data?.playlist && Boolean(cachedTracks?.length);
+  const usingOfflineFallback =
+    !data?.playlist && Boolean(cachedTracks && cachedTracks.length > 0);
 
-  if (loading && !usingOfflineFallback && !cachedTracks) {
+  const waitingForNetwork =
+    loading && !usingOfflineFallback && !cachedTracks?.length && !inOfflineCatalog;
+
+  if (waitingForNetwork) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -246,7 +283,12 @@ export function PlaylistScreen({ playlistId }: Props) {
     );
   }
 
-  if ((error || !data?.playlist) && !usingOfflineFallback) {
+  if (
+    (error || !data?.playlist) &&
+    !usingOfflineFallback &&
+    !inOfflineCatalog &&
+    !networkUnreachable
+  ) {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>

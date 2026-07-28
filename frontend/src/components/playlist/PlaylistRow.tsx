@@ -19,43 +19,27 @@ type PlaylistSummary = {
 };
 
 export function PlaylistRow({ onPlaylistPress }: Props) {
-  const { data, loading, error } = useQuery(MyPlaylistsDocument);
-  const { offlinePlaylists, isOffline } = useOffline();
+  const { data, loading } = useQuery(MyPlaylistsDocument, {
+    errorPolicy: 'all',
+  });
+  const { isOffline } = useOffline();
 
   const sorted = useMemo((): PlaylistSummary[] => {
-    if (data?.myPlaylists?.length) {
-      const playlists = [...data.myPlaylists];
-      playlists.sort((a, b) => {
-        if (a.type === PlaylistType.Liked) return -1;
-        if (b.type === PlaylistType.Liked) return 1;
-        return 0;
-      });
-      return playlists.slice(0, 10).map((p) => ({
-        id: p.id,
-        name: p.name,
-        trackCount: p.trackCount,
-        type: p.type,
-      }));
-    }
+    if (!data?.myPlaylists?.length) return [];
 
-    // Offline / API failure fallback — show locally cached playlists
-    if ((error || !data?.myPlaylists?.length) && offlinePlaylists.length > 0) {
-      const list = [...offlinePlaylists];
-      list.sort((a, b) => {
-        if (a.type === PlaylistType.Liked) return -1;
-        if (b.type === PlaylistType.Liked) return 1;
-        return 0;
-      });
-      return list.slice(0, 10).map((p) => ({
-        id: p.id,
-        name: p.name,
-        trackCount: p.trackCount,
-        type: p.type,
-      }));
-    }
-
-    return [];
-  }, [data, error, offlinePlaylists]);
+    const playlists = [...data.myPlaylists];
+    playlists.sort((a, b) => {
+      if (a.type === PlaylistType.Liked) return -1;
+      if (b.type === PlaylistType.Liked) return 1;
+      return 0;
+    });
+    return playlists.slice(0, 10).map((p) => ({
+      id: p.id,
+      name: p.name,
+      trackCount: p.trackCount,
+      type: p.type,
+    }));
+  }, [data]);
 
   if (loading && sorted.length === 0) {
     return (
