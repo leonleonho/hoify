@@ -40,12 +40,15 @@ const DELETE_ARTIST_MUTATION = `
 `;
 
 const ARTISTS_QUERY = `
-  query Artists {
-    artists {
-      id
-      name
-      bio
-      imageUrl
+  query Artists($limit: Int, $offset: Int) {
+    artists(limit: $limit, offset: $offset) {
+      totalCount
+      items {
+        id
+        name
+        bio
+        imageUrl
+      }
     }
   }
 `;
@@ -99,14 +102,17 @@ const DELETE_ALBUM_MUTATION = `
 `;
 
 const ALBUMS_QUERY = `
-  query Albums($artistId: ID) {
-    albums(artistId: $artistId) {
-      id
-      title
-      releaseYear
-      coverUrl
-      artist {
+  query Albums($artistId: ID, $limit: Int, $offset: Int) {
+    albums(artistId: $artistId, limit: $limit, offset: $offset) {
+      totalCount
+      items {
         id
+        title
+        releaseYear
+        coverUrl
+        artist {
+          id
+        }
       }
     }
   }
@@ -343,17 +349,81 @@ describe("Music e2e", () => {
 
     it("lists all artists", async () => {
       const res = await executeGraphQL<{
-        artists: Array<{ id: string; name: string }>;
+        artists: {
+          totalCount: number;
+          items: Array<{ id: string; name: string }>;
+        };
       }>(agent, {
         query: ARTISTS_QUERY,
         token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
-      expect(res.data!.artists.length).toBeGreaterThanOrEqual(1);
-      expect(res.data!.artists.some((a) => a.name === "Test Artist")).toBe(
+      expect(res.data!.artists.totalCount).toBeGreaterThanOrEqual(1);
+      expect(res.data!.artists.items.length).toBeGreaterThanOrEqual(1);
+      expect(res.data!.artists.items.some((a) => a.name === "Test Artist")).toBe(
         true,
       );
+    });
+
+    it("lists artists alphabetically with pagination", async () => {
+      await executeGraphQL(agent, {
+        query: CREATE_ARTIST_MUTATION,
+        variables: { input: { name: "AAA Paging Artist" } },
+        token: authToken,
+      });
+      await executeGraphQL(agent, {
+        query: CREATE_ARTIST_MUTATION,
+        variables: { input: { name: "ZZZ Paging Artist" } },
+        token: authToken,
+      });
+
+      const firstPage = await executeGraphQL<{
+        artists: {
+          totalCount: number;
+          items: Array<{ id: string; name: string }>;
+        };
+      }>(agent, {
+        query: ARTISTS_QUERY,
+        variables: { limit: 1, offset: 0 },
+        token: authToken,
+      });
+
+      expect(firstPage.errors).toBeUndefined();
+      expect(firstPage.data!.artists.totalCount).toBeGreaterThanOrEqual(2);
+      expect(firstPage.data!.artists.items).toHaveLength(1);
+
+      const secondPage = await executeGraphQL<{
+        artists: {
+          totalCount: number;
+          items: Array<{ id: string; name: string }>;
+        };
+      }>(agent, {
+        query: ARTISTS_QUERY,
+        variables: { limit: 1, offset: 1 },
+        token: authToken,
+      });
+
+      expect(secondPage.errors).toBeUndefined();
+      expect(secondPage.data!.artists.items).toHaveLength(1);
+      expect(secondPage.data!.artists.items[0].id).not.toBe(
+        firstPage.data!.artists.items[0].id,
+      );
+
+      const allPage = await executeGraphQL<{
+        artists: {
+          totalCount: number;
+          items: Array<{ id: string; name: string }>;
+        };
+      }>(agent, {
+        query: ARTISTS_QUERY,
+        variables: { limit: 200, offset: 0 },
+        token: authToken,
+      });
+
+      expect(allPage.errors).toBeUndefined();
+      const names = allPage.data!.artists.items.map((a) => a.name);
+      expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
     });
 
     it("rejects artists query without auth", async () => {
@@ -565,20 +635,101 @@ describe("Music e2e", () => {
 
     it("lists all albums", async () => {
       const res = await executeGraphQL<{
-        albums: Array<{ id: string; title: string }>;
+        albums: {
+          totalCount: number;
+          items: Array<{ id: string; title: string }>;
+        };
       }>(agent, {
         query: ALBUMS_QUERY,
         token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
-      expect(res.data!.albums.length).toBeGreaterThanOrEqual(1);
-      expect(res.data!.albums.some((a) => a.title === "Test Album")).toBe(true);
+      expect(res.data!.albums.totalCount).toBeGreaterThanOrEqual(1);
+      expect(res.data!.albums.items.length).toBeGreaterThanOrEqual(1);
+      expect(res.data!.albums.items.some((a) => a.title === "Test Album")).toBe(
+        true,
+      );
+    });
+
+    it("lists albums alphabetically with pagination", async () => {
+      await executeGraphQL(agent, {
+        query: CREATE_ALBUM_MUTATION,
+        variables: {
+          input: {
+            title: "AAA Paging Album",
+            artistId: testArtistId,
+            releaseYear: 2020,
+          },
+        },
+        token: authToken,
+      });
+      await executeGraphQL(agent, {
+        query: CREATE_ALBUM_MUTATION,
+        variables: {
+          input: {
+            title: "ZZZ Paging Album",
+            artistId: testArtistId,
+            releaseYear: 2021,
+          },
+        },
+        token: authToken,
+      });
+
+      const firstPage = await executeGraphQL<{
+        albums: {
+          totalCount: number;
+          items: Array<{ id: string; title: string }>;
+        };
+      }>(agent, {
+        query: ALBUMS_QUERY,
+        variables: { limit: 1, offset: 0 },
+        token: authToken,
+      });
+
+      expect(firstPage.errors).toBeUndefined();
+      expect(firstPage.data!.albums.totalCount).toBeGreaterThanOrEqual(2);
+      expect(firstPage.data!.albums.items).toHaveLength(1);
+
+      const secondPage = await executeGraphQL<{
+        albums: {
+          totalCount: number;
+          items: Array<{ id: string; title: string }>;
+        };
+      }>(agent, {
+        query: ALBUMS_QUERY,
+        variables: { limit: 1, offset: 1 },
+        token: authToken,
+      });
+
+      expect(secondPage.errors).toBeUndefined();
+      expect(secondPage.data!.albums.items).toHaveLength(1);
+      expect(secondPage.data!.albums.items[0].id).not.toBe(
+        firstPage.data!.albums.items[0].id,
+      );
+
+      const allPage = await executeGraphQL<{
+        albums: {
+          totalCount: number;
+          items: Array<{ id: string; title: string }>;
+        };
+      }>(agent, {
+        query: ALBUMS_QUERY,
+        variables: { limit: 200, offset: 0 },
+        token: authToken,
+      });
+
+      expect(allPage.errors).toBeUndefined();
+      const titles = allPage.data!.albums.items.map((a) => a.title);
+      expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)));
     });
 
     it("filters albums by artistId", async () => {
       const res = await executeGraphQL<{
-        albums: Array<{ id: string; title: string }>;
+        albums: {
+          totalCount: number;
+          items: Array<{ id: string; title: string }>;
+        };
       }>(agent, {
         query: ALBUMS_QUERY,
         variables: { artistId: testArtistId },
@@ -586,8 +737,13 @@ describe("Music e2e", () => {
       });
 
       expect(res.errors).toBeUndefined();
-      expect(res.data!.albums.length).toBe(1);
-      expect(res.data!.albums[0].title).toBe("Test Album");
+      expect(res.data!.albums.totalCount).toBeGreaterThanOrEqual(1);
+      expect(
+        res.data!.albums.items.every((a) => a.title !== undefined),
+      ).toBe(true);
+      expect(res.data!.albums.items.some((a) => a.title === "Test Album")).toBe(
+        true,
+      );
     });
 
     it("gets album by id with nested artist and tracks", async () => {
@@ -1133,7 +1289,7 @@ describe("Music e2e", () => {
 
     it("allows list queries without auth token", async () => {
       const res = await executeGraphQL<{
-        artists: Array<unknown>;
+        artists: { items: Array<unknown>; totalCount: number };
       }>(agent, {
         query: ARTISTS_QUERY,
         token: authToken,

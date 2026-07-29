@@ -1,7 +1,10 @@
-query Artists {
-  artists {
-    id
-    name
-    imageUrl
+query Artists($limit: Int = 100, $offset: Int = 0) {
+  artists(limit: $limit, offset: $offset) {
+    totalCount
+    items {
+      id
+      name
+      imageUrl
+    }
   }
 }

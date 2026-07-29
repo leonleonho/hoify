@@ -1,11 +1,14 @@
-query Albums {
-  albums {
-    id
-    title
-    coverUrl
-    artist {
+query Albums($artistId: ID, $limit: Int = 100, $offset: Int = 0) {
+  albums(artistId: $artistId, limit: $limit, offset: $offset) {
+    totalCount
+    items {
       id
-      name
+      title
+      coverUrl
+      artist {
+        id
+        name
+      }
     }
   }
 }

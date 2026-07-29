@@ -27,6 +27,12 @@ export type Album = {
   updatedAt: Scalars['String']['output'];
 };
 
+export type AlbumPage = {
+  __typename?: 'AlbumPage';
+  items: Array<Album>;
+  totalCount: Scalars['Int']['output'];
+};
+
 export type Artist = {
   __typename?: 'Artist';
   albums: Array<Album>;
@@ -36,6 +42,12 @@ export type Artist = {
   imageUrl?: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   updatedAt: Scalars['String']['output'];
+};
+
+export type ArtistPage = {
+  __typename?: 'ArtistPage';
+  items: Array<Artist>;
+  totalCount: Scalars['Int']['output'];
 };
 
 export type AuthPayload = {
@@ -326,9 +338,9 @@ export enum PlaylistType {
 export type Query = {
   __typename?: 'Query';
   album?: Maybe<Album>;
-  albums: Array<Album>;
+  albums: AlbumPage;
   artist?: Maybe<Artist>;
-  artists: Array<Artist>;
+  artists: ArtistPage;
   download?: Maybe<MusicDownload>;
   downloadSearch?: Maybe<DownloadSearch>;
   downloads: Array<MusicDownload>;
@@ -351,11 +363,19 @@ export type QueryAlbumArgs = {
 
 export type QueryAlbumsArgs = {
   artistId?: InputMaybe<Scalars['ID']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
 export type QueryArtistArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryArtistsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 

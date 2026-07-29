@@ -49,6 +49,16 @@ type SearchResults {
   playlists: [Playlist!]!
 }
 
+type ArtistPage {
+  items: [Artist!]!
+  totalCount: Int!
+}
+
+type AlbumPage {
+  items: [Album!]!
+  totalCount: Int!
+}
+
 input CreateArtistInput {
   name: String!
   bio: String
@@ -106,9 +116,9 @@ input UpdateGenreInput {
 
 type Query {
   searchMusic(query: String!): SearchResults!
-  artists: [Artist!]!
+  artists(limit: Int = 100, offset: Int = 0): ArtistPage!
   artist(id: ID!): Artist
-  albums(artistId: ID): [Album!]!
+  albums(artistId: ID, limit: Int = 100, offset: Int = 0): AlbumPage!
   album(id: ID!): Album
   tracks(albumId: ID): [Track!]!
   track(id: ID!): Track
