@@ -12,7 +12,7 @@ import { AlbumsDocument } from '@/hooks/generated';
 import { colors, spacing, typography } from '@/constants/theme';
 import { ListItem } from '@/components/list/List';
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 100;
 
 export default function AlbumsPage() {
   const router = useRouter();
