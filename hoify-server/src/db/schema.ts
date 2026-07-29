@@ -104,6 +104,8 @@ export const albums = pgTable(
   (t) => [
     index("albums_artist_id_idx").on(t.artistId),
     uniqueIndex("albums_title_artist_idx").on(t.title, t.artistId),
+    index("idx_albums_title").on(t.title),
+    index("idx_albums_artist_title").on(t.artistId, t.title),
     index("idx_albums_title_trgm").using("gin", sql`${t.title} gin_trgm_ops`),
     index("idx_albums_aliases_gin").using("gin", sql`${t.aliases}`),
   ],

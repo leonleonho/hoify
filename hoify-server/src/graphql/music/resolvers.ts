@@ -6,6 +6,7 @@ import {
   updateArtist,
   deleteArtist,
   listAlbums,
+  listAlbumsByArtist,
   getAlbum,
   createAlbum,
   updateAlbum,
@@ -31,7 +32,7 @@ import type { Context } from "../auth/resolvers.js";
 
 export const resolvers = {
   Artist: {
-    albums: (parent: { id: string }) => listAlbums(parent.id),
+    albums: (parent: { id: string }) => listAlbumsByArtist(parent.id),
     createdAt: (parent: { createdAt: Date | string }) => fmtDate(parent.createdAt),
     updatedAt: (parent: { updatedAt: Date | string }) => fmtDate(parent.updatedAt),
   },
@@ -60,10 +61,19 @@ export const resolvers = {
 
   Query: {
     searchMusic: (_: unknown, args: { query: string }) => searchMusic(args.query),
-    artists: () => listArtists(),
+    artists: (
+      _: unknown,
+      args: { limit?: number | null; offset?: number | null },
+    ) => listArtists(args),
     artist: (_: unknown, args: { id: string }) => getArtist(args.id),
-    albums: (_: unknown, args: { artistId?: string }) =>
-      listAlbums(args.artistId ?? null),
+    albums: (
+      _: unknown,
+      args: {
+        artistId?: string | null;
+        limit?: number | null;
+        offset?: number | null;
+      },
+    ) => listAlbums(args),
     album: (_: unknown, args: { id: string }) => getAlbum(args.id),
     tracks: (_: unknown, args: { albumId?: string }) =>
       listTracks(args.albumId ?? null),

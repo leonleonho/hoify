@@ -89,8 +89,33 @@ async function removeOldArtFile(
 // Artists
 // ---------------------------------------------------------------------------
 
-export async function listArtists() {
-  return db.select().from(artists).limit(50);
+const DEFAULT_PAGE_LIMIT = 100;
+const MAX_PAGE_LIMIT = 200;
+
+function clampPageArgs(limit?: number | null, offset?: number | null) {
+  const rawLimit = limit ?? DEFAULT_PAGE_LIMIT;
+  const clampedLimit = Math.min(Math.max(1, rawLimit), MAX_PAGE_LIMIT);
+  const clampedOffset = Math.max(0, offset ?? 0);
+  return { limit: clampedLimit, offset: clampedOffset };
+}
+
+export async function listArtists(options?: {
+  limit?: number | null;
+  offset?: number | null;
+}) {
+  const { limit, offset } = clampPageArgs(options?.limit, options?.offset);
+
+  const [items, countRows] = await Promise.all([
+    db
+      .select()
+      .from(artists)
+      .orderBy(asc(artists.name), asc(artists.id))
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: sql<number>`count(*)::int` }).from(artists),
+  ]);
+
+  return { items, totalCount: countRows[0]?.count ?? 0 };
 }
 
 export async function getArtist(id: string) {
@@ -171,9 +196,40 @@ export async function deleteArtist(id: string) {
 // Albums
 // ---------------------------------------------------------------------------
 
-export async function listAlbums(artistId: string | null) {
-  const filter = artistId ? eq(albums.artistId, artistId) : undefined;
-  return db.select().from(albums).where(filter).limit(50);
+export async function listAlbums(options?: {
+  artistId?: string | null;
+  limit?: number | null;
+  offset?: number | null;
+}) {
+  const { limit, offset } = clampPageArgs(options?.limit, options?.offset);
+  const filter = options?.artistId
+    ? eq(albums.artistId, options.artistId)
+    : undefined;
+
+  const [items, countRows] = await Promise.all([
+    db
+      .select()
+      .from(albums)
+      .where(filter)
+      .orderBy(asc(albums.title), asc(albums.id))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(albums)
+      .where(filter),
+  ]);
+
+  return { items, totalCount: countRows[0]?.count ?? 0 };
+}
+
+/** Nested Artist.albums: all albums for an artist, alphabetical, no page cap. */
+export async function listAlbumsByArtist(artistId: string) {
+  return db
+    .select()
+    .from(albums)
+    .where(eq(albums.artistId, artistId))
+    .orderBy(asc(albums.title), asc(albums.id));
 }
 
 export async function getAlbum(id: string) {

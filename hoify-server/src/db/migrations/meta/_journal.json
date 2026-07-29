@@ -71,6 +71,13 @@
       "when": 1784613116442,
       "tag": "0009_smart_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785300885437,
+      "tag": "0010_romantic_lester",
+      "breakpoints": true
     }
   ]
 }
