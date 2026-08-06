@@ -14,7 +14,7 @@ export function withPlayerContext(state: PlayerState) {
     resume: async () => {},
     togglePlayPause: async () => {},
     next: async () => {},
-    playNext: () => {},
+    playNext: async () => {},
     previous: async () => {},
     seek: async () => {},
     setVolume: async () => {},

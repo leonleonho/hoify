@@ -191,7 +191,9 @@ function wireStatusListeners(): void {
       const extras = e.item?.extras as QueueTransitionExtras | undefined;
       const playlistIndex = extras?.playlistIndex;
       if (typeof playlistIndex === 'number') {
-        _onQueueTransition?.(playlistIndex, extras);
+        // Native queue position is authoritative post-insert; extras.playlistIndex
+        // goes stale on items shifted by insertMediaItems.
+        _onQueueTransition?.(playlistIndex, { ...extras, nativeIndex: e.index });
       }
       emitStatus({ positionMillis: 0 });
     }),
@@ -296,6 +298,14 @@ export async function setQueue(
     TrackPlayer.play();
   }
   emitStatus();
+}
+
+/** Insert a track immediately after the active item without restarting playback. */
+export function insertNextInQueue(track: QueueTrack): boolean {
+  const active = TrackPlayer.getActiveMediaItemIndex();
+  if (active == null) return false;
+  TrackPlayer.insertMediaItems(active + 1, [toMediaItem(track)]);
+  return true;
 }
 
 export function skipToNextInQueue(): boolean {

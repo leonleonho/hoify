@@ -8,7 +8,7 @@ import {
   useMusicPlayer,
   type PlayerContextValue,
 } from '../PlayerProvider';
-import { mockTrack1, mockTrack2 } from './utils';
+import { mockTrack1, mockTrack2, mockTrack3 } from './utils';
 import { mockTrackPlayer, fireTrackPlayerEvent, TrackPlayerEvent } from '@/test/setup';
 import {
   setCachedPlaylistTracks,
@@ -232,6 +232,62 @@ describe('PlayerProvider', () => {
       await cap.current.previous();
     });
     expect(mockTrackPlayer.setMediaItems).toHaveBeenCalledTimes(2);
+    expect(cap.current.currentTrack?.id).toBe('track-2');
+  });
+
+  it('playNext inserts track into native queue after active item', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+    });
+
+    await act(async () => {
+      await cap.current.playNext(mockTrack3);
+    });
+
+    expect(mockTrackPlayer.insertMediaItems).toHaveBeenCalledTimes(1);
+    const [index, items] = mockTrackPlayer.insertMediaItems.mock.calls[0] as [number, { mediaId: string; extras: { playlistIndex: number } }[]];
+    expect(index).toBe(1); // after active item (native index 0)
+    expect(items[0].mediaId).toBe('track-3');
+    expect(items[0].extras.playlistIndex).toBe(1);
+    expect(cap.current.playlist.map((t) => t.id)).toEqual(['track-1', 'track-3', 'track-2']);
+    expect(cap.current.currentTrack?.id).toBe('track-1');
+  });
+
+  it('playNext with empty playlist does nothing', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playNext(mockTrack1);
+    });
+    expect(mockTrackPlayer.insertMediaItems).not.toHaveBeenCalled();
+  });
+
+  it('playNext: transitions map by native queue position, not stale extras', async () => {
+    const cap = renderProvider();
+    await act(async () => {
+      await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
+    });
+    await act(async () => {
+      await cap.current.playNext(mockTrack3);
+    });
+
+    // Native queue is [track-1, track-3, track-2]. Advance to the queued item.
+    act(() => {
+      fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+        item: { mediaId: 'track-3', extras: { playlistIndex: 1 } },
+        index: 1,
+      });
+    });
+    expect(cap.current.currentTrack?.id).toBe('track-3');
+
+    // Advance to the original next track. It still carries its stale extras
+    // (playlistIndex 1) after the insert — reconciliation must use native index 2.
+    act(() => {
+      fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+        item: { mediaId: 'track-2', extras: { playlistIndex: 1 } },
+        index: 2,
+      });
+    });
     expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 
