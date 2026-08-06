@@ -1,9 +1,9 @@
 import { ApolloClient } from '@apollo/client';
 import { cache } from './cache';
-import { httpLink } from './links';
+import { link } from './links';
 
 export const client = new ApolloClient({
-  link: httpLink,
+  link,
   cache,
   defaultOptions: {
     watchQuery: {

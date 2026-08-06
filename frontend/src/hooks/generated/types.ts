@@ -163,6 +163,7 @@ export type Mutation = {
   deleteUser: Scalars['Boolean']['output'];
   likeTrack: Track;
   login: AuthPayload;
+  refreshToken: Scalars['Boolean']['output'];
   removeTracksFromPlaylist: Playlist;
   reorderPlaylistTracks: Playlist;
   startDownload: Array<MusicDownload>;
