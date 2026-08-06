@@ -116,6 +116,14 @@ const hoisted = vi.hoisted(() => {
       _loaded = _queue.length > 0;
       emitStatus();
     }),
+    insertMediaItems: vi.fn((index: number, items: typeof _queue) => {
+      _queue = [..._queue.slice(0, index), ...items, ..._queue.slice(index)];
+      _loaded = _queue.length > 0;
+      if (_activeIndex != null && index <= _activeIndex) {
+        _activeIndex += items.length;
+      }
+      emitStatus();
+    }),
     replaceMediaItem: vi.fn((index: number, item: (typeof _queue)[number]) => {
       _queue[index] = item;
       _loaded = true;

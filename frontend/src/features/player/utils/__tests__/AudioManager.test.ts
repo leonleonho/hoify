@@ -82,7 +82,7 @@ describe('AudioManager', () => {
       index: 1,
     });
 
-    expect(onTransition).toHaveBeenCalledWith(3, { playlistIndex: 3 });
+    expect(onTransition).toHaveBeenCalledWith(3, { playlistIndex: 3, nativeIndex: 1 });
   });
 
   it('MediaItemTransition passes browse extras and marks active sound loaded', async () => {
@@ -102,6 +102,7 @@ describe('AudioManager', () => {
       playlistIndex: 0,
       playlistId: 'pl-1',
       trackId: 'track-1',
+      nativeIndex: 0,
     });
     expect(hasActiveSound()).toBe(true);
   });

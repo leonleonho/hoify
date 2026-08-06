@@ -11,7 +11,7 @@ import type { User } from "../../db/schema.js";
  * Everything else on Query and Mutation requires a valid token.
  */
 const PUBLIC_OPERATIONS: Record<string, string[]> = {
-  Mutation: ["login"],
+  Mutation: ["login", "refreshToken"],
 };
 
 export const authPlugin: ApolloServerPlugin<Context> = {

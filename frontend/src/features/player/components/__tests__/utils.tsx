@@ -74,6 +74,43 @@ export const mockTrack2: Track = {
   updatedAt: '2024-01-01',
 };
 
+export const mockTrack3: Track = {
+  __typename: 'Track',
+  id: 'track-3',
+  title: 'Test Song Three',
+  trackArtist: null,
+  filePath: 'music/test3.wav',
+  fileFormat: 'wav',
+  duration: 150, // seconds from GraphQL
+  discNumber: 1,
+  trackNumber: 3,
+  fileSize: 6000000,
+  album: {
+    __typename: 'Album',
+    id: 'album-1',
+    title: 'Test Album',
+    coverUrl: null,
+    artist: {
+      __typename: 'Artist',
+      id: 'artist-1',
+      name: 'Test Artist',
+      albums: [],
+      bio: null,
+      imageUrl: null,
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01',
+    },
+    tracks: [],
+    createdAt: '2024-01-01',
+    updatedAt: '2024-01-01',
+    releaseYear: 2024,
+  },
+  genres: [],
+  liked: false,
+  createdAt: '2024-01-01',
+  updatedAt: '2024-01-01',
+};
+
 export function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
     currentTrack: null,
@@ -101,7 +138,7 @@ export function makeMockContext(overrides: Partial<PlayerContextValue> = {}): Pl
     resume: async () => {},
     togglePlayPause: async () => {},
     next: async () => {},
-    playNext: () => {},
+    playNext: async () => {},
     previous: async () => {},
     seek: async () => {},
     setVolume: async () => {},

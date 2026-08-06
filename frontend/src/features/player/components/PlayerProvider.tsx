@@ -109,7 +109,7 @@ export interface PlayerActions {
   resume: () => Promise<void>;
   togglePlayPause: () => Promise<void>;
   next: () => Promise<void>;
-  playNext: (track: Track) => void;
+  playNext: (track: Track) => Promise<void>;
   previous: () => Promise<void>;
   seek: (positionMs: number) => Promise<void>;
   setVolume: (value: number) => Promise<void>;
@@ -174,14 +174,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  const applyPlaylistIndex = useCallback((playlistIndex: number) => {
+  const applyPlaylistIndex = useCallback((playlistIndex: number, nativeIndex?: number) => {
     const pl = stateRef.current.playlist;
-    const track = pl[playlistIndex];
+    // Prefer the native queue position when the native queue mirrors the React
+    // playlist 1:1 (phone-driven playback). insertNextInQueue splices the native
+    // queue without rewriting extras.playlistIndex on shifted items, so the
+    // logical index goes stale after a queued insert. Browse-driven playback
+    // short-circuits in handleQueueTransition before reaching here.
+    const nativeIdx = nativeIndex ?? AudioManager.getActiveQueueIndex();
+    const i =
+      nativeIdx != null &&
+      nativeIdx >= 0 &&
+      nativeIdx < pl.length &&
+      AudioManager.getQueueLength() === pl.length
+        ? nativeIdx
+        : playlistIndex;
+    const track = pl[i];
     if (!track) return;
 
-    if (playlistIndex !== idx.current) {
+    if (i !== idx.current) {
       seekOffset.current = 0;
-      idx.current = playlistIndex;
+      idx.current = i;
       ignoreStalePositionUntil.current = Date.now() + 1200;
       dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
     }
@@ -233,7 +246,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-    applyPlaylistIndex(playlistIndex);
+    applyPlaylistIndex(playlistIndex, extras?.nativeIndex as number | undefined);
   }, [applyPlaylistIndex]);
 
   // Re-sync React state when returning to the app — native next/prev can advance
@@ -448,12 +461,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (stateRef.current.isPlaying) await pause(); else await resume();
   }, [pause, resume]);
 
-  const playNext = useCallback((track: Track) => {
-    const pl = stateRef.current.playlist;
+  const playNext = useCallback(async (track: Track) => {
+    const s = stateRef.current;
+    const pl = s.playlist;
     if (!pl.length) return;
     const insertAt = idx.current + 1;
     const updated = [...pl.slice(0, insertAt), track, ...pl.slice(insertAt)];
     dispatch({ type: 'LOAD_TRACK', track: pl[idx.current], playlist: updated });
+
+    const item: QueueTrack = {
+      mediaId: track.id,
+      url: resolveTrackUrl(track.id, s.quality),
+      playlistIndex: insertAt,
+      meta: trackMetadata(track),
+      durationSeconds: track.duration ?? undefined,
+    };
+    if (AudioManager.insertNextInQueue(item)) return;
+    // No active native item — fall back to a full queue rebuild.
+    try {
+      await AudioManager.setQueue(
+        buildQueueTracks(updated, s.quality),
+        idx.current,
+        s.isPlaying,
+        s.volume,
+      );
+    } catch {}
   }, []);
 
   const next = useCallback(async () => {

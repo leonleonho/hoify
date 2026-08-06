@@ -17,6 +17,7 @@ const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-in-production";
 
 export interface AuthContext {
   currentUser: typeof users.$inferSelect | null;
+  req: Request;
   res: Response;
 }
 
@@ -50,15 +51,19 @@ export async function resolveAuthContext(params: {
   if (token) {
     try {
       const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, payload.userId));
-      currentUser = user ?? null;
+      // A refresh token must never authenticate as an access token. Legacy
+      // tokens (no `type` claim) keep working until they expire.
+      if (payload.type !== "refresh") {
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, payload.userId));
+        currentUser = user ?? null;
+      }
     } catch {
       // Invalid token — user stays null
     }
   }
 
-  return { currentUser, res };
+  return { currentUser, req, res };
 }
