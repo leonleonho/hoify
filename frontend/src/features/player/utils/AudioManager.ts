@@ -2,8 +2,10 @@ import TrackPlayer, {
   Event,
   PlaybackState,
   PlayerCommand,
+  RepeatMode as RntpRepeatMode,
   type MediaItem,
 } from '@rntp/player';
+import type { RepeatMode } from '../types/player';
 import { registerForegroundRemoteListeners } from '../services/PlaybackService';
 
 /** Metadata displayed on the device lock screen / system notification. */
@@ -268,6 +270,11 @@ export function getQueueLength(): number {
   return TrackPlayer.getQueue().length;
 }
 
+/** Ordered media items in the native queue (source of truth for order). */
+export function getQueue(): MediaItem[] {
+  return TrackPlayer.getQueue();
+}
+
 export function canSkipNextInQueue(): boolean {
   const queue = TrackPlayer.getQueue();
   const active = TrackPlayer.getActiveMediaItemIndex();
@@ -395,6 +402,16 @@ export async function setPositionAsync(ms: number): Promise<void> {
 
 export async function setVolumeAsync(v: number): Promise<void> {
   TrackPlayer.setVolume(v);
+}
+
+/** Set native repeat mode. Enum values ('off'|'one'|'all') match the app type. */
+export function setRepeatMode(mode: RepeatMode): void {
+  TrackPlayer.setRepeatMode(mode as RntpRepeatMode);
+}
+
+/** Read the effective native repeat mode. */
+export function getRepeatMode(): RepeatMode {
+  return TrackPlayer.getRepeatMode() as RepeatMode;
 }
 
 /** Re-read native playback state and notify the status callback. */

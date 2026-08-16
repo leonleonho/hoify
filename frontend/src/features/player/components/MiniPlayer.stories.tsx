@@ -71,7 +71,6 @@ export const Playing: Story = {
       repeatMode: 'off',
       shuffle: false,
       isLoading: false,
-      playlist: [],
     }),
   ],
 };
@@ -88,7 +87,6 @@ export const Paused: Story = {
       repeatMode: 'off',
       shuffle: false,
       isLoading: false,
-      playlist: [],
     }),
   ],
 };
@@ -105,7 +103,6 @@ export const NoTrackSelected: Story = {
       repeatMode: 'off',
       shuffle: false,
       isLoading: false,
-      playlist: [],
     }),
   ],
 };

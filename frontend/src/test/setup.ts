@@ -14,6 +14,7 @@ const hoisted = vi.hoisted(() => {
   let _loaded = false;
   let _queue: { mediaId?: string; extras?: { playlistIndex?: number } }[] = [];
   let _activeIndex: number | null = null;
+  let _repeatMode = 'off';
   const listeners: Record<string, Function[]> = {};
 
   function fire(event: string, data?: unknown) {
@@ -73,6 +74,7 @@ const hoisted = vi.hoisted(() => {
     _loaded = false;
     _queue = [];
     _activeIndex = null;
+    _repeatMode = 'off';
     Object.keys(listeners).forEach((k) => { listeners[k] = []; });
   }
 
@@ -154,6 +156,8 @@ const hoisted = vi.hoisted(() => {
     getActiveMediaItem: vi.fn(() => (_activeIndex == null ? null : _queue[_activeIndex] ?? null)),
     getActiveMediaItemIndex: vi.fn(() => _activeIndex),
     getQueue: vi.fn(() => _queue),
+    getRepeatMode: vi.fn(() => _repeatMode),
+    setRepeatMode: vi.fn((mode: string) => { _repeatMode = mode; }),
     _reset: resetState,
   };
 

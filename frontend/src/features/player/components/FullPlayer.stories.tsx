@@ -70,7 +70,6 @@ export const PlayingMidTrack: Story = {
       repeatMode: 'off',
       shuffle: false,
       isLoading: false,
-      playlist: [],
     }),
   ],
 };
@@ -87,7 +86,6 @@ export const PausedAtStart: Story = {
       repeatMode: 'off',
       shuffle: false,
       isLoading: false,
-      playlist: [],
     }),
   ],
 };
@@ -104,7 +102,6 @@ export const NoTrackSelected: Story = {
       repeatMode: 'off',
       shuffle: false,
       isLoading: false,
-      playlist: [],
     }),
   ],
 };
@@ -121,7 +118,6 @@ export const FullVolume: Story = {
       repeatMode: 'off',
       shuffle: false,
       isLoading: false,
-      playlist: [],
     }),
   ],
 };

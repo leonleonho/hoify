@@ -8,8 +8,6 @@ export type RepeatMode = 'off' | 'all' | 'one';
 export type PlayerState = {
   /** The track currently loaded (or null if nothing loaded) */
   currentTrack: Track | null;
-  /** Upcoming tracks */
-  playlist: Track[];
   /** Whether audio is actively playing */
   isPlaying: boolean;
   /** Whether audio is buffering/loading */
