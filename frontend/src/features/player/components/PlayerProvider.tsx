@@ -67,7 +67,7 @@ function getRandomIndex(current: number, length: number): number {
 
 export function initialState(volume = 0.8): PlayerState {
   return {
-    currentTrack: null, playlist: [],
+    currentTrack: null,
     isPlaying: false, isLoading: false,
     position: 0, duration: 0, volume,
     quality: 'original', repeatMode: 'off', shuffle: false,
@@ -89,7 +89,6 @@ export function reducer(state: PlayerState, action: any): PlayerState {
       return {
         ...state,
         currentTrack: action.track,
-        playlist: action.playlist ?? state.playlist,
         isPlaying,
         isLoading: false,
         position: 0,
@@ -140,7 +139,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ? {
         ...initialState(),
         currentTrack: snap.currentTrack as Track | null,
-        playlist: snap.playlist as Track[],
         isPlaying: snap.isPlaying,
         isLoading: snap.isLoading,
         position: snap.position,
@@ -154,6 +152,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [s, dispatch] = useReducer(reducer, initial);
   const [isFullPlayerOpen, setFullPlayerOpen] = React.useState(false);
   const idx = useRef(snap?.playlistIndex ?? -1);
+  /** Full Track objects for the loaded set — order lives in the native queue. */
+  const tracksRef = useRef<Map<string, Track>>(
+    new Map((snap?.playlist as Track[] | undefined)?.map((t) => [t.id, t]) ?? []),
+  );
   const seekOffset = useRef(0);
   const ignoreStalePositionUntil = useRef(0);
   /** Playlist last adopted from Android Auto browse extras (null = phone-driven). */
@@ -165,38 +167,58 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const dispatchRef = useRef(dispatch);
   dispatchRef.current = dispatch;
 
-  // Load persisted quality on mount
+  /** Effective native repeat: native All can't re-randomize, so repeat-all + shuffle falls back to JS. */
+  const effectiveRepeat = useCallback((repeat: RepeatMode, shuffle: boolean): RepeatMode => {
+    if (repeat === 'one') return 'one';
+    if (repeat === 'all') return shuffle ? 'off' : 'all';
+    return 'off';
+  }, []);
+
+  /** Push effective repeat to RNTP. Optional overrides avoid stale stateRef reads after dispatch. */
+  const applyRepeatMode = useCallback((repeat?: RepeatMode, shuffle?: boolean) => {
+    const s = stateRef.current;
+    AudioManager.setRepeatMode(effectiveRepeat(repeat ?? s.repeatMode, shuffle ?? s.shuffle));
+  }, [effectiveRepeat]);
+
+  // Load persisted quality + repeat mode on mount
   useEffect(() => {
     getItem('player_quality').then((q) => {
       if (q === 'original' || q === 'high' || q === 'medium' || q === 'low') {
         dispatch({ type: 'PATCH', patch: { quality: q as PlayerQuality } });
       }
     }).catch(() => {});
+    getItem('player_repeat_mode').then((rm) => {
+      if (rm === 'off' || rm === 'all' || rm === 'one') {
+        const mode = rm as RepeatMode;
+        dispatch({ type: 'PATCH', patch: { repeatMode: mode } });
+        applyRepeatMode(mode);
+      }
+    }).catch(() => {});
+  }, [applyRepeatMode]);
+
+  /** Ordered Track[] resolved from the native queue (mediaId → full Track). */
+  const currentPlaylistTracks = useCallback((): Track[] => {
+    return AudioManager.getQueue()
+      .map((q) => (q.mediaId ? tracksRef.current.get(q.mediaId) : undefined))
+      .filter((t): t is Track => Boolean(t));
   }, []);
 
   const applyPlaylistIndex = useCallback((playlistIndex: number, nativeIndex?: number) => {
-    const pl = stateRef.current.playlist;
-    // Prefer the native queue position when the native queue mirrors the React
-    // playlist 1:1 (phone-driven playback). insertNextInQueue splices the native
-    // queue without rewriting extras.playlistIndex on shifted items, so the
-    // logical index goes stale after a queued insert. Browse-driven playback
+    // Native queue is the source of truth for order and position. insertNextInQueue
+    // splices the native queue without rewriting extras.playlistIndex on shifted
+    // items, so the native queue position is authoritative. Browse-driven playback
     // short-circuits in handleQueueTransition before reaching here.
     const nativeIdx = nativeIndex ?? AudioManager.getActiveQueueIndex();
-    const i =
-      nativeIdx != null &&
-      nativeIdx >= 0 &&
-      nativeIdx < pl.length &&
-      AudioManager.getQueueLength() === pl.length
-        ? nativeIdx
-        : playlistIndex;
-    const track = pl[i];
+    const i = nativeIdx != null && nativeIdx >= 0 ? nativeIdx : playlistIndex;
+    const queue = AudioManager.getQueue();
+    const track = queue[i] ? tracksRef.current.get(queue[i].mediaId ?? '') : undefined;
     if (!track) return;
 
     if (i !== idx.current) {
       seekOffset.current = 0;
       idx.current = i;
       ignoreStalePositionUntil.current = Date.now() + 1200;
-      dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
+      dispatchRef.current({ type: 'LOAD_TRACK', track });
     }
   }, []);
 
@@ -204,10 +226,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const beginTrackChange = useCallback((targetIndex: number) => {
     seekOffset.current = 0;
     ignoreStalePositionUntil.current = Date.now() + 1200;
-    const pl = stateRef.current.playlist;
-    const track = pl[targetIndex];
+    const queue = AudioManager.getQueue();
+    const track = queue[targetIndex] ? tracksRef.current.get(queue[targetIndex].mediaId ?? '') : undefined;
     if (track) {
-      dispatchRef.current({ type: 'LOAD_TRACK', track, playlist: pl });
+      dispatchRef.current({ type: 'LOAD_TRACK', track });
     }
   }, []);
 
@@ -233,13 +255,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           const i = Math.max(0, Math.min(playlistIndex, tracks.length - 1));
           const track = tracks[i];
           adoptedBrowsePlaylistId.current = playlistId;
+          for (const t of tracks) tracksRef.current.set(t.id, t);
           seekOffset.current = 0;
           idx.current = i;
           ignoreStalePositionUntil.current = Date.now() + 1200;
           dispatchRef.current({
             type: 'LOAD_TRACK',
             track,
-            playlist: tracks,
             isPlaying: true,
           });
           return;
@@ -268,54 +290,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
     if (status.didJustFinish && !status.isLooping) {
       const s = stateRef.current;
-      const pl = s.playlist;
+      const queueLen = AudioManager.getQueueLength();
 
       seekOffset.current = 0;
 
-      // Repeat-one: replay same track
-      if (s.repeatMode === 'one' && s.currentTrack) {
-        const track = s.currentTrack;
-        dispatchRef.current({ type: 'LOAD_TRACK', track });
-        AudioManager.reloadActiveItem(
-          resolveTrackUrl(track.id, s.quality),
-          true,
-          s.volume,
-          trackMetadata(track),
-          idx.current,
-          track.id,
-        ).catch(() => {
-          dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
-        });
-        return;
-      }
-
-      const atPlaylistEnd = idx.current >= pl.length - 1;
-      if (!atPlaylistEnd) {
+      // Native RepeatMode.One / RepeatMode.All (non-shuffle) handle looping, so
+      // didJustFinish only fires when the effective native mode is Off — i.e.
+      // repeat 'off', or repeat 'all' with shuffle on (native All can't re-randomize).
+      const atEnd = queueLen <= 0 || idx.current >= queueLen - 1;
+      if (!atEnd) {
         // RNTP auto-advances in the queue; MediaItemTransition syncs UI.
         return;
       }
 
-      if (pl.length <= 1 && s.repeatMode !== 'all') {
+      if (s.repeatMode === 'off' || queueLen <= 1) {
         dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
         return;
       }
 
-      let nextIdx: number;
-      if (s.shuffle) {
-        nextIdx = getRandomIndex(idx.current, pl.length);
-      } else {
-        nextIdx = 0;
-      }
-
-      if (s.repeatMode === 'off') {
-        dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false, position: 0 } });
+      // repeat 'all' + shuffle: re-randomize at queue end.
+      const nextIdx = getRandomIndex(idx.current, queueLen);
+      const queue = AudioManager.getQueue();
+      const track = queue[nextIdx] ? tracksRef.current.get(queue[nextIdx].mediaId ?? '') : undefined;
+      if (!track) {
+        dispatchRef.current({ type: 'PATCH', patch: { isPlaying: false } });
         return;
       }
-
       idx.current = nextIdx;
-      dispatchRef.current({ type: 'LOAD_TRACK', track: pl[nextIdx] });
+      dispatchRef.current({ type: 'LOAD_TRACK', track });
       AudioManager.setQueue(
-        buildQueueTracks(pl, s.quality),
+        buildQueueTracks(currentPlaylistTracks(), s.quality),
         nextIdx,
         true,
         s.volume,
@@ -358,7 +362,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     AudioManager.saveSnapshot({
       currentTrack: s.currentTrack,
-      playlist: s.playlist,
+      playlist: currentPlaylistTracks(),
       isPlaying: s.isPlaying,
       isLoading: s.isLoading,
       position: s.position,
@@ -378,6 +382,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     seekMs?: number,
   ) => {
     await AudioManager.ensureAudioMode();
+    for (const t of playlist) tracksRef.current.set(t.id, t);
     const q = stateRef.current.quality;
     const isTrans = q !== 'original';
     const seek = seekMs && isTrans ? seekMs : undefined;
@@ -393,7 +398,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       autoPlay,
       stateRef.current.volume,
     );
-  }, []);
+    applyRepeatMode();
+  }, [applyRepeatMode]);
 
   const reloadCurrent = useCallback(async (autoPlay: boolean, seekMs?: number) => {
     const s = stateRef.current;
@@ -424,26 +430,32 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const load = useCallback(async (track: Track) => {
     adoptedBrowsePlaylistId.current = null;
-    dispatch({ type: 'LOAD_TRACK', track, playlist: [track], isPlaying: false });
+    tracksRef.current.clear();
+    tracksRef.current.set(track.id, track);
+    dispatch({ type: 'LOAD_TRACK', track, isPlaying: false });
     idx.current = 0;
     try { await syncQueue([track], 0, false); } catch {}
   }, [syncQueue]);
 
   const play = useCallback(async (track: Track) => {
     adoptedBrowsePlaylistId.current = null;
+    tracksRef.current.clear();
+    tracksRef.current.set(track.id, track);
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
     await syncQueue([track], 0, true);
-    dispatch({ type: 'LOAD_TRACK', track, playlist: [track] });
+    dispatch({ type: 'LOAD_TRACK', track });
     idx.current = 0;
   }, [syncQueue]);
 
   const playPlaylist = useCallback(async (tracks: Track[], start = 0) => {
     if (!tracks.length) return;
     adoptedBrowsePlaylistId.current = null;
+    tracksRef.current.clear();
+    for (const t of tracks) tracksRef.current.set(t.id, t);
     const i = Math.max(0, Math.min(start, tracks.length - 1));
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
     await syncQueue(tracks, i, true);
-    dispatch({ type: 'LOAD_TRACK', track: tracks[i], playlist: tracks });
+    dispatch({ type: 'LOAD_TRACK', track: tracks[i] });
     idx.current = i;
   }, [syncQueue]);
 
@@ -463,11 +475,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const playNext = useCallback(async (track: Track) => {
     const s = stateRef.current;
-    const pl = s.playlist;
-    if (!pl.length) return;
+    if (!AudioManager.getQueueLength()) return;
     const insertAt = idx.current + 1;
-    const updated = [...pl.slice(0, insertAt), track, ...pl.slice(insertAt)];
-    dispatch({ type: 'LOAD_TRACK', track: pl[idx.current], playlist: updated });
+    tracksRef.current.set(track.id, track);
 
     const item: QueueTrack = {
       mediaId: track.id,
@@ -480,34 +490,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // No active native item — fall back to a full queue rebuild.
     try {
       await AudioManager.setQueue(
-        buildQueueTracks(updated, s.quality),
+        buildQueueTracks(currentPlaylistTracks(), s.quality),
         idx.current,
         s.isPlaying,
         s.volume,
       );
     } catch {}
-  }, []);
+  }, [currentPlaylistTracks]);
 
   const next = useCallback(async () => {
     const s = stateRef.current;
-    const pl = s.playlist;
-    if (!pl.length) return;
+    const queueLen = AudioManager.getQueueLength();
+    if (!queueLen) return;
 
-    if (s.repeatMode === 'one' && s.currentTrack) {
-      dispatch({ type: 'PATCH', patch: { isLoading: true } });
-      await reloadCurrent(true, 0);
-      dispatch({ type: 'LOAD_TRACK', track: s.currentTrack, playlist: pl });
-      return;
-    }
-
+    // Native RepeatMode.One replays the active item on end; manual next advances.
     let i: number;
     if (s.shuffle) {
-      i = getRandomIndex(idx.current, pl.length);
+      i = getRandomIndex(idx.current, queueLen);
     } else {
       i = idx.current + 1;
     }
 
-    if (!s.shuffle && i >= pl.length) {
+    if (!s.shuffle && i >= queueLen) {
       if (s.repeatMode === 'all') {
         i = 0;
       } else {
@@ -519,10 +523,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (s.shuffle || !AudioManager.canSkipNextInQueue() || i !== idx.current + 1) {
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
-      await syncQueue(pl, i, true);
+      await syncQueue(currentPlaylistTracks(), i, true);
       seekOffset.current = 0;
       ignoreStalePositionUntil.current = Date.now() + 1200;
-      dispatch({ type: 'LOAD_TRACK', track: pl[i], playlist: pl });
+      const track = tracksRef.current.get(AudioManager.getQueue()[i]?.mediaId ?? '');
+      if (track) dispatch({ type: 'LOAD_TRACK', track });
       idx.current = i;
       return;
     }
@@ -530,12 +535,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     beginTrackChange(i);
     AudioManager.skipToNextInQueue();
     idx.current = i;
-  }, [reloadCurrent, syncQueue, beginTrackChange]);
+  }, [currentPlaylistTracks, syncQueue, beginTrackChange]);
 
   const previous = useCallback(async () => {
     const s = stateRef.current;
-    const { playlist, position } = s;
-    if (!playlist.length) return;
+    const { position } = s;
+    const queueLen = AudioManager.getQueueLength();
+    if (!queueLen) return;
 
     if (s.repeatMode === 'one') {
       await AudioManager.setPositionAsync(0);
@@ -551,24 +557,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     let i: number;
     if (s.shuffle) {
-      i = getRandomIndex(idx.current, playlist.length);
+      i = getRandomIndex(idx.current, queueLen);
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
-      await syncQueue(playlist, i, true);
-      dispatch({ type: 'LOAD_TRACK', track: playlist[i], playlist });
+      await syncQueue(currentPlaylistTracks(), i, true);
+      const track = tracksRef.current.get(AudioManager.getQueue()[i]?.mediaId ?? '');
+      if (track) dispatch({ type: 'LOAD_TRACK', track });
       idx.current = i;
       return;
     }
 
     if (idx.current <= 0) {
-      i = playlist.length - 1;
-      if (s.repeatMode === 'off' && playlist.length <= 1) {
+      i = queueLen - 1;
+      if (s.repeatMode === 'off' && queueLen <= 1) {
         await AudioManager.setPositionAsync(0);
         dispatch({ type: 'PATCH', patch: { position: 0 } });
         return;
       }
       dispatch({ type: 'PATCH', patch: { isLoading: true } });
-      await syncQueue(playlist, i, true);
-      dispatch({ type: 'LOAD_TRACK', track: playlist[i], playlist });
+      await syncQueue(currentPlaylistTracks(), i, true);
+      const track = tracksRef.current.get(AudioManager.getQueue()[i]?.mediaId ?? '');
+      if (track) dispatch({ type: 'LOAD_TRACK', track });
       idx.current = i;
       return;
     }
@@ -583,10 +591,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     i = idx.current - 1;
     dispatch({ type: 'PATCH', patch: { isLoading: true } });
-    await syncQueue(playlist, i, true);
-    dispatch({ type: 'LOAD_TRACK', track: playlist[i], playlist });
+    await syncQueue(currentPlaylistTracks(), i, true);
+    const track = tracksRef.current.get(AudioManager.getQueue()[i]?.mediaId ?? '');
+    if (track) dispatch({ type: 'LOAD_TRACK', track });
     idx.current = i;
-  }, [syncQueue]);
+  }, [currentPlaylistTracks, syncQueue, beginTrackChange]);
 
   const seek = useCallback(async (ms: number) => {
     const track = stateRef.current.currentTrack;
@@ -630,11 +639,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const current = stateRef.current.repeatMode;
     const next: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'one', one: 'off' };
     dispatch({ type: 'PATCH', patch: { repeatMode: next[current] } });
-  }, []);
+    applyRepeatMode(next[current]);
+    setItem('player_repeat_mode', next[current]).catch(() => {});
+  }, [applyRepeatMode]);
 
   const toggleShuffle = useCallback(() => {
-    dispatch({ type: 'PATCH', patch: { shuffle: !stateRef.current.shuffle } });
-  }, []);
+    const nextShuffle = !stateRef.current.shuffle;
+    dispatch({ type: 'PATCH', patch: { shuffle: nextShuffle } });
+    applyRepeatMode(undefined, nextShuffle);
+  }, [applyRepeatMode]);
 
   const openFullPlayer = useCallback(() => setFullPlayerOpen(true), []);
   const closeFullPlayer = useCallback(() => setFullPlayerOpen(false), []);

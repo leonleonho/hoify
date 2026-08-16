@@ -114,7 +114,6 @@ export const mockTrack3: Track = {
 export function makePlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
     currentTrack: null,
-    playlist: [],
     isPlaying: false,
     isLoading: false,
     position: 0,

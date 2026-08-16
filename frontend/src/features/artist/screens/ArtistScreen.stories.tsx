@@ -86,7 +86,6 @@ const meta = {
   decorators: [
     withPlayerContext({
       currentTrack: null,
-      playlist: [],
       isPlaying: false,
       isLoading: false,
       position: 0,

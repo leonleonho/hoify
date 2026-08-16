@@ -113,15 +113,6 @@ describe('reducer', () => {
     expect(s.isPlaying).toBe(false);
   });
 
-  it('LOAD_TRACK stores playlist when provided', () => {
-    const s = reducer(initialState(), {
-      type: 'LOAD_TRACK',
-      track: mockTrack1,
-      playlist: [mockTrack1, mockTrack2],
-    });
-    expect(s.playlist).toHaveLength(2);
-  });
-
   it('default returns state unchanged', () => {
     const s = { ...initialState(), isPlaying: true };
     expect(reducer(s, { type: 'UNKNOWN' })).toBe(s);
@@ -134,6 +125,7 @@ describe('PlayerProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   it('provides initial state', () => {
@@ -250,7 +242,6 @@ describe('PlayerProvider', () => {
     expect(index).toBe(1); // after active item (native index 0)
     expect(items[0].mediaId).toBe('track-3');
     expect(items[0].extras.playlistIndex).toBe(1);
-    expect(cap.current.playlist.map((t) => t.id)).toEqual(['track-1', 'track-3', 'track-2']);
     expect(cap.current.currentTrack?.id).toBe('track-1');
   });
 
@@ -405,7 +396,6 @@ describe('PlayerProvider', () => {
       });
     });
 
-    expect(cap.current.playlist).toHaveLength(2);
     expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 
@@ -598,18 +588,46 @@ describe('PlayerProvider', () => {
 
   // ── repeat / shuffle tests ─────────────────────────────────────────────
 
-  it('toggleRepeat cycles off → all → one → off', () => {
+  it('toggleRepeat cycles off → all → one → off and syncs native repeat', () => {
     const cap = renderProvider();
     expect(cap.current.repeatMode).toBe('off');
 
     act(() => cap.current.toggleRepeat());
     expect(cap.current.repeatMode).toBe('all');
+    expect(mockTrackPlayer.setRepeatMode).toHaveBeenLastCalledWith('all');
 
     act(() => cap.current.toggleRepeat());
     expect(cap.current.repeatMode).toBe('one');
+    expect(mockTrackPlayer.setRepeatMode).toHaveBeenLastCalledWith('one');
 
     act(() => cap.current.toggleRepeat());
     expect(cap.current.repeatMode).toBe('off');
+    expect(mockTrackPlayer.setRepeatMode).toHaveBeenLastCalledWith('off');
+  });
+
+  it('persists repeat mode to storage on toggle', () => {
+    const cap = renderProvider();
+    act(() => cap.current.toggleRepeat());
+    expect(localStorage.getItem('player_repeat_mode')).toBe('all');
+  });
+
+  it('restores persisted repeat mode on mount', async () => {
+    localStorage.setItem('player_repeat_mode', 'one');
+    const cap = renderProvider();
+    await act(async () => {});
+    expect(cap.current.repeatMode).toBe('one');
+    expect(mockTrackPlayer.setRepeatMode).toHaveBeenLastCalledWith('one');
+  });
+
+  it('repeat-all + shuffle maps to native off (JS re-randomizes at end)', () => {
+    const cap = renderProvider();
+    act(() => cap.current.toggleRepeat()); // off → all
+    expect(mockTrackPlayer.setRepeatMode).toHaveBeenLastCalledWith('all');
+
+    act(() => cap.current.toggleShuffle());
+    expect(cap.current.shuffle).toBe(true);
+    // native All can't re-randomize, so effective mode drops to off
+    expect(mockTrackPlayer.setRepeatMode).toHaveBeenLastCalledWith('off');
   });
 
   it('toggleShuffle toggles shuffle boolean', () => {
@@ -623,7 +641,7 @@ describe('PlayerProvider', () => {
     expect(cap.current.shuffle).toBe(false);
   });
 
-  it('repeat-one next replays same track', async () => {
+  it('repeat-one next advances to next track (native One handles end replay)', async () => {
     const cap = renderProvider();
     await act(async () => {
       await cap.current.playPlaylist([mockTrack1, mockTrack2], 0);
@@ -636,7 +654,9 @@ describe('PlayerProvider', () => {
     await act(async () => {
       await cap.current.next();
     });
-    expect(mockTrackPlayer.replaceMediaItem).toHaveBeenCalled();
+    // Manual next advances even under repeat-one; it does not reload the stream.
+    expect(mockTrackPlayer.replaceMediaItem).not.toHaveBeenCalled();
+    expect(cap.current.currentTrack?.id).toBe('track-2');
   });
 
   it('repeat-off next at end stops playback', async () => {
