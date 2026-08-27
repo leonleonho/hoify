@@ -451,9 +451,11 @@ export type Track = {
   fileFormat?: Maybe<Scalars['String']['output']>;
   filePath: Scalars['String']['output'];
   fileSize?: Maybe<Scalars['Int']['output']>;
+  gainMultiplier?: Maybe<Scalars['Float']['output']>;
   genres: Array<Genre>;
   id: Scalars['ID']['output'];
   liked: Scalars['Boolean']['output'];
+  loudnessLufs?: Maybe<Scalars['Float']['output']>;
   title: Scalars['String']['output'];
   trackArtist?: Maybe<Scalars['String']['output']>;
   trackNumber?: Maybe<Scalars['Int']['output']>;

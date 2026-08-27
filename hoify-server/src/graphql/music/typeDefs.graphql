@@ -30,6 +30,8 @@ type Track {
   filePath: String!
   fileFormat: String
   fileSize: Int
+  loudnessLufs: Float
+  gainMultiplier: Float
   genres: [Genre!]!
   liked: Boolean!
   createdAt: String!

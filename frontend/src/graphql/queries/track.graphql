@@ -7,6 +7,7 @@ query Track($id: ID!) {
     discNumber
     duration
     filePath
+    gainMultiplier
     liked
     album {
       id

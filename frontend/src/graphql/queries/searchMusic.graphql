@@ -22,6 +22,7 @@ query SearchMusic($query: String!) {
       trackNumber
       duration
       filePath
+      gainMultiplier
       liked
       genres {
         id

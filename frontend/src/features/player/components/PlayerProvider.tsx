@@ -52,6 +52,7 @@ function buildQueueTracks(
     playlistIndex: index,
     meta: trackMetadata(track),
     durationSeconds: track.duration ?? undefined,
+    gain: track.gainMultiplier ?? 1,
   }));
 }
 
@@ -485,6 +486,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       playlistIndex: insertAt,
       meta: trackMetadata(track),
       durationSeconds: track.duration ?? undefined,
+      gain: track.gainMultiplier ?? 1,
     };
     if (AudioManager.insertNextInQueue(item)) return;
     // No active native item — fall back to a full queue rebuild.
