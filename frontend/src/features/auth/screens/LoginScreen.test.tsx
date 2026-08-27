@@ -126,8 +126,11 @@ it('shows loading state on button while mutation is in flight', async () => {
 
   renderLogin(mocks);
 
-  // Click login — loading renders ActivityIndicator, button is disabled
-  fillAndSubmit();
+  // Click login — loading renders ActivityIndicator, button is disabled.
+  // Must await the typing/click: unawaited user-event calls leak keystrokes
+  // (e.g. the `123` from `secret123`) into the next test's `type()`, corrupting
+  // its input values on the shared user-event keyboard state.
+  await fillAndSubmit();
 
   await waitFor(() => {
     expect(screen.getByRole('button', { name: /log in/i })).toBeDisabled();
@@ -207,7 +210,7 @@ it('disables inputs while mutation is in flight', async () => {
   ];
 
   renderLogin(mocks);
-  fillAndSubmit();
+  await fillAndSubmit();
 
   await waitFor(() => {
     // RNW 0.21 uses readonly (not disabled) when editable={false}
@@ -226,7 +229,7 @@ it('shows ActivityIndicator while mutation is in flight', async () => {
   ];
 
   renderLogin(mocks);
-  fillAndSubmit();
+  await fillAndSubmit();
 
   await waitFor(() => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();

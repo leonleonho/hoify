@@ -9,6 +9,7 @@ import { ingestDropZone } from "./jobs/beets-ingest/run.js";
 import { startWatchIngest } from "./jobs/beets-ingest/watcher.js";
 import { scanLibrary } from "./jobs/library-scanner/scanner.js";
 import { startWatchLibrary } from "./jobs/library-scanner/watcher.js";
+import { enqueueMissingLoudness } from "./jobs/enrichment/backfillLoudness.js";
 import { ingestPath, musicLibraryPath } from "./paths.js";
 import { ensureInitialAdmin } from "./bootstrap/ensureInitialAdmin.js";
 
@@ -46,6 +47,12 @@ async function start() {
       .catch((err) => {
         logger.error(err, "Startup library scan failed");
       });
+
+    // Loudness backfill for tracks imported before this feature or whose
+    // analysis failed. Runs on every boot; cheap query against the tracks table.
+    enqueueMissingLoudness()
+      .then((n) => logger.info({ count: n }, "Loudness backfill enqueued"))
+      .catch((err) => logger.error(err, "Loudness backfill scan failed"));
 
     // Beets import of drop zone; enrichment comes from the music watcher.
     ingestDropZone(ingestPath)

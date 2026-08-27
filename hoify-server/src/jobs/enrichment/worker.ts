@@ -4,6 +4,11 @@ import { connection } from "./queue.js";
 import { parseFile } from "./parser.js";
 import { identify } from "./identification/identify.js";
 import { upsertOne, saveAlbumArt } from "./storage/storageUtils.js";
+import {
+  analyzeLoudness,
+  loudnessTargetLufs,
+  updateTrackLoudness,
+} from "./loudness.js";
 import { recordScanState } from "./storage/scanState.js";
 import { logger } from "../../util/logger.js";
 import type { EnqueuePayload } from "./types/types.js";
@@ -39,6 +44,20 @@ export const enrichmentWorker = new Worker<EnqueuePayload>(
 
     const enriched = await identify(filePath, parsed);
     const { albumId } = await upsertOne(enriched);
+
+    // Loudness analysis (EBU R128). Not fatal if it fails — the track is still
+    // enriched; a failed analysis is retried by the startup backfill.
+    try {
+      const lufs = await analyzeLoudness(filePath);
+      if (lufs != null) {
+        await updateTrackLoudness(filePath, lufs, loudnessTargetLufs());
+      }
+    } catch (err) {
+      logger.warn(
+        { filePath, error: (err as Error).message },
+        "Loudness analysis failed for track",
+      );
+    }
 
     if (enriched.embeddedPicture) {
       await saveAlbumArt(albumId, enriched.embeddedPicture);

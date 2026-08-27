@@ -501,6 +501,8 @@ export async function searchMusic(query: string) {
           filePath: tracks.filePath,
           fileFormat: tracks.fileFormat,
           fileSize: tracks.fileSize,
+          loudnessLufs: tracks.loudnessLufs,
+          gainMultiplier: tracks.gainMultiplier,
           createdAt: tracks.createdAt,
           updatedAt: tracks.updatedAt,
         })

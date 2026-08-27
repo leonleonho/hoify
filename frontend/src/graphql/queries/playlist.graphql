@@ -13,6 +13,7 @@ query Playlist($id: ID!) {
       trackNumber
       duration
       filePath
+      gainMultiplier
       liked
       genres {
         id

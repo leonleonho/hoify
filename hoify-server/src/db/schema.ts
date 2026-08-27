@@ -6,6 +6,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -147,6 +148,8 @@ export const tracks = pgTable(
     musicbrainzRecordingId: text("musicbrainz_recording_id"),
     musicbrainzArtistId: text("musicbrainz_artist_id"),
     musicbrainzAlbumId: text("musicbrainz_album_id"),
+    loudnessLufs: real("loudness_lufs"),
+    gainMultiplier: real("gain_multiplier"),
     aliases: text("aliases").array().default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

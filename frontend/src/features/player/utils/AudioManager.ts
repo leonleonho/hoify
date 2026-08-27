@@ -22,6 +22,8 @@ export interface QueueTrack {
   playlistIndex: number;
   meta?: LockScreenMetadata;
   durationSeconds?: number;
+  /** Loudness-normalization gain multiplier (~0.25–4). Applied as a volume offset. */
+  gain?: number;
 }
 
 /**
@@ -38,6 +40,21 @@ let _statusSubscriptions: { remove: () => void }[] = [];
 let _hasLoaded = false;
 let _activeMediaId: string | null = null;
 let _lastTransitionAt = 0;
+
+/** User volume (0–1), independent of per-track loudness gain. */
+let _userVolume = 1;
+/** Gain multiplier of the currently active track (default 1 = no adjustment). */
+let _activeGain = 1;
+
+/** Clamp the effective volume (user volume × gain) to a valid RNTP range. */
+function clampVolume(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
+
+/** Apply the effective volume for the current user volume + active gain. */
+function applyEffectiveVolume(): void {
+  TrackPlayer.setVolume(clampVolume(_userVolume * _activeGain));
+}
 
 /** Drop progress from the previous item or the pre-buffer window after a skip. */
 const TRANSITION_STALE_MS = 1200;
@@ -158,7 +175,7 @@ function toMediaItem(track: QueueTrack): MediaItem {
     albumTitle: track.meta?.albumTitle,
     artworkUrl: track.meta?.artworkUrl,
     duration: track.durationSeconds,
-    extras: { playlistIndex: track.playlistIndex },
+    extras: { playlistIndex: track.playlistIndex, gain: track.gain ?? 1 },
   };
 }
 
@@ -192,6 +209,12 @@ function wireStatusListeners(): void {
       }
       const extras = e.item?.extras as QueueTransitionExtras | undefined;
       const playlistIndex = extras?.playlistIndex;
+      // Loudness gain travels with the media item (across the RNTP service
+      // boundary on Android Auto), so read it here rather than from React state.
+      if (typeof extras?.gain === 'number' && extras.gain !== _activeGain) {
+        _activeGain = extras.gain;
+        applyEffectiveVolume();
+      }
       if (typeof playlistIndex === 'number') {
         // Native queue position is authoritative post-insert; extras.playlistIndex
         // goes stale on items shifted by insertMediaItems.
@@ -297,7 +320,9 @@ export async function setQueue(
   await setupPlayer();
   const queueIndex = Math.max(0, Math.min(playlistIndex, tracks.length - 1));
 
-  TrackPlayer.setVolume(volume);
+  _userVolume = clampVolume(volume);
+  _activeGain = tracks[queueIndex]?.gain ?? 1;
+  applyEffectiveVolume();
   TrackPlayer.setMediaItems(tracks.map(toMediaItem), queueIndex);
   _activeMediaId = tracks[queueIndex]?.mediaId ?? null;
   _hasLoaded = true;
@@ -361,7 +386,9 @@ export async function reloadActiveItem(
     meta,
   };
 
-  TrackPlayer.setVolume(volume);
+  _userVolume = clampVolume(volume);
+  // Reloading the active item keeps its gain in `_activeGain`; re-apply effective volume.
+  applyEffectiveVolume();
   if (activeIndex != null) {
     TrackPlayer.replaceMediaItem(activeIndex, toMediaItem(item));
   } else {
@@ -393,6 +420,8 @@ export async function unload(): Promise<void> {
     _onQueueTransition = null;
     _activeMediaId = null;
     _lastTransitionAt = 0;
+    _userVolume = 1;
+    _activeGain = 1;
   }
 }
 
@@ -401,7 +430,8 @@ export async function setPositionAsync(ms: number): Promise<void> {
 }
 
 export async function setVolumeAsync(v: number): Promise<void> {
-  TrackPlayer.setVolume(v);
+  _userVolume = clampVolume(v);
+  applyEffectiveVolume();
 }
 
 /** Set native repeat mode. Enum values ('off'|'one'|'all') match the app type. */
@@ -429,6 +459,8 @@ export function _resetForTests(): void {
   _onQueueTransition = null;
   _activeMediaId = null;
   _lastTransitionAt = 0;
+  _userVolume = 1;
+  _activeGain = 1;
 }
 
 /** No-op — metadata travels with media items in load(). */

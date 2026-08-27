@@ -6,6 +6,7 @@ import {
   setOnQueueTransition,
   setQueue,
   reloadActiveItem,
+  setVolumeAsync,
   saveSnapshot,
   popSnapshot,
   getActivePlaylistIndex,
@@ -105,6 +106,62 @@ describe('AudioManager', () => {
       nativeIndex: 0,
     });
     expect(hasActiveSound()).toBe(true);
+  });
+
+  it('setQueue applies effective volume = userVolume × gain of the starting track', async () => {
+    await setupPlayer();
+    mockTrackPlayer.setVolume(0.8); // seed user volume
+    await setQueue(
+      [{ mediaId: 't0', url: 'u', playlistIndex: 0, gain: 0.5 }],
+      0,
+      false,
+      0.8,
+    );
+    expect(mockTrackPlayer.getVolume()).toBeCloseTo(0.4);
+  });
+
+  it('setVolumeAsync folds the active track gain into the effective volume', async () => {
+    await setupPlayer();
+    // Start a queue with a gain-0.5 track, then raise the user volume.
+    await setQueue(
+      [{ mediaId: 't0', url: 'u', playlistIndex: 0, gain: 0.5 }],
+      0,
+      false,
+      0.8,
+    );
+    await setVolumeAsync(1);
+    expect(mockTrackPlayer.getVolume()).toBeCloseTo(0.5);
+    // Volume slider max 1 → effective capped at 1×gain.
+  });
+
+  it('MediaItemTransition applies the new track gain and clamps effective volume', async () => {
+    await setupPlayer();
+    // Gain 2 boosts above 1; clamped to 1 so it can't push past full scale.
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { extras: { playlistIndex: 0, gain: 2 } },
+      index: 0,
+    });
+    expect(mockTrackPlayer.getVolume()).toBe(1);
+  });
+
+  it('MediaItemTransition applies a quiet track gain without clamping', async () => {
+    await setupPlayer();
+    await setVolumeAsync(0.8);
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { extras: { playlistIndex: 0, gain: 0.5 } },
+      index: 0,
+    });
+    expect(mockTrackPlayer.getVolume()).toBeCloseTo(0.4);
+  });
+
+  it('MediaItemTransition ignores missing gain (defaults to no adjustment)', async () => {
+    await setupPlayer();
+    await setVolumeAsync(0.8);
+    fireTrackPlayerEvent(TrackPlayerEvent.MediaItemTransition, {
+      item: { extras: { playlistIndex: 0 } },
+      index: 0,
+    });
+    expect(mockTrackPlayer.getVolume()).toBeCloseTo(0.8);
   });
 
   it('MediaItemTransition emits position zero despite stale native progress', async () => {
