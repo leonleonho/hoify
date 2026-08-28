@@ -35,6 +35,12 @@ export const cache = new InMemoryCache({
             return mergeOffsetPage(existing, incoming, args?.offset ?? 0);
           },
         },
+        tracks: {
+          keyArgs: false,
+          merge(existing: PageLike | undefined, incoming: PageLike, { args }) {
+            return mergeOffsetPage(existing, incoming, args?.offset ?? 0);
+          },
+        },
         albums: {
           keyArgs: ['artistId'],
           merge(existing: PageLike | undefined, incoming: PageLike, { args }) {

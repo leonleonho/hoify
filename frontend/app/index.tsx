@@ -139,6 +139,7 @@ const styles = StyleSheet.create({
   },
   categories: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
   },

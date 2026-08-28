@@ -24,9 +24,11 @@ export function CategoryTile({ category, onPress }: Props) {
       style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
       onPress={onPress}
     >
-      <Icon size={28} color={colors.primary} />
+      <Icon size={22} color={colors.primary} />
       <View style={styles.textRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label} numberOfLines={1}>
+          {label}
+        </Text>
         <ChevronRight size={20} color={colors.textMuted} />
       </View>
     </Pressable>
@@ -35,7 +37,8 @@ export function CategoryTile({ category, onPress }: Props) {
 
 const styles = StyleSheet.create({
   tile: {
-    flex: 1,
+    flexBasis: '45%',
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -53,7 +56,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   label: {
-    ...typography.h3,
+    ...typography.bodySmall,
+    fontWeight: '600',
     color: colors.text,
+    flexShrink: 1,
   },
 });
