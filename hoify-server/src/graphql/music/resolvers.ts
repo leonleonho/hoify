@@ -40,7 +40,9 @@ export const resolvers = {
   Album: {
     artist: (parent: { artistId: string }) => getArtist(parent.artistId),
     tracks: (parent: { id: string }) =>
-      listTracks({ albumId: parent.id, sort: "TRACK_NUMBER" }),
+      listTracks({ albumId: parent.id, sort: "TRACK_NUMBER" }).then(
+        (page) => page.items,
+      ),
     createdAt: (parent: { createdAt: Date | string }) => fmtDate(parent.createdAt),
     updatedAt: (parent: { updatedAt: Date | string }) => fmtDate(parent.updatedAt),
   },

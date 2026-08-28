@@ -132,6 +132,7 @@ const ALBUM_QUERY = `
       tracks {
         id
         title
+        trackNumber
       }
     }
   }
@@ -949,6 +950,26 @@ describe("Music e2e", () => {
       expect(res.data!.tracks.items.length).toBe(1);
       expect(res.data!.tracks.totalCount).toBe(1);
       expect(res.data!.tracks.items[0].title).toBe("Test Track");
+    });
+
+    it("returns album.tracks as a flat list ordered by track number", async () => {
+      const res = await executeGraphQL<{
+        album: {
+          id: string;
+          tracks: Array<{ id: string; title: string; trackNumber: number | null }>;
+        };
+      }>(agent, {
+        query: ALBUM_QUERY,
+        variables: { id: testAlbumId },
+        token: authToken,
+      });
+
+      expect(res.errors).toBeUndefined();
+      // must be a plain array of tracks, not a page object
+      expect(Array.isArray(res.data!.album.tracks)).toBe(true);
+      expect(res.data!.album.tracks).toHaveLength(1);
+      expect(res.data!.album.tracks[0].id).toBe(testTrackId);
+      expect(res.data!.album.tracks[0].title).toBe("Test Track");
     });
 
     it("gets track by id with nested album, artist, and genres", async () => {
