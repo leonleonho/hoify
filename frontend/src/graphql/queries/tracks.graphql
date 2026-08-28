@@ -1,0 +1,21 @@
+query Tracks($limit: Int = 100, $offset: Int = 0) {
+  tracks(sort: ADDED, limit: $limit, offset: $offset) {
+    totalCount
+    items {
+      id
+      title
+      trackArtist
+      duration
+      liked
+      album {
+        id
+        title
+        coverUrl
+        artist {
+          id
+          name
+        }
+      }
+    }
+  }
+}

@@ -166,17 +166,20 @@ const DELETE_TRACK_MUTATION = `
 const TRACKS_QUERY = `
   query Tracks($albumId: ID) {
     tracks(albumId: $albumId) {
-      id
-      title
-      trackNumber
-      discNumber
-      duration
-      filePath
-      fileFormat
-      fileSize
-      album {
+      items {
         id
+        title
+        trackNumber
+        discNumber
+        duration
+        filePath
+        fileFormat
+        fileSize
+        album {
+          id
+        }
       }
+      totalCount
     }
   }
 `;
@@ -919,20 +922,23 @@ describe("Music e2e", () => {
 
     it("lists tracks", async () => {
       const res = await executeGraphQL<{
-        tracks: Array<{ id: string; title: string }>;
+        tracks: { items: Array<{ id: string; title: string }>; totalCount: number };
       }>(agent, {
         query: TRACKS_QUERY,
         token: authToken,
       });
 
       expect(res.errors).toBeUndefined();
-      expect(res.data!.tracks.length).toBeGreaterThanOrEqual(1);
-      expect(res.data!.tracks.some((t) => t.title === "Test Track")).toBe(true);
+      expect(res.data!.tracks.items.length).toBeGreaterThanOrEqual(1);
+      expect(res.data!.tracks.totalCount).toBeGreaterThanOrEqual(1);
+      expect(res.data!.tracks.items.some((t) => t.title === "Test Track")).toBe(
+        true,
+      );
     });
 
     it("filters tracks by albumId", async () => {
       const res = await executeGraphQL<{
-        tracks: Array<{ id: string; title: string }>;
+        tracks: { items: Array<{ id: string; title: string }>; totalCount: number };
       }>(agent, {
         query: TRACKS_QUERY,
         variables: { albumId: testAlbumId },
@@ -940,8 +946,9 @@ describe("Music e2e", () => {
       });
 
       expect(res.errors).toBeUndefined();
-      expect(res.data!.tracks.length).toBe(1);
-      expect(res.data!.tracks[0].title).toBe("Test Track");
+      expect(res.data!.tracks.items.length).toBe(1);
+      expect(res.data!.tracks.totalCount).toBe(1);
+      expect(res.data!.tracks.items[0].title).toBe("Test Track");
     });
 
     it("gets track by id with nested album, artist, and genres", async () => {

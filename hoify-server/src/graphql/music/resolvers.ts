@@ -39,7 +39,8 @@ export const resolvers = {
 
   Album: {
     artist: (parent: { artistId: string }) => getArtist(parent.artistId),
-    tracks: (parent: { id: string }) => listTracks(parent.id),
+    tracks: (parent: { id: string }) =>
+      listTracks({ albumId: parent.id, sort: "TRACK_NUMBER" }),
     createdAt: (parent: { createdAt: Date | string }) => fmtDate(parent.createdAt),
     updatedAt: (parent: { updatedAt: Date | string }) => fmtDate(parent.updatedAt),
   },
@@ -75,8 +76,15 @@ export const resolvers = {
       },
     ) => listAlbums(args),
     album: (_: unknown, args: { id: string }) => getAlbum(args.id),
-    tracks: (_: unknown, args: { albumId?: string }) =>
-      listTracks(args.albumId ?? null),
+    tracks: (
+      _: unknown,
+      args: {
+        albumId?: string | null;
+        sort?: "ADDED" | "TITLE" | "TRACK_NUMBER" | null;
+        limit?: number | null;
+        offset?: number | null;
+      },
+    ) => listTracks(args),
     track: (_: unknown, args: { id: string }) => getTrack(args.id),
     genres: () => listGenres(),
     genre: (_: unknown, args: { id: string }) => getGenre(args.id),

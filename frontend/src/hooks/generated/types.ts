@@ -353,7 +353,7 @@ export type Query = {
   searchMusic: SearchResults;
   startDownloadSearch: DownloadSearch;
   track?: Maybe<Track>;
-  tracks: Array<Track>;
+  tracks: TrackPage;
 };
 
 
@@ -422,6 +422,9 @@ export type QueryTrackArgs = {
 
 export type QueryTracksArgs = {
   albumId?: InputMaybe<Scalars['ID']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  sort?: InputMaybe<TrackSort>;
 };
 
 export type RemoveTracksFromPlaylistInput = {
@@ -461,6 +464,18 @@ export type Track = {
   trackNumber?: Maybe<Scalars['Int']['output']>;
   updatedAt: Scalars['String']['output'];
 };
+
+export type TrackPage = {
+  __typename?: 'TrackPage';
+  items: Array<Track>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export enum TrackSort {
+  Added = 'ADDED',
+  Title = 'TITLE',
+  TrackNumber = 'TRACK_NUMBER'
+}
 
 export type UpdateAlbumArtInput = {
   imageBase64: Scalars['String']['input'];

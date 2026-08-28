@@ -85,6 +85,10 @@ export default function IndexScreen() {
             />
             <View style={styles.categories}>
               <CategoryTile
+                category="tracks"
+                onPress={() => router.push('/tracks' as any)}
+              />
+              <CategoryTile
                 category="artists"
                 onPress={() => router.push('/artists' as any)}
               />

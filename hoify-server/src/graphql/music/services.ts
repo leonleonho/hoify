@@ -1,6 +1,6 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { GraphQLError } from "graphql";
 import { db } from "../../db/index.js";
 import {
@@ -314,14 +314,47 @@ export async function deleteAlbum(id: string) {
 // Tracks
 // ---------------------------------------------------------------------------
 
-export async function listTracks(albumId: string | null) {
-  const filter = albumId ? eq(tracks.albumId, albumId) : undefined;
-  return db
-    .select()
-    .from(tracks)
-    .where(filter)
-    .orderBy(asc(tracks.discNumber), asc(tracks.trackNumber))
-    .limit(50);
+export type TrackSort = "ADDED" | "TITLE" | "TRACK_NUMBER";
+
+function trackOrderBy(sort: TrackSort) {
+  switch (sort) {
+    case "TITLE":
+      return [asc(tracks.title), asc(tracks.id)];
+    case "TRACK_NUMBER":
+      return [asc(tracks.discNumber), asc(tracks.trackNumber)];
+    case "ADDED":
+    default:
+      return [desc(tracks.createdAt), desc(tracks.id)];
+  }
+}
+
+export async function listTracks(options?: {
+  albumId?: string | null;
+  sort?: TrackSort | null;
+  limit?: number | null;
+  offset?: number | null;
+}) {
+  const { limit, offset } = clampPageArgs(options?.limit, options?.offset);
+  const filter = options?.albumId
+    ? eq(tracks.albumId, options.albumId)
+    : undefined;
+  const orderBy = trackOrderBy(options?.sort ?? "ADDED");
+
+  const [items, countRows] = await Promise.all([
+    db
+      .select()
+      .from(tracks)
+      .where(filter)
+      .orderBy(...orderBy)
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tracks)
+      .where(filter),
+  ]);
+
+  return { items, totalCount: countRows[0]?.count ?? 0 };
 }
 
 export async function getTrack(id: string) {
