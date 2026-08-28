@@ -1,7 +1,7 @@
 import '@expo/metro-runtime';
 import { useQuery } from '@apollo/client/react';
 import { ApolloProvider } from '@apollo/client/react';
-import { Redirect, Slot, useSegments } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import {
@@ -99,7 +99,9 @@ function AppShell() {
       <OfflineModeRedirect />
       <SafeAreaView style={styles.shell} edges={['top', 'left', 'right']}>
         <View style={[styles.content, { paddingBottom: miniPlayerInset }]}>
-          <Slot />
+          {/* Native stack keeps screens mounted underneath on push, so
+              paginated lists preserve their scroll position on back. */}
+          <Stack screenOptions={{ headerShown: false }} />
         </View>
       </SafeAreaView>
       {/* Float above native stack screens — otherwise Android eats touches */}
